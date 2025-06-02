@@ -32,7 +32,7 @@ interface Ejercicio {
 }
 
 const ITEMS_PER_PAGE = 10;
-const GUEST_ITEM_LIMIT = 5;
+const GUEST_ITEM_LIMIT = 10; // Updated from 5 to 10
 const ALL_PHASES_VALUE = "ALL_PHASES";
 const ALL_AGES_VALUE = "ALL_AGES";
 
@@ -48,11 +48,10 @@ export default function EjerciciosPage() {
 
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState(''); // Example: 'Defensa', 'Ataque'
-  const [ageFilter, setAgeFilter] = useState(''); // Example: 'U10', 'Senior'
+  const [categoryFilter, setCategoryFilter] = useState(ALL_PHASES_VALUE); 
+  const [ageFilter, setAgeFilter] = useState(ALL_AGES_VALUE); 
 
   const uniqueAgeCategories = useMemo(() => {
-    // In a real app, these would likely come from Firestore or a predefined list
     return ["Benjamín (U8-U9)", "Alevín (U10-U11)", "Infantil (U12-U13)", "Cadete (U14-U15)", "Juvenil (U16-U18)", "Senior"];
   }, []);
   
@@ -68,8 +67,6 @@ export default function EjerciciosPage() {
       const constraints: QueryConstraint[] = [];
 
       if (search) {
-        // Firestore doesn't support full-text search natively.
-        // This is a basic prefix match on 'ejercicio'. For better search, use a dedicated search service.
         constraints.push(where('ejercicio', '>=', search));
         constraints.push(where('ejercicio', '<=', search + '\uf8ff'));
       }
@@ -80,7 +77,7 @@ export default function EjerciciosPage() {
         constraints.push(where('categoria_edad', '==', age));
       }
 
-      constraints.push(firestoreOrderBy('ejercicio')); // Default order by name
+      constraints.push(firestoreOrderBy('ejercicio')); 
 
       if (!isRegisteredUser) {
         constraints.push(limit(GUEST_ITEM_LIMIT));
@@ -88,16 +85,6 @@ export default function EjerciciosPage() {
         constraints.push(limit(ITEMS_PER_PAGE));
         if (direction === 'next' && lastVisible) {
           constraints.push(startAfter(lastVisible));
-        } else if (direction === 'prev' && page > 1 && pageHistory[page-1]) {
-           // This is tricky with startAfter, Firestore SDK doesn't have endBefore for web.
-           // For simplicity, prev will refetch up to that point. 
-           // Proper pagination requires more complex cursor management or offset-based (if small dataset)
-           // For now, 'prev' will reset and fetch first page of previous set for simplicity.
-           // This is a simplification and not true "previous page" functionality with cursors.
-           // A full solution would require storing cursors for each page or using a library.
-           // For this example, 'prev' is not fully implemented with cursors due to Firestore SDK limitations.
-           // We will manage this by refetching or disabling prev for now.
-           // For now, we will only implement next and first page.
         }
       }
       
@@ -115,37 +102,33 @@ export default function EjerciciosPage() {
         } else if (direction === 'next') {
           setPageHistory(prev => [...prev, documentSnapshots.docs[documentSnapshots.docs.length - 1]]);
         }
-        // Total count is hard with Firestore pagination without reading all docs.
-        // For simplicity, we'll assume there's always a "next" page unless fewer than ITEMS_PER_PAGE are returned.
-        setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1); // Heuristic
+        setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1); 
       } else {
         setTotalEjercicios(fetchedEjercicios.length);
       }
 
     } catch (error) {
       console.error("Error fetching exercises: ", error);
-      // Add toast notification for error
     }
     setIsLoading(false);
   };
   
   useEffect(() => {
-    fetchEjercicios(currentPage, searchTerm, categoryFilter, ageFilter, 'first');
+    setCurrentPage(1); // Reset to page 1 on filter change
+    setPageHistory([null]); // Reset history on filter change
+    fetchEjercicios(1, searchTerm, categoryFilter, ageFilter, 'first');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, searchTerm, categoryFilter, ageFilter]); // Re-fetch when auth status or filters change
+  }, [isRegisteredUser, searchTerm, categoryFilter, ageFilter]); 
 
   const handlePageChange = (newPage: number) => {
-    if (newPage > currentPage) { // Next
+    if (newPage > currentPage) { 
       setCurrentPage(newPage);
       fetchEjercicios(newPage, searchTerm, categoryFilter, ageFilter, 'next');
-    } else if (newPage < currentPage && newPage > 0) { // Previous - simplified
+    } else if (newPage < currentPage && newPage > 0) { 
       setCurrentPage(newPage);
-      // For prev, we reset to fetch from start up to the newPage * ITEMS_PER_PAGE
-      // This is not ideal but works for a basic implementation
-      // This requires a more complex query structure to fetch the actual previous page using cursors
-      // For now, previous button will go to page 1 as a simplification.
+      // Simplified previous page logic - for robust prev, store firstVisible of each page
+      // This will effectively go to the first page of the current filter set
       fetchEjercicios(newPage, searchTerm, categoryFilter, ageFilter, 'first'); 
-      // Resetting history, will only work for going to page 1
       setPageHistory([null]); 
     } else if (newPage === 1) {
       setCurrentPage(1);
@@ -157,9 +140,7 @@ export default function EjerciciosPage() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Placeholder for Excel file processing logic
       console.log("File selected:", file.name);
-      // Add toast: "Subida de Excel no implementada en esta demo."
     }
   };
 
@@ -182,7 +163,7 @@ export default function EjerciciosPage() {
               <div>
                 <h3 className="text-lg font-semibold text-accent font-headline">Acceso Limitado</h3>
                 <p className="text-sm text-accent/80">
-                  Estás viendo una vista previa. <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.
+                  Estás viendo una vista previa ({GUEST_ITEM_LIMIT} ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.
                 </p>
               </div>
             </div>
@@ -315,13 +296,13 @@ export default function EjerciciosPage() {
             ))}
           </div>
 
-          {isRegisteredUser && totalPages > 1 && (
+          {isRegisteredUser && totalPages > 1 && ejercicios.length === ITEMS_PER_PAGE && (
              <Pagination className="mt-8">
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious 
                     href="#" 
-                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} // Simplified: go to page 1
+                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} 
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
                   />
                 </PaginationItem>
@@ -330,8 +311,8 @@ export default function EjerciciosPage() {
                     {currentPage}
                   </PaginationLink>
                 </PaginationItem>
-                {/* Basic next/prev for now - full pagination numbers can be complex with cursors */}
-                {ejercicios.length === ITEMS_PER_PAGE && ( // Heuristic for "has more pages"
+                
+                {ejercicios.length === ITEMS_PER_PAGE && (
                   <PaginationItem>
                     <PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1);}} />
                   </PaginationItem>

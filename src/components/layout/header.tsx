@@ -1,10 +1,11 @@
+
 "use client";
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { LogIn, LogOut, UserPlus, Dumbbell, Sparkles, Edit3, BookUser, ShieldQuestion } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Dumbbell, Sparkles, Edit3, BookUser, ShieldQuestion, Menu } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -29,9 +30,9 @@ export default function Header() {
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/ejercicios', label: 'Ejercicios', icon: <Dumbbell className="mr-2 h-4 w-4" />, guestAllowed: true },
-    { href: '/crear-sesion-ia', label: 'Crear Sesión (IA)', icon: <Sparkles className="mr-2 h-4 w-4" />, guestAllowed: false },
-    { href: '/crear-sesion-manual', label: 'Crear Sesión (Manual)', icon: <Edit3 className="mr-2 h-4 w-4" />, guestAllowed: false },
+    { href: '/ejercicios', label: 'Ver ejercicios', icon: <Dumbbell className="mr-2 h-4 w-4" />, guestAllowed: true },
+    { href: '/crear-sesion-manual', label: 'Crear sesiones (Manual)', icon: <Edit3 className="mr-2 h-4 w-4" />, guestAllowed: false },
+    { href: '/crear-sesion-ia', label: 'Crear sesiones (IA)', icon: <Sparkles className="mr-2 h-4 w-4" />, guestAllowed: false },
     { href: '/mis-sesiones', label: 'Mis Sesiones', icon: <BookUser className="mr-2 h-4 w-4" />, guestAllowed: false },
   ];
 
@@ -104,7 +105,7 @@ export default function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="hover:bg-primary/80">
-                  <ShieldQuestion className="h-5 w-5" /> {/* Placeholder for MenuIcon */}
+                  <Menu className="h-5 w-5" /> {/* Changed from ShieldQuestion to Menu Icon */}
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </DropdownMenuTrigger>
