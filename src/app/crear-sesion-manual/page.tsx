@@ -18,11 +18,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
 import { manualSessionSchema } from "@/lib/schemas";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, limit, orderBy as firestoreOrderBy, serverTimestamp, DocumentData } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Info } from "lucide-react";
+import { Loader2, Save, Info, Filter } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -33,8 +33,20 @@ import Link from "next/link";
 interface Ejercicio {
   id: string;
   ejercicio: string;
+  descripcion: string;
+  objetivos: string;
   fase: string;
+  // Otros campos de Ejercicio si los hay y son relevantes para el filtrado
 }
+
+const CATEGORIAS_PRINCIPALES = [
+  { id: "tecnica", label: "Técnica" },
+  { id: "tactica", label: "Táctica" },
+  { id: "fisico", label: "Preparación Física" },
+  { id: "estrategia", label: "Estrategia (ABP)" },
+  { id: "porteros", label: "Porteros" },
+];
+
 
 export default function CrearSesionManualPage() {
   return (
@@ -46,15 +58,14 @@ export default function CrearSesionManualPage() {
 function CrearSesionManualContent() {
   const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
-  // isLoading is not used, can be removed if not planned for future use
-  // const [isLoading, setIsLoading] = useState(false); 
   const [isSaving, setIsSaving] = useState(false);
 
   const [calentamientoEjercicios, setCalentamientoEjercicios] = useState<Ejercicio[]>([]);
-  const [principalEjercicios, setPrincipalEjercicios] = useState<Ejercicio[]>([]);
+  const [principalEjercicios, setPrincipalEjercicios] = useState<Ejercicio[]>([]); // Todos los de fase principal
   const [vueltaCalmaEjercicios, setVueltaCalmaEjercicios] = useState<Ejercicio[]>([]);
   
   const [loadingEjercicios, setLoadingEjercicios] = useState({ calentamiento: true, principal: true, vueltaCalma: true });
+  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof manualSessionSchema>>({
     resolver: zodResolver(manualSessionSchema),
@@ -74,9 +85,16 @@ function CrearSesionManualContent() {
   const fetchEjerciciosPorFase = async (fase: string, setter: React.Dispatch<React.SetStateAction<Ejercicio[]>>, loadingKey: keyof typeof loadingEjercicios) => {
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: true }));
     try {
-      const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(50)); 
+      const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(150)); // Aumentado límite para filtrado en cliente
       const snapshot = await getDocs(q);
-      const ejerciciosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ejercicio));
+      const ejerciciosData = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ejercicio: doc.data().ejercicio || "",
+        descripcion: doc.data().descripcion || "",
+        objetivos: doc.data().objetivos || "",
+        fase: doc.data().fase || "",
+        ...doc.data() 
+      } as Ejercicio));
       setter(ejerciciosData);
     } catch (error) {
       console.error(`Error fetching ${fase} exercises:`, error);
@@ -92,8 +110,43 @@ function CrearSesionManualContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategorias(prev => {
+      const isSelected = prev.includes(categoryId);
+      if (isSelected) {
+        return prev.filter(id => id !== categoryId);
+      } else {
+        if (prev.length < 4) {
+          return [...prev, categoryId];
+        } else {
+          toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
+          return prev;
+        }
+      }
+    });
+     // Al cambiar categorías, deseleccionar ejercicios principales para evitar confusión si ya no están en la lista filtrada
+    form.setValue('mainExerciseIds', []);
+  };
+
+  const filteredPrincipalEjercicios = useMemo(() => {
+    if (selectedCategorias.length === 0) {
+      return principalEjercicios;
+    }
+    return principalEjercicios.filter(exercise => {
+      return selectedCategorias.some(catId => {
+        const categoryObj = CATEGORIAS_PRINCIPALES.find(c => c.id === catId);
+        if (!categoryObj) return false;
+        // Heurística simple: buscar la etiqueta de la categoría (o parte de ella) en campos relevantes.
+        const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0]; 
+        const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
+        return exerciseText.includes(searchKeyword);
+      });
+    });
+  }, [principalEjercicios, selectedCategorias]);
+
+
   async function onSubmit(values: z.infer<typeof manualSessionSchema>) {
-    if (!user || !isRegisteredUser) { // Ensure user is registered to save
+    if (!user || !isRegisteredUser) { 
         toast({
             title: "Acción Requerida",
             description: "Por favor, regístrate o inicia sesión para guardar la sesión.",
@@ -104,6 +157,8 @@ function CrearSesionManualContent() {
     setIsSaving(true);
 
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
+    // Usar principalEjercicios (la lista completa) para encontrar los documentos, no filteredPrincipalEjercicios, 
+    // ya que los IDs guardados deben referenciar a cualquier ejercicio principal válido.
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
     
@@ -140,6 +195,7 @@ function CrearSesionManualContent() {
         club: "",
         equipo: "",
       });
+      setSelectedCategorias([]); // Resetear categorías seleccionadas
     } catch (error) {
       console.error("Error saving manual session:", error);
       toast({
@@ -158,7 +214,9 @@ function CrearSesionManualContent() {
     isMultiSelect: boolean = false
   ) => {
     if (loading) return <div className="flex items-center justify-center h-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    if (exercises.length === 0 && name === "mainExerciseIds" && selectedCategorias.length > 0) return <p className="text-sm text-muted-foreground">No hay ejercicios que coincidan con las categorías seleccionadas. Prueba con otros filtros.</p>;
     if (exercises.length === 0) return <p className="text-sm text-muted-foreground">No hay ejercicios disponibles para esta fase.</p>;
+
 
     return (
       <ScrollArea className="h-64 rounded-md border p-4">
@@ -287,15 +345,40 @@ function CrearSesionManualContent() {
           <Card>
             <CardHeader>
               <CardTitle className="font-headline text-xl">Fase Principal</CardTitle>
-              <CardDescription>Selecciona hasta 4 ejercicios para la fase principal.</CardDescription>
+              <CardDescription>Selecciona hasta 4 ejercicios para la fase principal. Puedes filtrar por categorías.</CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-6">
+                <FormLabel className="text-md font-semibold flex items-center mb-2">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtrar por Categorías (máx. 4)
+                </FormLabel>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2 p-4 border rounded-md">
+                  {CATEGORIAS_PRINCIPALES.map((category) => (
+                    <FormItem key={category.id} className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={selectedCategorias.includes(category.id)}
+                          onCheckedChange={() => handleCategoryChange(category.id)}
+                          id={`cat-${category.id}`}
+                        />
+                      </FormControl>
+                      <FormLabel htmlFor={`cat-${category.id}`} className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {category.label}
+                      </FormLabel>
+                    </FormItem>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Nota: El filtrado por categorías busca palabras clave en los detalles del ejercicio.
+                </p>
+              </div>
                <FormField
                 control={form.control}
                 name="mainExerciseIds"
                 render={() => (
                   <FormItem>
-                    {renderExerciseList(principalEjercicios, loadingEjercicios.principal, "mainExerciseIds", true)}
+                    {renderExerciseList(filteredPrincipalEjercicios, loadingEjercicios.principal, "mainExerciseIds", true)}
                      <FormMessage />
                   </FormItem>
                 )}
@@ -364,3 +447,4 @@ function CrearSesionManualContent() {
     </div>
   );
 }
+
