@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,26 +17,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { aiSessionSchema } from "@/lib/schemas";
 import { useState } from "react";
 import { generateTrainingSession, type GenerateTrainingSessionOutput } from "@/ai/flows/generate-training-session";
-import { Loader2, Wand2, Save } from "lucide-react";
+import { Loader2, Wand2, Save, Info } from "lucide-react";
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Link from "next/link";
 
 export default function CrearSesionIAPage() {
   return (
-    <AuthGuard>
-      <CrearSesionIAContent />
-    </AuthGuard>
+    // AuthGuard removed to allow guest access
+    <CrearSesionIAContent />
   );
 }
 
 function CrearSesionIAContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [generatedSession, setGeneratedSession] = useState<GenerateTrainingSessionOutput | null>(null);
@@ -49,7 +50,7 @@ function CrearSesionIAContent() {
       sessionFocus: "",
       preferredSessionLengthMinutes: 60,
       numero_sesion: "",
-      fecha: new Date().toISOString().split('T')[0], // Default to today
+      fecha: new Date().toISOString().split('T')[0], 
       temporada: "",
       club: "",
       equipo: "",
@@ -83,13 +84,13 @@ function CrearSesionIAContent() {
   }
 
   async function handleSaveSession() {
-    if (!generatedSession || !user) return;
+    if (!generatedSession || !user || !isRegisteredUser) return; // Ensure user is registered
     setIsSaving(true);
     const sessionDataToSave = {
       userId: user.uid,
       type: "AI",
-      ...form.getValues(), // numero_sesion, fecha, temporada, club, equipo
-      ...generatedSession, // sessionTitle, warmUp, mainExercises, coolDown, coachNotes
+      ...form.getValues(), 
+      ...generatedSession, 
       createdAt: serverTimestamp(),
     };
 
@@ -99,7 +100,7 @@ function CrearSesionIAContent() {
         title: "¡Sesión Guardada!",
         description: "Tu sesión de entrenamiento ha sido guardada en 'Mis Sesiones'.",
       });
-      setGeneratedSession(null); // Optionally clear form or redirect
+      setGeneratedSession(null); 
       form.reset();
     } catch (error) {
       console.error("Error saving session:", error);
@@ -121,6 +122,21 @@ function CrearSesionIAContent() {
           Define los parámetros y deja que nuestra IA genere un plan de entrenamiento de futsal a medida.
         </p>
       </header>
+
+      {!isRegisteredUser && (
+        <Alert variant="default" className="mb-6 bg-accent/10 border-accent">
+          <Info className="h-5 w-5 text-accent" />
+          <AlertTitle className="font-headline text-accent">Modo Invitado</AlertTitle>
+          <AlertDescription className="text-accent/90">
+            Como invitado, puedes generar una sesión de entrenamiento con IA.
+            Para guardar tus sesiones y acceder a todas las funciones, por favor{" "}
+            <Link href="/register" className="font-bold underline hover:text-accent/70">
+              regístrate
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="shadow-lg">
@@ -185,7 +201,7 @@ function CrearSesionIAContent() {
                   )}
                 />
                 
-                <h3 className="text-lg font-semibold pt-4 border-t mt-6">Detalles Adicionales (Opcional)</h3>
+                <h3 className="text-lg font-semibold pt-4 border-t mt-6">Detalles Adicionales (Opcional para Guardar)</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField control={form.control} name="numero_sesion" render={({ field }) => (
                         <FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 15" {...field} /></FormControl><FormMessage /></FormItem>
@@ -246,10 +262,18 @@ function CrearSesionIAContent() {
                 <h3 className="font-semibold text-lg">Notas del Entrenador:</h3>
                 <p className="text-sm text-foreground/80">{generatedSession.coachNotes}</p>
               </div>
-              <Button onClick={handleSaveSession} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-6" disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Guardar Sesión
-              </Button>
+              {isRegisteredUser && (
+                <Button onClick={handleSaveSession} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-6" disabled={isSaving || !isRegisteredUser}>
+                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Guardar Sesión
+                </Button>
+              )}
+              {!isRegisteredUser && (
+                 <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-6" disabled>
+                  <Save className="mr-2 h-4 w-4" />
+                  Regístrate para Guardar
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}

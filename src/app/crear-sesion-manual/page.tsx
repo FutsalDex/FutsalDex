@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,39 +16,38 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { manualSessionSchema } from "@/lib/schemas";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, limit, orderBy as firestoreOrderBy, serverTimestamp, DocumentData } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, ListPlus, CheckSquare, Square } from "lucide-react";
+import { Loader2, Save, Info } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Link from "next/link";
+
 
 interface Ejercicio {
   id: string;
   ejercicio: string;
   fase: string;
-  // Add other relevant fields if needed for display
 }
-
-const ITEMS_PER_LOAD = 10;
 
 export default function CrearSesionManualPage() {
   return (
-    <AuthGuard>
-      <CrearSesionManualContent />
-    </AuthGuard>
+    // AuthGuard removed to allow guest access
+    <CrearSesionManualContent />
   );
 }
 
 function CrearSesionManualContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  // isLoading is not used, can be removed if not planned for future use
+  // const [isLoading, setIsLoading] = useState(false); 
   const [isSaving, setIsSaving] = useState(false);
 
   const [calentamientoEjercicios, setCalentamientoEjercicios] = useState<Ejercicio[]>([]);
@@ -74,7 +74,7 @@ function CrearSesionManualContent() {
   const fetchEjerciciosPorFase = async (fase: string, setter: React.Dispatch<React.SetStateAction<Ejercicio[]>>, loadingKey: keyof typeof loadingEjercicios) => {
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: true }));
     try {
-      const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(50)); // Load more for selection
+      const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(50)); 
       const snapshot = await getDocs(q);
       const ejerciciosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ejercicio));
       setter(ejerciciosData);
@@ -93,7 +93,14 @@ function CrearSesionManualContent() {
   }, []);
 
   async function onSubmit(values: z.infer<typeof manualSessionSchema>) {
-    if (!user) return;
+    if (!user || !isRegisteredUser) { // Ensure user is registered to save
+        toast({
+            title: "Acción Requerida",
+            description: "Por favor, regístrate o inicia sesión para guardar la sesión.",
+            variant: "default",
+        });
+        return;
+    }
     setIsSaving(true);
 
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
@@ -107,7 +114,7 @@ function CrearSesionManualContent() {
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio } : null,
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio })),
       coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio } : null,
-      coachNotes: "", // Manual sessions don't have AI coach notes by default
+      coachNotes: "", 
       numero_sesion: values.numero_sesion,
       fecha: values.fecha,
       temporada: values.temporada,
@@ -182,13 +189,6 @@ function CrearSesionManualContent() {
                                   field.onChange([...currentValues, item.id]);
                                 } else {
                                   toast({ title: "Límite alcanzado", description: "Puedes seleccionar hasta 4 ejercicios principales.", variant: "default" });
-                                  // Manually uncheck the box if limit is reached. This is a bit hacky.
-                                  // The checkbox state is ultimately controlled by field.value.
-                                  // To prevent checking, we ensure it's not added to field.value.
-                                  // For ShadCN checkbox, onCheckedChange provides boolean or 'indeterminate'.
-                                  // We need to find the checkbox DOM element and set its checked state to false.
-                                  // This part is tricky, usually, we disable further checkboxes.
-                                  // A simpler way is just to not update if currentValues.length >= 4.
                                   return; 
                                 }
                               } else {
@@ -247,6 +247,21 @@ function CrearSesionManualContent() {
           Selecciona ejercicios de nuestra biblioteca para construir tu propio plan de entrenamiento.
         </p>
       </header>
+
+      {!isRegisteredUser && (
+         <Alert variant="default" className="mb-6 bg-accent/10 border-accent">
+          <Info className="h-5 w-5 text-accent" />
+          <AlertTitle className="font-headline text-accent">Modo Invitado</AlertTitle>
+          <AlertDescription className="text-accent/90">
+            Como invitado, puedes diseñar una sesión de entrenamiento manual.
+            Para guardar tus sesiones y acceder a todas las funciones, por favor{" "}
+            <Link href="/register" className="font-bold underline hover:text-accent/70">
+              regístrate
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-12">
@@ -309,7 +324,7 @@ function CrearSesionManualContent() {
           
           <Card>
             <CardHeader>
-              <CardTitle className="font-headline text-xl">Detalles de la Sesión</CardTitle>
+              <CardTitle className="font-headline text-xl">Detalles de la Sesión (Opcional para Guardar)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField control={form.control} name="sessionTitle" render={({ field }) => (
@@ -317,27 +332,32 @@ function CrearSesionManualContent() {
               )} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="numero_sesion" render={({ field }) => (
-                    <FormItem><FormLabel>Número de Sesión (Opcional)</FormLabel><FormControl><Input placeholder="Ej: 16" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 16" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="fecha" render={({ field }) => (
                     <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="temporada" render={({ field }) => (
-                    <FormItem><FormLabel>Temporada (Opcional)</FormLabel><FormControl><Input placeholder="Ej: 2024-2025" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Temporada</FormLabel><FormControl><Input placeholder="Ej: 2024-2025" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="club" render={({ field }) => (
-                    <FormItem><FormLabel>Club (Opcional)</FormLabel><FormControl><Input placeholder="Ej: Futsal Club Elite" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Club</FormLabel><FormControl><Input placeholder="Ej: Futsal Club Elite" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="equipo" render={({ field }) => (
-                    <FormItem><FormLabel>Equipo (Opcional)</FormLabel><FormControl><Input placeholder="Ej: Senior Masculino A" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Equipo</FormLabel><FormControl><Input placeholder="Ej: Senior Masculino A" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </CardContent>
           </Card>
 
-          <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3 text-lg" disabled={isSaving || Object.values(loadingEjercicios).some(l => l)}>
+          <Button 
+            type="submit" 
+            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3 text-lg" 
+            disabled={isSaving || Object.values(loadingEjercicios).some(l => l) || !isRegisteredUser}
+            title={!isRegisteredUser ? "Regístrate para guardar la sesión" : "Guardar Sesión Manual"}
+          >
             {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-            Guardar Sesión Manual
+            {isRegisteredUser ? "Guardar Sesión Manual" : "Regístrate para Guardar"}
           </Button>
         </form>
       </Form>
