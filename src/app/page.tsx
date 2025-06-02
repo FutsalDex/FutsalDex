@@ -33,11 +33,6 @@ export default function HomePage() {
                 Regístrate Ahora <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-             <Button asChild variant="outline" size="lg" className="w-full">
-              <Link href="/ejercicios">
-                Explorar Ejercicios
-              </Link>
-            </Button>
           </CardContent>
         </Card>
 
