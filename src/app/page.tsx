@@ -26,7 +26,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-md text-foreground/90">
-              Regístrate para poder acceder a más de 500 ejercicios y crear tus sesiones de entrenamientos ilimitadas.
+              Regístrate para acceder a todo el catálogo de ejercicios y crear tus sesiones de entrenamientos ilimitadas.
             </p>
             <Button asChild size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
               <Link href="/register">
