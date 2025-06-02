@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -32,6 +33,8 @@ interface Ejercicio {
 
 const ITEMS_PER_PAGE = 10;
 const GUEST_ITEM_LIMIT = 5;
+const ALL_PHASES_VALUE = "ALL_PHASES";
+const ALL_AGES_VALUE = "ALL_AGES";
 
 export default function EjerciciosPage() {
   const { user, isRegisteredUser } = useAuth();
@@ -70,10 +73,10 @@ export default function EjerciciosPage() {
         constraints.push(where('ejercicio', '>=', search));
         constraints.push(where('ejercicio', '<=', search + '\uf8ff'));
       }
-      if (category) { // This is for 'fase'
+      if (category && category !== ALL_PHASES_VALUE) { 
         constraints.push(where('fase', '==', category));
       }
-      if (age) {
+      if (age && age !== ALL_AGES_VALUE) {
         constraints.push(where('categoria_edad', '==', age));
       }
 
@@ -208,7 +211,7 @@ export default function EjerciciosPage() {
               <SelectValue placeholder="Filtrar por Fase" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas las Fases</SelectItem>
+              <SelectItem value={ALL_PHASES_VALUE}>Todas las Fases</SelectItem>
               {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -218,7 +221,7 @@ export default function EjerciciosPage() {
               <SelectValue placeholder="Categoría de Edad" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas las Edades</SelectItem>
+              <SelectItem value={ALL_AGES_VALUE}>Todas las Edades</SelectItem>
               {uniqueAgeCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
             </SelectContent>
           </Select>
