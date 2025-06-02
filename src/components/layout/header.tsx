@@ -2,11 +2,10 @@
 "use client";
 
 import Link from 'next/link';
-import type { usePathname } from 'next/navigation'; // Import type
-import { usePathname as usePathnameActual } from 'next/navigation'; // Import actual
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { LogIn, LogOut, UserPlus, Dumbbell, Sparkles, Edit3, BookUser, Menu } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Sparkles, Edit3, BookUser, Menu, Dribbble } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -17,8 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const FutsalIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const FutsalAppIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 1.6a10.4 10.4 0 1 0 0 20.8 10.4 10.4 0 0 0 0-20.8z"/>
     <path d="M12 1.6a10.4 10.4 0 0 0-7.35 3.05M12 1.6a10.4 10.4 0 0 1 7.35 3.05M1.6 12a10.4 10.4 0 0 0 3.05 7.35M1.6 12a10.4 10.4 0 0 1 3.05-7.35M22.4 12a10.4 10.4 0 0 0-3.05-7.35M22.4 12a10.4 10.4 0 0 1-3.05 7.35M12 22.4a10.4 10.4 0 0 0 7.35-3.05M12 22.4a10.4 10.4 0 0 1-7.35-3.05"/>
     <path d="M5.75 5.75l3.5 3.5M14.75 5.75l-3.5 3.5M5.75 14.75l3.5-3.5M14.75 14.75l-3.5-3.5"/>
@@ -28,12 +27,12 @@ const FutsalIcon = () => (
 
 export default function Header() {
   const { user, signOut, loading, isRegisteredUser } = useAuth();
-  const pathname = usePathnameActual();
+  const pathname = usePathname();
 
   const navLinks = [
-    { href: '/ejercicios', label: 'Ver ejercicios', icon: <Dumbbell className="mr-2 h-4 w-4" />, guestAllowed: true },
-    { href: '/crear-sesion-manual', label: 'Crear sesiones (Manual)', icon: <Edit3 className="mr-2 h-4 w-4" />, guestAllowed: false },
-    { href: '/crear-sesion-ia', label: 'Crear sesiones (IA)', icon: <Sparkles className="mr-2 h-4 w-4" />, guestAllowed: false },
+    { href: '/ejercicios', label: 'Ver ejercicios', icon: <FutsalAppIcon className="mr-2 h-4 w-4" />, guestAllowed: true },
+    { href: '/crear-sesion-manual', label: 'Crear Sesión (Manual)', icon: <Edit3 className="mr-2 h-4 w-4" />, guestAllowed: false },
+    { href: '/crear-sesion-ia', label: 'Crear Sesión (IA)', icon: <Sparkles className="mr-2 h-4 w-4" />, guestAllowed: false },
     { href: '/mis-sesiones', label: 'Mis Sesiones', icon: <BookUser className="mr-2 h-4 w-4" />, guestAllowed: false },
   ];
 
@@ -41,7 +40,7 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2">
-          <FutsalIcon />
+          <FutsalAppIcon />
           <span className="text-xl font-bold font-headline">FutsalDex</span>
         </Link>
         <nav className="hidden items-center space-x-2 md:flex">
@@ -129,7 +128,7 @@ export default function Header() {
                   </DropdownMenuItem>
                 ))}
                 {/* Separador y enlaces de autenticación para el menú móvil */}
-                {!user && (
+                {!user && !loading && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
@@ -165,3 +164,4 @@ export default function Header() {
     </header>
   );
 }
+
