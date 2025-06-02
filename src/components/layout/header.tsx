@@ -2,7 +2,8 @@
 "use client";
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import type { usePathname } from 'next/navigation'; // Import type
+import { usePathname as usePathnameActual } from 'next/navigation'; // Import actual
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { LogIn, LogOut, UserPlus, Dumbbell, Sparkles, Edit3, BookUser, Menu } from 'lucide-react';
@@ -27,7 +28,7 @@ const FutsalIcon = () => (
 
 export default function Header() {
   const { user, signOut, loading, isRegisteredUser } = useAuth();
-  const pathname = usePathname();
+  const pathname = usePathnameActual();
 
   const navLinks = [
     { href: '/ejercicios', label: 'Ver ejercicios', icon: <Dumbbell className="mr-2 h-4 w-4" />, guestAllowed: true },
@@ -52,9 +53,11 @@ export default function Header() {
               asChild
               className={pathname === link.href ? 'text-primary-foreground bg-primary/80 hover:bg-primary/70' : 'hover:bg-primary/80'}
             >
-              <Link href={link.href} className="flex items-center">
-                {link.icon}
-                {link.label}
+              <Link href={link.href}>
+                <span className="flex items-center">
+                  {link.icon}
+                  {link.label}
+                </span>
               </Link>
             </Button>
           ))}
@@ -88,20 +91,24 @@ export default function Header() {
             </DropdownMenu>
           ) : (
             <>
-              <Button variant="ghost" asChild className="hidden md:flex hover:bg-primary/80"> {/* Ocultar en móvil, mostrar en md+ */}
-                <Link href="/login" className="flex items-center">
-                  <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+              <Button variant="ghost" asChild className="hidden md:flex hover:bg-primary/80">
+                <Link href="/login">
+                  <span className="flex items-center">
+                    <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+                  </span>
                 </Link>
               </Button>
-              <Button variant="secondary" asChild className="hidden md:flex bg-accent hover:bg-accent/90 text-accent-foreground"> {/* Ocultar en móvil, mostrar en md+ */}
-                <Link href="/register" className="flex items-center">
-                  <UserPlus className="mr-2 h-4 w-4" /> Registrarse
+              <Button variant="secondary" asChild className="hidden md:flex bg-accent hover:bg-accent/90 text-accent-foreground">
+                <Link href="/register">
+                  <span className="flex items-center">
+                    <UserPlus className="mr-2 h-4 w-4" /> Registrarse
+                  </span>
                 </Link>
               </Button>
             </>
           )}
            {/* Mobile Menu Trigger */}
-          <div className="inline-flex md:hidden"> {/* Cambiado a inline-flex y mantenido md:hidden */}
+          <div className="inline-flex md:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="hover:bg-primary/80">
@@ -113,9 +120,11 @@ export default function Header() {
                 {navLinks.map((link) =>
                   (link.guestAllowed || isRegisteredUser) && (
                   <DropdownMenuItem key={link.href} asChild>
-                    <Link href={link.href} className="flex items-center">
-                      {link.icon}
-                      {link.label}
+                    <Link href={link.href}>
+                      <span className="flex items-center">
+                        {link.icon}
+                        {link.label}
+                      </span>
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -124,13 +133,17 @@ export default function Header() {
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/login" className="flex items-center">
-                        <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+                      <Link href="/login">
+                        <span className="flex items-center">
+                          <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+                        </span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                       <Link href="/register" className="flex items-center">
-                        <UserPlus className="mr-2 h-4 w-4" /> Registrarse
+                       <Link href="/register">
+                        <span className="flex items-center">
+                          <UserPlus className="mr-2 h-4 w-4" /> Registrarse
+                        </span>
                       </Link>
                     </DropdownMenuItem>
                   </>
@@ -152,5 +165,3 @@ export default function Header() {
     </header>
   );
 }
-
-    
