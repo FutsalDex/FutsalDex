@@ -72,11 +72,15 @@ function CrearSesionIAContent() {
         title: "¡Sesión Generada!",
         description: "Tu plan de entrenamiento ha sido creado por la IA.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating AI session:", error);
+      let description = "Hubo un problema al contactar la IA. Inténtalo de nuevo más tarde.";
+      if (error.message && (error.message.includes("503") || error.message.toLowerCase().includes("overloaded") || error.message.toLowerCase().includes("service unavailable"))) {
+        description = "El servicio de IA está experimentando mucha demanda en este momento. Por favor, inténtalo de nuevo en unos minutos.";
+      }
       toast({
         title: "Error al Generar Sesión",
-        description: "Hubo un problema al contactar la IA. Inténtalo de nuevo.",
+        description: description,
         variant: "destructive",
       });
     }
@@ -194,7 +198,7 @@ function CrearSesionIAContent() {
                     <FormItem>
                       <FormLabel>Duración Preferida (minutos)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="60" {...field} />
+                        <Input type="number" placeholder="60" {...field} onChange={e => field.onChange(parseInt(e.target.value,10))} value={field.value} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -281,3 +285,4 @@ function CrearSesionIAContent() {
     </div>
   );
 }
+
