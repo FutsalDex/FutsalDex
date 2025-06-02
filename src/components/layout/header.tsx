@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { LogIn, LogOut, UserPlus, Dumbbell, Sparkles, Edit3, BookUser, ShieldQuestion, Menu } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Dumbbell, Sparkles, Edit3, BookUser, Menu } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -44,7 +44,7 @@ export default function Header() {
           <span className="text-xl font-bold font-headline">FutsalDex</span>
         </Link>
         <nav className="hidden items-center space-x-2 md:flex">
-          {navLinks.map((link) => 
+          {navLinks.map((link) =>
             (link.guestAllowed || isRegisteredUser) && (
             <Button
               key={link.href}
@@ -88,29 +88,29 @@ export default function Header() {
             </DropdownMenu>
           ) : (
             <>
-              <Button variant="ghost" asChild className="hover:bg-primary/80">
+              <Button variant="ghost" asChild className="hidden md:flex hover:bg-primary/80"> {/* Ocultar en móvil, mostrar en md+ */}
                 <Link href="/login" className="flex items-center">
                   <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
                 </Link>
               </Button>
-              <Button variant="secondary" asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Button variant="secondary" asChild className="hidden md:flex bg-accent hover:bg-accent/90 text-accent-foreground"> {/* Ocultar en móvil, mostrar en md+ */}
                 <Link href="/register" className="flex items-center">
                   <UserPlus className="mr-2 h-4 w-4" /> Registrarse
                 </Link>
               </Button>
             </>
           )}
-           {/* Mobile Menu Trigger - can be implemented with Sheet */}
-          <div className="md:hidden">
+           {/* Mobile Menu Trigger */}
+          <div className="inline-flex md:hidden"> {/* Cambiado a inline-flex y mantenido md:hidden */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="hover:bg-primary/80">
-                  <Menu className="h-5 w-5" /> {/* Changed from ShieldQuestion to Menu Icon */}
+                  <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {navLinks.map((link) => 
+                {navLinks.map((link) =>
                   (link.guestAllowed || isRegisteredUser) && (
                   <DropdownMenuItem key={link.href} asChild>
                     <Link href={link.href} className="flex items-center">
@@ -119,6 +119,31 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                 ))}
+                {/* Separador y enlaces de autenticación para el menú móvil */}
+                {!user && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/login" className="flex items-center">
+                        <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                       <Link href="/register" className="flex items-center">
+                        <UserPlus className="mr-2 h-4 w-4" /> Registrarse
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                 {user && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Cerrar sesión</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -127,3 +152,5 @@ export default function Header() {
     </header>
   );
 }
+
+    
