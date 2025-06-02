@@ -67,6 +67,8 @@ const prompt = ai.definePrompt({
   Use existing well-known futsal exercises, don't invent new exercises.
 
   Make the training session suitable for the provided time.
+
+  IMPORTANT: Generate the entire response in Spanish from Spain (castellano).
   `,}
 );
 
