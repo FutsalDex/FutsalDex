@@ -3,10 +3,11 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
+import Link from "next/link"
 
 import { cn } from "@/lib/utils"
-import { ButtonProps, buttonVariants } from "@/components/ui/button"
-import Link from "next/link"
+import type { ButtonProps } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
@@ -41,12 +42,16 @@ PaginationItem.displayName = "PaginationItem"
 type PaginationLinkProps = {
   isActive?: boolean
 } & Pick<ButtonProps, "size"> &
-  React.ComponentProps<typeof Link>
+  // Omit href from React.ComponentProps<typeof Link> and use React.AnchorHTMLAttributes<HTMLAnchorElement>['href']
+  Omit<React.ComponentProps<typeof Link>, "href"> & { href?: React.AnchorHTMLAttributes<HTMLAnchorElement>['href']; onClick?: React.MouseEventHandler<HTMLAnchorElement>; }
+
 
 const PaginationLink = ({
   className,
   isActive,
   size = "icon",
+  href, // Ensure href is part of props
+  onClick,
   ...props
 }: PaginationLinkProps) => (
   <Link
@@ -58,6 +63,8 @@ const PaginationLink = ({
       }),
       className
     )}
+    href={href || "#"} // Provide a default href if not passed
+    onClick={onClick}
     {...props}
   />
 )
