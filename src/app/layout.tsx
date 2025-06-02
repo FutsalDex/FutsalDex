@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import Header from '@/components/layout/header'; // Assuming Header component will be created
 
 export const metadata: Metadata = {
-  title: 'Futsal Training Hub',
+  title: 'FutsalDex',
   description: 'Tu compañero definitivo para el entrenamiento de fútbol sala.',
 };
 
