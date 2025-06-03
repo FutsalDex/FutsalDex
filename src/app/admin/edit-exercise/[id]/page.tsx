@@ -46,7 +46,7 @@ function EditExercisePageContent() {
       duracion: "",
       variantes: "",
       fase: "",
-      categoria: "",
+      categoria: "", // Will store category label
       edad: [],
       consejos_entrenador: "",
       imagen: "",
@@ -72,7 +72,7 @@ function EditExercisePageContent() {
         const currentNumero = typeof data.numero === 'string' ? data.numero : '';
         const currentVariantes = typeof data.variantes === 'string' ? data.variantes : '';
         const currentConsejos = typeof data.consejos_entrenador === 'string' ? data.consejos_entrenador : '';
-
+        const currentCategoria = typeof data.categoria === 'string' ? data.categoria : ''; // Expecting label
 
         form.reset({
           ...data,
@@ -81,6 +81,7 @@ function EditExercisePageContent() {
           numero: currentNumero,
           variantes: currentVariantes,
           consejos_entrenador: currentConsejos,
+          categoria: currentCategoria,
         });
         setExerciseNotFound(false);
       } else {
@@ -96,9 +97,9 @@ function EditExercisePageContent() {
   }, [exerciseId, form, toast]);
 
   useEffect(() => {
-    if (isAdmin && exerciseId) { // Ensure exerciseId is present before fetching
+    if (isAdmin && exerciseId) { 
       fetchExerciseData();
-    } else if (!exerciseId && isAdmin) { // Handle case where ID might be missing early
+    } else if (!exerciseId && isAdmin) { 
         setIsFetching(false);
         setExerciseNotFound(true);
     }
@@ -111,10 +112,10 @@ function EditExercisePageContent() {
     try {
       const docRef = doc(db, "ejercicios_futsal", exerciseId);
       await updateDoc(docRef, {
-        ...data,
-        numero: data.numero || null, // Store as null if empty
-        variantes: data.variantes || null, // Store as null if empty
-        consejos_entrenador: data.consejos_entrenador || null, // Store as null if empty
+        ...data, // categoria field will now contain the label
+        numero: data.numero || null, 
+        variantes: data.variantes || null, 
+        consejos_entrenador: data.consejos_entrenador || null, 
         imagen: data.imagen || `https://placehold.co/400x300.png?text=${encodeURIComponent(data.ejercicio)}`,
         updatedAt: serverTimestamp(),
       });
@@ -274,7 +275,7 @@ function EditExercisePageContent() {
                     <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona una categoría" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {CATEGORIAS_TEMATICAS_EJERCICIOS.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                        {CATEGORIAS_TEMATICAS_EJERCICIOS.map(c => <SelectItem key={c.id} value={c.label}>{c.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -400,5 +401,4 @@ export default function EditExercisePage() {
     </AuthGuard>
   );
 }
-
     

@@ -39,7 +39,7 @@ function AddExercisePageContent() {
       duracion: "",
       variantes: "",
       fase: "",
-      categoria: "",
+      categoria: "", // Will store category label
       edad: [], 
       consejos_entrenador: "",
       imagen: "",
@@ -50,7 +50,7 @@ function AddExercisePageContent() {
     setIsLoading(true);
     try {
       await addDoc(collection(db, "ejercicios_futsal"), {
-        ...data,
+        ...data, // categoria field will now contain the label
         numero: data.numero || null, 
         variantes: data.variantes || null,
         consejos_entrenador: data.consejos_entrenador || null,
@@ -176,11 +176,11 @@ function AddExercisePageContent() {
                 )} />
                 <FormField control={form.control} name="categoria" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Categoría Temática</FormLabel>
+                    <FormLabel>Categoría</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona una categoría" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {CATEGORIAS_TEMATICAS_EJERCICIOS.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                        {CATEGORIAS_TEMATICAS_EJERCICIOS.map(c => <SelectItem key={c.id} value={c.label}>{c.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />

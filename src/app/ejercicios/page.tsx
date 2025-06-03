@@ -24,7 +24,7 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
-import { CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, FASES_SESION, CATEGORIAS_TEMATICAS_MAP } from '@/lib/constants';
+import { CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, FASES_SESION } from '@/lib/constants';
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -68,7 +68,7 @@ export default function EjerciciosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState(ALL_FILTER_VALUE);
   const [selectedAgeFilter, setSelectedAgeFilter] = useState<string>(ALL_FILTER_VALUE);
-  const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_FILTER_VALUE);
+  const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_FILTER_VALUE); // Now stores category label
   const [favorites, setFavorites] = useState<FavoriteState>({});
 
   const uniqueAgeCategories = useMemo(() => CATEGORIAS_EDAD_EJERCICIOS, []);
@@ -80,7 +80,6 @@ export default function EjerciciosPage() {
       const ejerciciosCollection = collection(db, 'ejercicios_futsal');
       let constraintsList: QueryConstraint[] = [];
 
-      // Apply equality and array-contains filters first
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
         constraintsList.push(where('fase', '==', currentPhase));
       }
@@ -88,30 +87,22 @@ export default function EjerciciosPage() {
         constraintsList.push(where('edad', 'array-contains', currentAge));
       }
       if (currentThematicCat && currentThematicCat !== ALL_FILTER_VALUE) {
+        // Querying by category label
         constraintsList.push(where('categoria', '==', currentThematicCat));
       }
 
-      // Handle search term (which includes its own orderBy) or default sort order
       if (currentSearch) {
-        // For search, Firestore needs the orderBy on the field being searched for range queries.
-        // This orderBy should ideally be compatible with other active filters through composite indexes.
         constraintsList.push(where('ejercicio', '>=', currentSearch));
         constraintsList.push(where('ejercicio', '<=', currentSearch + '\uf8ff'));
         constraintsList.push(firestoreOrderBy('ejercicio')); 
       } else {
-        // Default sort order if no search term is active
         constraintsList.push(firestoreOrderBy('ejercicio'));
       }
       
-      // Pagination cursor logic
-      // This should be applied *after* all 'where' and 'orderBy' clauses that define the core dataset.
-      // The `startAfter` cursor needs to be from a document that matches the current filters and order.
-      // `lastVisible` is reset when filters change, which is correct.
       if (isRegisteredUser && pageToFetch > 1 && isNextPage && lastVisible) {
           constraintsList.push(startAfter(lastVisible));
       }
       
-      // Limit should be the last constraint applied to the query passed to getDocs.
       const limitAmount = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
       constraintsList.push(limit(limitAmount));
       
@@ -161,14 +152,14 @@ export default function EjerciciosPage() {
     }
     setIsLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, toast, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, lastVisible]); // Added lastVisible to dep array
+  }, [isRegisteredUser, toast]); // Removed dependencies that were causing re-fetch loops
 
   useEffect(() => {
     setLastVisible(null);
     setFirstVisibleDocsHistory([null]); 
     fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]); // fetchEjercicios removed from here to avoid potential loop if it wasn't stable
+  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]);
 
   const toggleFavorite = (exerciseId: string) => {
     if (!isRegisteredUser) return; 
@@ -183,9 +174,6 @@ export default function EjerciciosPage() {
     if (newPage === currentPage) return;
 
     const isNext = newPage > currentPage;
-    // When going to previous page, lastVisible should be from before that page.
-    // For simplicity, if going back, we might need a more complex cursor logic or just refetch.
-    // The current setup implicitly re-fetches from start if !isNextPage or lastVisible is not applicable.
     fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isNext);
   };
   
@@ -257,7 +245,7 @@ export default function EjerciciosPage() {
               <SelectContent>
                 <SelectItem value={ALL_FILTER_VALUE}>Todas las Categorías</SelectItem>
                 {CATEGORIAS_TEMATICAS_EJERCICIOS.map(category => (
-                  <SelectItem key={category.id} value={category.id}>{category.label}</SelectItem>
+                  <SelectItem key={category.id} value={category.label}>{category.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -378,7 +366,7 @@ export default function EjerciciosPage() {
                         <p><strong className="font-semibold">Nº Jugadores:</strong> {ej.jugadores}</p>
                         <p><strong className="font-semibold">Variantes:</strong> {ej.variantes || 'No especificadas.'}</p>
                         <p><strong className="font-semibold">Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
-                        <p><strong className="font-semibold">Categoría:</strong> {CATEGORIAS_TEMATICAS_MAP[ej.categoria] || ej.categoria}</p>
+                        <p><strong className="font-semibold">Categoría:</strong> {ej.categoria}</p>
                       </div>
                     </DialogContent>
                   </Dialog>

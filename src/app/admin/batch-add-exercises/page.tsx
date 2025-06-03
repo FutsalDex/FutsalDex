@@ -26,7 +26,7 @@ const EXPECTED_HEADERS = {
   duracion: "Duración estimada",
   variantes: "Variantes",
   fase: "Fase",
-  categoria: "Categoría",
+  categoria: "Categoría", // Expecting full category label now
   edad: "Edad",
   consejos_entrenador: "Consejos para el entrenador",
   imagen: "Imagen",
@@ -112,7 +112,7 @@ function BatchAddExercisesPageContent() {
               duracion: row[EXPECTED_HEADERS.duracion]?.toString() || "",
               variantes: row[EXPECTED_HEADERS.variantes]?.toString() || "",
               fase: row[EXPECTED_HEADERS.fase]?.toString() || "",
-              categoria: row[EXPECTED_HEADERS.categoria]?.toString() || "",
+              categoria: row[EXPECTED_HEADERS.categoria]?.toString() || "", // This will be the full label
               edad: row[EXPECTED_HEADERS.edad] ? (row[EXPECTED_HEADERS.edad] as string).split(',').map(e => e.trim()).filter(e => e) : [],
               consejos_entrenador: row[EXPECTED_HEADERS.consejos_entrenador]?.toString() || "",
               imagen: row[EXPECTED_HEADERS.imagen]?.toString() || "",
@@ -149,7 +149,7 @@ function BatchAddExercisesPageContent() {
                 <ul className="list-disc list-inside pl-4 space-y-0.5 text-xs">
                   <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo". ¡Cuidado con espacios extra o diferencias en mayúsculas/minúsculas/tildes!</li>
                   <li>Todos los campos marcados como <strong>requeridos</strong> en el schema (Ejercicio, Descripción de la tarea, Objetivos, Fase, Categoría, Edad, Espacio y materiales necesarios, Número de jugadores, Duración estimada) están <strong>completos y no son cadenas vacías</strong>.</li>
-                  <li>El campo '{EXPECTED_HEADERS.categoria}' usa el <strong>ID de la categoría</strong> (ej: 'pase-control', 'finalizacion'), no el nombre completo. Consulta los IDs en la sección de "Añadir ejercicio".</li>
+                  <li>El campo '{EXPECTED_HEADERS.categoria}' usa el <strong>nombre completo de la categoría</strong> (ej: 'Pase y control', 'Finalización').</li>
                   <li>El campo '{EXPECTED_HEADERS.edad}' no está vacío y contiene categorías de edad válidas. Si son varias, sepáralas por comas (ej: "Alevín (10-11 años),Infantil (12-13 años)").</li>
                 </ul>
                 <p className="mt-2">Consulta la consola del navegador (presiona F12 y ve a la pestaña "Consola") para ver los errores detallados por cada fila.</p>
@@ -172,7 +172,7 @@ function BatchAddExercisesPageContent() {
                 chunk.forEach(exData => {
                     const newExerciseRef = doc(collection(db, "ejercicios_futsal"));
                     batch.set(newExerciseRef, {
-                        ...exData,
+                        ...exData, // exData.categoria now contains the label
                         createdAt: serverTimestamp(),
                         numero: exData.numero || null,
                         variantes: exData.variantes || null,
@@ -326,7 +326,7 @@ function BatchAddExercisesPageContent() {
                 <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido. Ej: 15 min)</li>
                 <li><strong>{EXPECTED_HEADERS.variantes}</strong> (Opcional)</li>
                 <li><strong>{EXPECTED_HEADERS.fase}</strong> (Requerido. Debe ser uno de: Inicial, Principal, Final)</li>
-                <li><strong>{EXPECTED_HEADERS.categoria}</strong> (Requerido. Debe ser el <strong>ID de la categoría</strong>, ej: 'pase-control', 'finalizacion'. Consulta los IDs en la sección de añadir ejercicio individual, no el nombre completo de la categoría)</li>
+                <li><strong>{EXPECTED_HEADERS.categoria}</strong> (Requerido. Debe ser el <strong>nombre completo de la categoría</strong>, ej: 'Pase y control', 'Finalización'. Consulta los nombres en la sección de añadir ejercicio individual)</li>
                 <li><strong>{EXPECTED_HEADERS.edad}</strong> (Requerido. Ej: "Alevín (10-11 años)". Si son varias, separadas por coma: "Alevín (10-11 años),Infantil (12-13 años)"). La celda no puede estar vacía.</li>
                 <li><strong>{EXPECTED_HEADERS.consejos_entrenador}</strong> (Opcional)</li>
                 <li><strong>{EXPECTED_HEADERS.imagen}</strong> (Opcional, URL completa. Si se deja vacío, se usará una imagen genérica)</li>

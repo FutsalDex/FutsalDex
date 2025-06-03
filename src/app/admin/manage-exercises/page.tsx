@@ -31,14 +31,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
-import { CATEGORIAS_TEMATICAS_MAP } from "@/lib/constants";
 
 interface EjercicioAdmin {
   id: string;
   numero?: string;
   ejercicio: string;
   fase: string;
-  categoria: string;
+  categoria: string; // Expecting category label
   edad: string[] | string;
 }
 
@@ -99,12 +98,10 @@ function ManageExercisesPageContent() {
         ...doc.data()
       } as EjercicioAdmin));
 
-      // Aplicar ordenación natural en el cliente SI se está ordenando por 'numero'
       if (currentSortField === 'numero' && fetchedEjercicios.length > 0) {
         fetchedEjercicios.sort((a, b) => {
-          const numA = (a.numero || "").trim(); // Tratar undefined/null como string vacío y quitar espacios
+          const numA = (a.numero || "").trim(); 
           const numB = (b.numero || "").trim();
-          // localeCompare con numeric: true maneja la ordenación natural
           return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
         });
         if (currentSortDirection === 'desc') {
@@ -184,23 +181,6 @@ function ManageExercisesPageContent() {
 
   const handlePreviousPage = () => {
     if (currentPage > 1 && !isLoading) {
-      // Para ir a la página anterior, no usamos startAfter, sino que reiniciamos la paginación hasta esa página.
-      // Esto es más simple que manejar cursors "startAt" o "endBefore" de forma bidireccional con el historial de snapshots.
-      // Se reconstruye la secuencia de páginas desde el principio hasta la página deseada.
-      let targetPageSnapshotsLast = null;
-      if (currentPage - 2 >= 0 && pageDocSnapshots.last[currentPage - 2]) {
-          targetPageSnapshotsLast = pageDocSnapshots.last[currentPage - 2];
-      }
-      
-      // Re-fetch for the previous page.
-      // We need to effectively tell fetchEjercicios to start "before" the current page.
-      // A robust way without endBefore (which also needs index) is to refetch pages up to newPage-1
-      // or adjust how we pass cursors.
-      // For now, this simple re-fetch will get the previous page data correctly based on its first item.
-      // This specific logic might need refinement if complex back-and-forth pagination is frequent.
-      
-      // Simplified: Refetch the target previous page. The `startAfter` logic in `fetchEjercicios`
-      // uses `pageDocSnapshots.last[newPage - 2]`.
       fetchEjercicios(currentPage - 1, sortField, sortDirection);
     }
   };
@@ -357,7 +337,7 @@ function ManageExercisesPageContent() {
                     <TableCell className="font-medium">{ej.numero || "N/A"}</TableCell>
                     <TableCell>{ej.ejercicio}</TableCell>
                     <TableCell>{ej.fase}</TableCell>
-                    <TableCell>{CATEGORIAS_TEMATICAS_MAP[ej.categoria] || ej.categoria}</TableCell>
+                    <TableCell>{ej.categoria}</TableCell> {/* Displaying label directly */}
                     <TableCell>{formatEdad(ej.edad)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleModifyClick(ej.id)} className="hover:text-blue-600" title="Modificar">
