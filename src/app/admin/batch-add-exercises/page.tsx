@@ -14,23 +14,22 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { db } from '@/lib/firebase';
 import { collection, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
-import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas'; // Asegúrate que addExerciseSchema esté aquí
+import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas'; 
 
-// Definir los encabezados esperados del Excel para mapeo
 const EXPECTED_HEADERS = {
-  numero: "Numero",
+  numero: "Nº",
   ejercicio: "Ejercicio",
-  descripcion: "Descripcion",
+  descripcion: "Descripción de la tarea",
   objetivos: "Objetivos",
-  espacio_materiales: "Espacio_Materiales",
-  jugadores: "Jugadores",
-  duracion: "Duracion",
+  espacio_materiales: "Espacio y Materiales",
+  jugadores: "Nº Jugadores",
+  duracion: "Duración",
   variantes: "Variantes",
   fase: "Fase",
-  categoria: "Categoria",
-  edad: "Edad",
-  consejos_entrenador: "Consejos_Entrenador",
-  imagen: "Imagen",
+  categoria: "Categoría temática",
+  edad: "Categorías de edad",
+  consejos_entrenador: "Consejos para el entrenador",
+  imagen: "Imágenes",
 };
 
 
@@ -42,13 +41,13 @@ function BatchAddExercisesPageContent() {
   const { toast } = useToast();
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setProcessedStats(null); // Reset stats when a new file is selected
+    setProcessedStats(null); 
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       const validTypes = [
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-        "application/vnd.ms-excel", // .xls
-        "text/csv" // .csv (SheetJS también lo soporta)
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+        "application/vnd.ms-excel", 
+        "text/csv" 
       ];
       if (validTypes.includes(file.type) || file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv') ) {
         setSelectedFile(file);
@@ -59,7 +58,7 @@ function BatchAddExercisesPageContent() {
           variant: "destructive",
         });
         setSelectedFile(null);
-        event.target.value = ""; 
+        if (event.target) event.target.value = ""; 
       }
     }
   };
@@ -77,6 +76,7 @@ function BatchAddExercisesPageContent() {
     setProcessedStats(null);
     let successCount = 0;
     let failureCount = 0;
+    let totalRows = 0;
 
     try {
       const reader = new FileReader();
@@ -89,9 +89,10 @@ function BatchAddExercisesPageContent() {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const jsonExercises = XLSX.utils.sheet_to_json(worksheet) as any[];
+          const jsonExercises = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as any[];
+          totalRows = jsonExercises.length;
 
-          if (jsonExercises.length === 0) {
+          if (totalRows === 0) {
             toast({ title: "Archivo Vacío", description: "El archivo no contiene ejercicios.", variant: "default" });
             setIsProcessing(false);
             return;
@@ -121,6 +122,7 @@ function BatchAddExercisesPageContent() {
                 exerciseData.imagen = `https://placehold.co/400x300.png?text=${encodeURIComponent(exerciseData.ejercicio || 'Ejercicio')}`;
             }
             
+            // Asegurar que los campos opcionales sean string vacío si no vienen, para que Zod no los tome como undefined si son opcionales pero string.
             exerciseData.numero = exerciseData.numero || ""; 
             exerciseData.variantes = exerciseData.variantes || "";
             exerciseData.consejos_entrenador = exerciseData.consejos_entrenador || "";
@@ -132,7 +134,7 @@ function BatchAddExercisesPageContent() {
               exercisesToSave.push(validation.data);
             } else {
               failureCount++;
-              const errors = validation.error.errors.map(err => `Fila ${index + 2}: Campo '${err.path.join('.')}' - ${err.message}`).join('; ');
+              const errors = validation.error.errors.map(err => `Fila ${index + 2}: Campo '${err.path.join('.')}' (${EXPECTED_HEADERS[err.path[0] as keyof typeof EXPECTED_HEADERS] || err.path[0]}) - ${err.message}`).join('; ');
               validationErrors.push(errors);
               console.warn(`Error de validación en fila ${index + 2}:`, validation.error.flatten());
             }
@@ -146,13 +148,12 @@ function BatchAddExercisesPageContent() {
                 <p className="font-semibold mb-1">Se encontraron {failureCount} fila(s) con errores de validación.</p>
                 <p className="mb-1">Por favor, revisa tu archivo Excel y asegúrate de que:</p>
                 <ul className="list-disc list-inside pl-4 space-y-0.5 text-xs">
-                  <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo".</li>
-                  <li>Todos los campos requeridos (ej. Ejercicio, Descripcion, Objetivos, Fase, Categoria, Edad, etc.) están completos.</li>
-                  <li>El contenido de los campos cumple los requisitos de longitud mínima.</li>
-                  <li>El campo 'Edad' no está vacío y las categorías de edad son válidas.</li>
-                  <li>El campo 'Categoria' tiene un ID de categoría válido.</li>
+                  <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo". ¡Cuidado con espacios extra!</li>
+                  <li>Todos los campos marcados como <strong>requeridos</strong> en el schema (Ejercicio, Descripción, Objetivos, Fase, Categoría, Edad, Espacio y Materiales, Nº Jugadores, Duración) están <strong>completos y tienen la longitud mínima</strong>.</li>
+                  <li>El campo '{EXPECTED_HEADERS.categoria}' usa el <strong>ID de la categoría</strong> (ej: 'pase-control', 'finalizacion'), no el nombre completo. Consulta los IDs en la sección de "Añadir ejercicio".</li>
+                  <li>El campo '{EXPECTED_HEADERS.edad}' no está vacío y contiene categorías de edad válidas. Si son varias, sepáralas por comas (ej: "Alevín (10-11 años),Infantil (12-13 años)").</li>
                 </ul>
-                <p className="mt-2">Consulta la consola del navegador (presiona F12) para ver los errores detallados por cada fila.</p>
+                <p className="mt-2">Consulta la consola del navegador (presiona F12 y ve a la pestaña "Consola") para ver los errores detallados por cada fila.</p>
               </div>
             );
 
@@ -160,7 +161,7 @@ function BatchAddExercisesPageContent() {
                 title: `Errores de Validación (${failureCount})`,
                 description: errorGuidance,
                 variant: "destructive",
-                duration: 20000, // Increased duration for more complex message
+                duration: 30000, 
              });
           }
           
@@ -184,7 +185,7 @@ function BatchAddExercisesPageContent() {
             }
           }
           
-          setProcessedStats({ success: successCount, failed: failureCount, total: jsonExercises.length });
+          setProcessedStats({ success: successCount, failed: failureCount, total: totalRows });
 
           if (successCount > 0 && failureCount === 0) {
             toast({
@@ -194,16 +195,14 @@ function BatchAddExercisesPageContent() {
           } else if (successCount > 0 && failureCount > 0) {
              toast({
               title: "Procesamiento Parcial",
-              description: `${successCount} de ${jsonExercises.length} ejercicios importados. ${failureCount} fallaron. Revisa los errores.`,
-              variant: "default", // Use default or a warning color if you have one
+              description: `${successCount} de ${totalRows} ejercicios importados. ${failureCount} fallaron. Revisa los errores.`,
+              variant: "default", 
               duration: 10000,
             });
-          } else if (failureCount > 0 && successCount === 0 && jsonExercises.length > 0) {
-             // This case is already handled by the detailed validation error toast.
-             // We might not need another toast here, or a very short one.
-             // For now, let the detailed validation error toast be the main feedback.
-          } else if (jsonExercises.length === 0 && successCount === 0 && failureCount === 0){
-            // Already handled by "Archivo Vacío" toast
+          } else if (failureCount > 0 && successCount === 0 && totalRows > 0){
+            // El toast de error de validación ya es suficiente.
+          } else if (totalRows === 0 && successCount === 0 && failureCount === 0){
+            // Ya manejado por "Archivo Vacío"
           }
 
 
@@ -214,12 +213,9 @@ function BatchAddExercisesPageContent() {
             description: procError.message || "Hubo un problema al leer o procesar el contenido del archivo. Verifica que el formato sea correcto.",
             variant: "destructive",
           });
-          setProcessedStats({ success: 0, failed: jsonExercises ? jsonExercises.length : 0, total: jsonExercises ? jsonExercises.length : 0});
+          setProcessedStats({ success: 0, failed: totalRows > 0 ? totalRows : 0, total: totalRows > 0 ? totalRows : 0 });
         } finally {
           setIsProcessing(false);
-          // setSelectedFile(null); // Keep file selected to allow user to re-attempt after fixing, or clear manually
-          // const fileInput = document.getElementById('excel-file-input') as HTMLInputElement | null;
-          // if (fileInput) fileInput.value = ""; // Clearing file input is tricky and sometimes not desired UX
         }
       };
       reader.readAsArrayBuffer(selectedFile);
@@ -320,23 +316,23 @@ function BatchAddExercisesPageContent() {
             <Info className="h-4 w-4" />
             <AlertTitle>Formato del Archivo (Encabezados de Columna)</AlertTitle>
             <AlertDescription>
-              <p>Asegúrate de que tu archivo tenga las siguientes columnas en la primera hoja (los nombres deben coincidir <strong>EXACTAMENTE</strong>, incluyendo mayúsculas/minúsculas y guiones bajos):</p>
+              <p className="font-semibold">Asegúrate de que tu archivo Excel/CSV tenga las siguientes columnas en la primera hoja. Los nombres deben coincidir <strong>EXACTAMENTE</strong> (mayúsculas, minúsculas, espacios, tildes y guiones bajos):</p>
               <ul className="list-disc list-inside text-xs mt-2 space-y-1">
-                <li><strong>{EXPECTED_HEADERS.numero}</strong> (Opcional, ej: 001)</li>
-                <li><strong>{EXPECTED_HEADERS.ejercicio}</strong> (Texto, ej: Pase y movimiento)</li>
-                <li><strong>{EXPECTED_HEADERS.descripcion}</strong> (Texto largo)</li>
-                <li><strong>{EXPECTED_HEADERS.objetivos}</strong> (Texto largo)</li>
-                <li><strong>{EXPECTED_HEADERS.espacio_materiales}</strong> (Texto, ej: Media pista, 5 conos)</li>
-                <li><strong>{EXPECTED_HEADERS.jugadores}</strong> (Texto, ej: 10-12)</li>
-                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Texto, ej: 15 min)</li>
-                <li><strong>{EXPECTED_HEADERS.variantes}</strong> (Opcional, texto largo)</li>
-                <li><strong>{EXPECTED_HEADERS.fase}</strong> (Texto: Calentamiento, Principal, o Vuelta a la calma)</li>
-                <li><strong>{EXPECTED_HEADERS.categoria}</strong> (ID de categoría, ej: pase-control)</li>
-                <li><strong>{EXPECTED_HEADERS.edad}</strong> (Texto, ej: "Alevín (10-11 años)". Si son varias, separadas por coma: "Alevín (10-11 años),Infantil (12-13 años)")</li>
-                <li><strong>{EXPECTED_HEADERS.consejos_entrenador}</strong> (Opcional, texto largo)</li>
-                <li><strong>{EXPECTED_HEADERS.imagen}</strong> (Opcional, URL completa a una imagen. Si se deja vacío, se usará una imagen genérica)</li>
+                <li><strong>{EXPECTED_HEADERS.numero}</strong> (Opcional. Ej: 001)</li>
+                <li><strong>{EXPECTED_HEADERS.ejercicio}</strong> (Requerido, mín. 3 caracteres. Ej: Pase y movimiento)</li>
+                <li><strong>{EXPECTED_HEADERS.descripcion}</strong> (Requerido, mín. 10 caracteres)</li>
+                <li><strong>{EXPECTED_HEADERS.objetivos}</strong> (Requerido, mín. 10 caracteres)</li>
+                <li><strong>{EXPECTED_HEADERS.espacio_materiales}</strong> (Requerido, mín. 5 caracteres. Ej: Media pista, 5 conos)</li>
+                <li><strong>{EXPECTED_HEADERS.jugadores}</strong> (Requerido, mín. 1 caracter. Ej: 10-12)</li>
+                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido, mín. 1 caracter. Ej: 15 min)</li>
+                <li><strong>{EXPECTED_HEADERS.variantes}</strong> (Opcional)</li>
+                <li><strong>{EXPECTED_HEADERS.fase}</strong> (Requerido. Debe ser uno de: Calentamiento, Principal, Vuelta a la calma)</li>
+                <li><strong>{EXPECTED_HEADERS.categoria}</strong> (Requerido. Debe ser el <strong>ID de la categoría</strong>, ej: 'pase-control', 'finalizacion'. Consulta los IDs en la sección de añadir ejercicio individual, no el nombre completo de la categoría)</li>
+                <li><strong>{EXPECTED_HEADERS.edad}</strong> (Requerido. Ej: "Alevín (10-11 años)". Si son varias, separadas por coma: "Alevín (10-11 años),Infantil (12-13 años)"). La celda no puede estar vacía.</li>
+                <li><strong>{EXPECTED_HEADERS.consejos_entrenador}</strong> (Opcional)</li>
+                <li><strong>{EXPECTED_HEADERS.imagen}</strong> (Opcional, URL completa. Si se deja vacío, se usará una imagen genérica)</li>
               </ul>
-               <p className="mt-2 text-xs">Consulta la lista de IDs de categoría en la sección de añadir ejercicio individual. Para '{EXPECTED_HEADERS.edad}', si son varias, sepáralas por comas (ej: "Alevín (10-11 años),Infantil (12-13 años)"). Todos los campos, excepto los marcados como "Opcional", son requeridos y deben tener contenido válido.</p>
+               <p className="mt-2 text-xs"><strong className="text-destructive">Importante:</strong> Todos los campos marcados como "Requerido" deben tener contenido válido y cumplir con la longitud mínima especificada. Las celdas vacías en campos requeridos causarán errores de validación.</p>
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -360,5 +356,7 @@ export default function BatchAddExercisesPage() {
 }
 
     
+
+      
 
       
