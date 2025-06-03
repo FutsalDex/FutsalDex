@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Removed DialogDescription
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -257,8 +257,8 @@ function MisSesionesContent() {
 
   const getSessionTema = (sesion: Sesion): string => {
     if (sesion.type === "AI" && sesion.sessionFocus) return sesion.sessionFocus;
-    if (sesion.sessionTitle && !sesion.sessionTitle.startsWith("Sesión Manual -")) return sesion.sessionTitle; // If AI title is custom
-    if (sesion.type === "AI" && sesion.sessionTitle && sesion.sessionTitle.startsWith("Sesión para equipo")) return sesion.sessionTitle; // default AI title
+    if (sesion.sessionTitle && !sesion.sessionTitle.startsWith("Sesión Manual -")) return sesion.sessionTitle; 
+    if (sesion.type === "AI" && sesion.sessionTitle && sesion.sessionTitle.startsWith("Sesión para equipo")) return sesion.sessionTitle; 
 
     if (sesion.equipo) return `Entrenamiento ${sesion.equipo}`;
     return "Tema no especificado";
@@ -355,21 +355,15 @@ function MisSesionesContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"> {/* Increased gap for protruding buttons */}
           {sesiones.map((sesion) => (
-            <Card key={sesion.id} className="shadow-lg flex flex-col">
+            <Card key={sesion.id} className="shadow-lg flex flex-col overflow-visible">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-grow">
                     <p className="text-2xl font-bold text-primary font-headline">
                       {formatDate(sesion.fecha)}
                     </p>
-                     {sesion.numero_sesion && (
-                        <p className="text-md text-primary font-semibold">Sesión #{sesion.numero_sesion}</p>
-                      )}
-                    <CardDescription className="text-xs mt-1">
-                      Club: {sesion.club || 'N/A'} | Equipo: {sesion.equipo || 'N/A'} | Temporada: {sesion.temporada || 'N/A'}
-                    </CardDescription>
                   </div>
                   <Badge variant={sesion.type === "AI" ? "default" : "secondary"} className="ml-2 shrink-0">
                     {sesion.type === "AI" ? <Bot className="mr-1 h-3 w-3"/> : <Edit2 className="mr-1 h-3 w-3"/>}
@@ -377,7 +371,7 @@ function MisSesionesContent() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 flex-grow">
+              <CardContent className="space-y-3 flex-grow pb-8"> {/* Added pb-8 to prevent content overlap */}
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Tema/Enfoque:</p>
                   <p className="font-medium text-sm line-clamp-2">{getSessionTema(sesion)}</p>
@@ -395,7 +389,7 @@ function MisSesionesContent() {
                 <div className="space-y-0.5">
                   <p className="text-xs font-semibold text-muted-foreground">Ejercicios Principales:</p>
                   {sesion.mainExercises.length > 0 ? (
-                    sesion.mainExercises.slice(0,2).map((ex, index) => ( // Show max 2 main exercises
+                    sesion.mainExercises.slice(0,2).map((ex, index) => ( 
                       <p key={index} className="text-xs pl-2 line-clamp-1">- {formatExerciseName(ex)}</p>
                     ))
                   ) : (
@@ -414,10 +408,10 @@ function MisSesionesContent() {
                     </div>
                 )}
               </CardContent>
-              <CardFooter className="flex flex-col sm:flex-row gap-2 pt-4 border-t mt-auto">
+              <CardFooter className="flex flex-row justify-center gap-2 px-4 py-2 -mb-3 relative z-10 mt-auto">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto text-sm">
+                    <Button variant="outline" className="w-auto text-sm bg-background shadow-md hover:shadow-lg">
                       <Eye className="mr-2 h-4 w-4" /> Ver Ficha
                     </Button>
                   </DialogTrigger>
@@ -514,7 +508,7 @@ function MisSesionesContent() {
                 </Dialog>
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto text-sm"
+                  className="w-auto text-sm bg-background shadow-md hover:shadow-lg"
                   onClick={() => handleEditSessionClick(sesion.type, sesion.id)}
                   disabled={sesion.type === "AI"}
                   title={sesion.type === "AI" ? "La edición de sesiones AI no está disponible" : "Editar sesión"}
@@ -523,7 +517,7 @@ function MisSesionesContent() {
                 </Button>
                 <Button
                   variant="destructive"
-                  className="w-full sm:w-auto text-sm"
+                  className="w-auto text-sm shadow-md hover:shadow-lg"
                   onClick={() => handleDeleteSessionClick(sesion.id)}
                 >
                   <Trash2 className="mr-2 h-4 w-4" /> Borrar
@@ -554,3 +548,4 @@ function MisSesionesContent() {
     </div>
   );
 }
+
