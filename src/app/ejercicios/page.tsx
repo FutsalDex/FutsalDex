@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint } from 'firebase/firestore';
 import Image from 'next/image';
-import { Upload, Filter, Search, Loader2, Eye, Lock } from 'lucide-react';
+import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface Ejercicio {
   id: string;
@@ -32,24 +34,32 @@ interface Ejercicio {
 }
 
 const ITEMS_PER_PAGE = 10;
-const GUEST_ITEM_LIMIT = 10; // Updated from 5 to 10
+const GUEST_ITEM_LIMIT = 10;
 const ALL_PHASES_VALUE = "ALL_PHASES";
 const ALL_AGES_VALUE = "ALL_AGES";
+
+const THEMATIC_CATEGORIES = [
+  { id: "tecnica", label: "Técnica" },
+  { id: "tactica", label: "Táctica" },
+  { id: "fisico", label: "Preparación Física" },
+  { id: "estrategia", label: "Estrategia (ABP)" },
+  { id: "porteros", label: "Porteros" },
+];
 
 export default function EjerciciosPage() {
   const { user, isRegisteredUser } = useAuth();
   const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalEjercicios, setTotalEjercicios] = useState(0); // For registered users
+  const [totalEjercicios, setTotalEjercicios] = useState(0);
   const [lastVisible, setLastVisible] = useState<DocumentData | null>(null);
-  const [firstVisible, setFirstVisible] = useState<DocumentData | null>(null);
-  const [pageHistory, setPageHistory] = useState<(DocumentData | null)[]>([null]);
-
+  // const [firstVisible, setFirstVisible] = useState<DocumentData | null>(null); // Not currently used for prev page logic
+  // const [pageHistory, setPageHistory] = useState<(DocumentData | null)[]>([null]); // Simplified pagination
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState(ALL_PHASES_VALUE); 
+  const [phaseFilter, setPhaseFilter] = useState(ALL_PHASES_VALUE); 
   const [ageFilter, setAgeFilter] = useState(ALL_AGES_VALUE); 
+  const [selectedThematicCategories, setSelectedThematicCategories] = useState<string[]>([]);
 
   const uniqueAgeCategories = useMemo(() => {
     return ["Benjamín (U8-U9)", "Alevín (U10-U11)", "Infantil (U12-U13)", "Cadete (U14-U15)", "Juvenil (U16-U18)", "Senior"];
@@ -59,19 +69,19 @@ export default function EjerciciosPage() {
      return ["Calentamiento", "Principal", "Vuelta a la calma"];
   }, []);
 
-
-  const fetchEjercicios = async (page = 1, search = searchTerm, category = categoryFilter, age = ageFilter, direction: 'next' | 'prev' | 'first' = 'first') => {
+  const fetchEjercicios = async (page = 1, search = searchTerm, phase = phaseFilter, age = ageFilter, direction: 'next' | 'prev' | 'first' = 'first') => {
     setIsLoading(true);
     try {
       const ejerciciosCollection = collection(db, 'ejercicios_futsal');
       const constraints: QueryConstraint[] = [];
 
       if (search) {
+        // Basic prefix search, might need more sophisticated search for production
         constraints.push(where('ejercicio', '>=', search));
         constraints.push(where('ejercicio', '<=', search + '\uf8ff'));
       }
-      if (category && category !== ALL_PHASES_VALUE) { 
-        constraints.push(where('fase', '==', category));
+      if (phase && phase !== ALL_PHASES_VALUE) { 
+        constraints.push(where('fase', '==', phase));
       }
       if (age && age !== ALL_AGES_VALUE) {
         constraints.push(where('categoria_edad', '==', age));
@@ -86,6 +96,7 @@ export default function EjerciciosPage() {
         if (direction === 'next' && lastVisible) {
           constraints.push(startAfter(lastVisible));
         }
+        // Note: 'prev' direction would require storing firstVisible of pages or more complex logic
       }
       
       const q = query(ejerciciosCollection, ...constraints);
@@ -96,12 +107,8 @@ export default function EjerciciosPage() {
 
       if (isRegisteredUser) {
         setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
-        setFirstVisible(documentSnapshots.docs[0]);
-        if (direction === 'first') {
-          setPageHistory([null, documentSnapshots.docs[documentSnapshots.docs.length - 1]]);
-        } else if (direction === 'next') {
-          setPageHistory(prev => [...prev, documentSnapshots.docs[documentSnapshots.docs.length - 1]]);
-        }
+        // setFirstVisible(documentSnapshots.docs[0]); // For robust prev page
+        // Simplified page history/tracking for this example
         setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1); 
       } else {
         setTotalEjercicios(fetchedEjercicios.length);
@@ -114,26 +121,52 @@ export default function EjerciciosPage() {
   };
   
   useEffect(() => {
-    setCurrentPage(1); // Reset to page 1 on filter change
-    setPageHistory([null]); // Reset history on filter change
-    fetchEjercicios(1, searchTerm, categoryFilter, ageFilter, 'first');
+    setCurrentPage(1); 
+    setLastVisible(null); // Reset pagination cursor on filter change
+    fetchEjercicios(1, searchTerm, phaseFilter, ageFilter, 'first');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, searchTerm, categoryFilter, ageFilter]); 
+  }, [isRegisteredUser, searchTerm, phaseFilter, ageFilter]); 
+
+  const handleThematicCategoryChange = (categoryId: string) => {
+    setSelectedThematicCategories(prev => {
+      const isSelected = prev.includes(categoryId);
+      if (isSelected) {
+        return prev.filter(id => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
+  };
+
+  const displayedEjercicios = useMemo(() => {
+    if (selectedThematicCategories.length === 0) {
+      return ejercicios;
+    }
+    return ejercicios.filter(exercise => {
+      return selectedThematicCategories.some(catId => {
+        const categoryObj = THEMATIC_CATEGORIES.find(c => c.id === catId);
+        if (!categoryObj) return false;
+        // Heuristic simple: buscar la etiqueta de la categoría (o parte de ella) en campos relevantes.
+        const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0]; 
+        const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
+        return exerciseText.includes(searchKeyword);
+      });
+    });
+  }, [ejercicios, selectedThematicCategories]);
+
 
   const handlePageChange = (newPage: number) => {
     if (newPage > currentPage) { 
       setCurrentPage(newPage);
-      fetchEjercicios(newPage, searchTerm, categoryFilter, ageFilter, 'next');
+      fetchEjercicios(newPage, searchTerm, phaseFilter, ageFilter, 'next');
     } else if (newPage < currentPage && newPage > 0) { 
-      setCurrentPage(newPage);
-      // Simplified previous page logic - for robust prev, store firstVisible of each page
-      // This will effectively go to the first page of the current filter set
-      fetchEjercicios(newPage, searchTerm, categoryFilter, ageFilter, 'first'); 
-      setPageHistory([null]); 
+      // Simplified previous page logic for this example: go to first page of current filter set.
+      // For true 'prev' page, you'd need to store 'firstVisible' docs for each page.
+      setCurrentPage(1); // Or newPage if implementing more robust prev
+      fetchEjercicios(1, searchTerm, phaseFilter, ageFilter, 'first'); 
     } else if (newPage === 1) {
       setCurrentPage(1);
-      fetchEjercicios(1, searchTerm, categoryFilter, ageFilter, 'first');
-      setPageHistory([null]);
+      fetchEjercicios(1, searchTerm, phaseFilter, ageFilter, 'first');
     }
   };
 
@@ -141,10 +174,13 @@ export default function EjerciciosPage() {
     const file = event.target.files?.[0];
     if (file) {
       console.log("File selected:", file.name);
+      // Placeholder for actual upload logic
     }
   };
 
   const totalPages = isRegisteredUser ? Math.ceil(totalEjercicios / ITEMS_PER_PAGE) : 1;
+  // Adjust totalPages if client-side filtering is active and you want pagination to reflect that.
+  // However, for simplicity, totalPages is based on Firestore query for now.
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -174,73 +210,99 @@ export default function EjerciciosPage() {
         </Card>
       )}
 
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="relative flex-grow">
-          <Input
-            type="text"
-            placeholder="Buscar ejercicio por nombre..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          <div className="relative flex-grow">
+            <Input
+              type="text"
+              placeholder="Buscar ejercicio por nombre..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Select value={phaseFilter} onValueChange={setPhaseFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filtrar por Fase" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_PHASES_VALUE}>Todas las Fases</SelectItem>
+                {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={ageFilter} onValueChange={setAgeFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Categoría de Edad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_AGES_VALUE}>Todas las Edades</SelectItem>
+                {uniqueAgeCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {isRegisteredUser && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="shrink-0 w-full md:w-auto">
+                  <Upload className="mr-2 h-4 w-4" /> Subir Excel
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Subir Ejercicios desde Excel</DialogTitle>
+                  <DialogDescription>
+                    Selecciona un archivo Excel (.xlsx o .xls) para importar ejercicios. Asegúrate de que el archivo sigue el formato especificado.
+                  </DialogDescription>
+                </DialogHeader>
+                <Input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Esta funcionalidad está en desarrollo. La carga de archivos no está implementada en esta demostración.
+                </p>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
-        <div className="flex gap-4">
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filtrar por Fase" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_PHASES_VALUE}>Todas las Fases</SelectItem>
-              {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={ageFilter} onValueChange={setAgeFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Categoría de Edad" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_AGES_VALUE}>Todas las Edades</SelectItem>
-              {uniqueAgeCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-            </SelectContent>
-          </Select>
+        
+        <div>
+          <Label className="text-md font-semibold flex items-center mb-2">
+            <ListFilter className="h-4 w-4 mr-2" />
+            Filtrar por Categoría Temática
+          </Label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-2 p-4 border rounded-md bg-card">
+            {THEMATIC_CATEGORIES.map((category) => (
+              <div key={category.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`thematic-cat-${category.id}`}
+                  checked={selectedThematicCategories.includes(category.id)}
+                  onCheckedChange={() => handleThematicCategoryChange(category.id)}
+                />
+                <Label htmlFor={`thematic-cat-${category.id}`} className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  {category.label}
+                </Label>
+              </div>
+            ))}
+          </div>
+           <p className="text-xs text-muted-foreground mt-1">
+              Nota: El filtrado por categoría temática busca palabras clave en los detalles del ejercicio.
+           </p>
         </div>
-        {isRegisteredUser && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="shrink-0">
-                <Upload className="mr-2 h-4 w-4" /> Subir Excel
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Subir Ejercicios desde Excel</DialogTitle>
-                <DialogDescription>
-                  Selecciona un archivo Excel (.xlsx o .xls) para importar ejercicios. Asegúrate de que el archivo sigue el formato especificado.
-                </DialogDescription>
-              </DialogHeader>
-              <Input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
-              <p className="text-xs text-muted-foreground mt-2">
-                Esta funcionalidad está en desarrollo. La carga de archivos no está implementada en esta demostración.
-              </p>
-            </DialogContent>
-          </Dialog>
-        )}
       </div>
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
-      ) : ejercicios.length === 0 ? (
+      ) : displayedEjercicios.length === 0 ? (
         <p className="text-center text-lg text-muted-foreground py-10">No se encontraron ejercicios con los filtros actuales.</p>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {ejercicios.map((ej) => (
-              <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl">
+            {displayedEjercicios.map((ej) => (
+              <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
                 <div className="relative h-48 w-full">
                   <Image 
                     src={ej.imagen || `https://placehold.co/400x300.png`} 
@@ -296,13 +358,13 @@ export default function EjerciciosPage() {
             ))}
           </div>
 
-          {isRegisteredUser && totalPages > 1 && ejercicios.length === ITEMS_PER_PAGE && (
+          {isRegisteredUser && totalEjercicios > ITEMS_PER_PAGE && displayedEjercicios.length > 0 && (
              <Pagination className="mt-8">
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious 
                     href="#" 
-                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} 
+                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} // Simplified to go to first page
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
                   />
                 </PaginationItem>
@@ -312,6 +374,7 @@ export default function EjerciciosPage() {
                   </PaginationLink>
                 </PaginationItem>
                 
+                {/* Show Next button only if there are potentially more items (last fetch returned full page) */}
                 {ejercicios.length === ITEMS_PER_PAGE && (
                   <PaginationItem>
                     <PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1);}} />
