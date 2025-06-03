@@ -17,19 +17,19 @@ import { collection, writeBatch, doc, serverTimestamp } from 'firebase/firestore
 import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas'; 
 
 const EXPECTED_HEADERS = {
-  numero: "Nº",
+  numero: "Número",
   ejercicio: "Ejercicio",
   descripcion: "Descripción de la tarea",
   objetivos: "Objetivos",
-  espacio_materiales: "Espacio y Materiales",
-  jugadores: "Nº Jugadores",
-  duracion: "Duración",
+  espacio_materiales: "Espacio y materiales necesarios",
+  jugadores: "Número de jugadores",
+  duracion: "Duración estimada",
   variantes: "Variantes",
   fase: "Fase",
-  categoria: "Categoría", // Cambiado de "Categoría temática"
-  edad: "Categorías de edad",
+  categoria: "Categoría",
+  edad: "Edad",
   consejos_entrenador: "Consejos para el entrenador",
-  imagen: "Imágenes",
+  imagen: "Imagen",
 };
 
 
@@ -133,7 +133,7 @@ function BatchAddExercisesPageContent() {
               exercisesToSave.push(validation.data);
             } else {
               failureCount++;
-              const errors = validation.error.errors.map(err => `Fila ${index + 2}: Campo '${err.path.join('.')}' (${EXPECTED_HEADERS[err.path[0] as keyof typeof EXPECTED_HEADERS] || err.path[0]}) - ${err.message}`).join('; ');
+              const errors = validation.error.errors.map(err => `Fila ${index + 2}: Campo '${err.path.join('.')}' ('${EXPECTED_HEADERS[err.path[0] as keyof typeof EXPECTED_HEADERS] || err.path[0]}') - ${err.message}`).join('; ');
               validationErrors.push(errors);
               console.warn(`Error de validación en fila ${index + 2}:`, validation.error.flatten());
             }
@@ -147,8 +147,8 @@ function BatchAddExercisesPageContent() {
                 <p className="font-semibold mb-1">Se encontraron {failureCount} fila(s) con errores de validación.</p>
                 <p className="mb-1">Por favor, revisa tu archivo Excel y asegúrate de que:</p>
                 <ul className="list-disc list-inside pl-4 space-y-0.5 text-xs">
-                  <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo". ¡Cuidado con espacios extra!</li>
-                  <li>Todos los campos marcados como <strong>requeridos</strong> en el schema (Ejercicio, Descripción, Objetivos, Fase, Categoría, Edad, Espacio y Materiales, Nº Jugadores, Duración) están <strong>completos y no son cadenas vacías</strong>.</li>
+                  <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo". ¡Cuidado con espacios extra o diferencias en mayúsculas/minúsculas/tildes!</li>
+                  <li>Todos los campos marcados como <strong>requeridos</strong> en el schema (Ejercicio, Descripción de la tarea, Objetivos, Fase, Categoría, Edad, Espacio y materiales necesarios, Número de jugadores, Duración estimada) están <strong>completos y no son cadenas vacías</strong>.</li>
                   <li>El campo '{EXPECTED_HEADERS.categoria}' usa el <strong>ID de la categoría</strong> (ej: 'pase-control', 'finalizacion'), no el nombre completo. Consulta los IDs en la sección de "Añadir ejercicio".</li>
                   <li>El campo '{EXPECTED_HEADERS.edad}' no está vacío y contiene categorías de edad válidas. Si son varias, sepáralas por comas (ej: "Alevín (10-11 años),Infantil (12-13 años)").</li>
                 </ul>
@@ -353,9 +353,5 @@ export default function BatchAddExercisesPage() {
     </AuthGuard>
   );
 }
-
-    
-
-      
 
       
