@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot } from 'firebase/firestore';
 import Image from 'next/image';
-import { Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart, FileText } from 'lucide-react';
+import { Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
 import {
@@ -78,44 +78,44 @@ export default function EjerciciosPage() {
     setIsLoading(true);
     try {
       const ejerciciosCollection = collection(db, 'ejercicios_futsal');
-      let constraints: QueryConstraint[] = [];
+      let constraintsList: QueryConstraint[] = [];
 
-      if (currentSearch) {
-        constraints.push(firestoreOrderBy('ejercicio'));
-        constraints.push(where('ejercicio', '>=', currentSearch));
-        constraints.push(where('ejercicio', '<=', currentSearch + '\uf8ff'));
-      } else {
-        constraints.push(firestoreOrderBy('ejercicio')); 
-      }
-
+      // Apply equality and array-contains filters first
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
-        constraints.push(where('fase', '==', currentPhase));
+        constraintsList.push(where('fase', '==', currentPhase));
       }
-      
       if (currentAge && currentAge !== ALL_FILTER_VALUE) {
-        constraints.push(where('edad', 'array-contains', currentAge));
+        constraintsList.push(where('edad', 'array-contains', currentAge));
       }
-      
       if (currentThematicCat && currentThematicCat !== ALL_FILTER_VALUE) {
-        constraints.push(where('categoria', '==', currentThematicCat));
+        constraintsList.push(where('categoria', '==', currentThematicCat));
       }
 
-      const limitAmount = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
-      constraints.push(limit(limitAmount));
-
-      if (isRegisteredUser && pageToFetch > 1 && isNextPage && lastVisible) {
-          constraints.push(startAfter(lastVisible));
-      } else if (isRegisteredUser && pageToFetch > 1 && !isNextPage && firstVisibleDocsHistory[pageToFetch -1]) {
-          // This case is for jumping to a specific previous page, needs startAfter(last doc of page before target)
-          // Simplified by "Previous" button usually going to page 1 or one by one.
-          // If firstVisibleDocsHistory[pageToFetch - 2] (last doc of page before target) exists, use it
-          if (firstVisibleDocsHistory[pageToFetch - 2]) { // This assumes firstVisibleDocsHistory stores *last* docs for startAfter
-             // This part of logic is more complex and needs careful state management for true multi-step previous.
-             // For now, 'Previous' button will reset to page 1 or rely on simpler logic
-          }
+      // Handle search term (which includes its own orderBy) or default sort order
+      if (currentSearch) {
+        // For search, Firestore needs the orderBy on the field being searched for range queries.
+        // This orderBy should ideally be compatible with other active filters through composite indexes.
+        constraintsList.push(where('ejercicio', '>=', currentSearch));
+        constraintsList.push(where('ejercicio', '<=', currentSearch + '\uf8ff'));
+        constraintsList.push(firestoreOrderBy('ejercicio')); 
+      } else {
+        // Default sort order if no search term is active
+        constraintsList.push(firestoreOrderBy('ejercicio'));
       }
       
-      const q = query(ejerciciosCollection, ...constraints);
+      // Pagination cursor logic
+      // This should be applied *after* all 'where' and 'orderBy' clauses that define the core dataset.
+      // The `startAfter` cursor needs to be from a document that matches the current filters and order.
+      // `lastVisible` is reset when filters change, which is correct.
+      if (isRegisteredUser && pageToFetch > 1 && isNextPage && lastVisible) {
+          constraintsList.push(startAfter(lastVisible));
+      }
+      
+      // Limit should be the last constraint applied to the query passed to getDocs.
+      const limitAmount = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
+      constraintsList.push(limit(limitAmount));
+      
+      const q = query(ejerciciosCollection, ...constraintsList);
       const documentSnapshots = await getDocs(q);
 
       const fetchedEjercicios = documentSnapshots.docs.map(doc => ({ 
@@ -128,7 +128,7 @@ export default function EjerciciosPage() {
       if (isRegisteredUser) {
         if (documentSnapshots.docs.length > 0) {
           setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
-          if (isNextPage || pageToFetch === 1) { // Store first doc when moving next or on initial load of page 1
+          if (isNextPage || pageToFetch === 1) { 
              setFirstVisibleDocsHistory(prev => {
               const newHistory = [...prev];
               newHistory[pageToFetch] = documentSnapshots.docs[0] as QueryDocumentSnapshot<DocumentData>;
@@ -161,14 +161,14 @@ export default function EjerciciosPage() {
     }
     setIsLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, toast]); 
+  }, [isRegisteredUser, toast, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, lastVisible]); // Added lastVisible to dep array
 
   useEffect(() => {
-    // Reset pagination and fetch when filters change
     setLastVisible(null);
-    setFirstVisibleDocsHistory([null]); // firstVisibleDocsHistory[0] is for page 1 (null means no startAfter)
+    setFirstVisibleDocsHistory([null]); 
     fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, false);
-  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]); // fetchEjercicios removed from here to avoid potential loop if it wasn't stable
 
   const toggleFavorite = (exerciseId: string) => {
     if (!isRegisteredUser) return; 
@@ -183,6 +183,9 @@ export default function EjerciciosPage() {
     if (newPage === currentPage) return;
 
     const isNext = newPage > currentPage;
+    // When going to previous page, lastVisible should be from before that page.
+    // For simplicity, if going back, we might need a more complex cursor logic or just refetch.
+    // The current setup implicitly re-fetches from start if !isNextPage or lastVisible is not applicable.
     fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isNext);
   };
   
@@ -319,7 +322,7 @@ export default function EjerciciosPage() {
                 </div>
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
-                  <CardDescription className="text-xs space-y-0.5">
+                   <CardDescription className="text-xs space-y-0.5">
                     <div><strong>Fase:</strong> {ej.fase}</div>
                     <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
                     <div><strong>Duración:</strong> {ej.duracion}</div>
