@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, ArrowLeft, ListChecks, Edit, Trash2, Loader2, PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation'; 
 import { db } from "@/lib/firebase";
 import { collection, getDocs, deleteDoc, doc, query, orderBy as firestoreOrderBy, DocumentData } from 'firebase/firestore';
 import {
@@ -44,7 +44,7 @@ interface EjercicioAdmin {
 function ManageExercisesPageContent() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter(); 
   const [ejercicios, setEjercicios] = useState<EjercicioAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -97,7 +97,7 @@ function ManageExercisesPageContent() {
   };
 
   const handleModifyClick = (id: string) => {
-    router.push(`/admin/edit-exercise/${id}`); // Correct navigation
+    router.push(`/admin/edit-exercise/${id}`); 
   };
   
   const formatEdad = (edad: string[] | string) => {
@@ -210,9 +210,9 @@ function ManageExercisesPageContent() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el ejercicio de la base de datos.
+              ¿Estás seguro que quieres eliminar, permanentemente, este ejercicio?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
