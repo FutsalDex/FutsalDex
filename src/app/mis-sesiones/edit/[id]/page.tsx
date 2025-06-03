@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
-import { AuthGuard } from "@/components/auth-guard"; // Corrected import path
+import { AuthGuard } from "@/components/auth-guard";
 import { manualSessionSchema, type ManualSessionFormValues } from "@/lib/schemas";
 import { useState, useEffect, useMemo, useCallback }
 from "react";
@@ -26,7 +26,7 @@ import { Loader2, Save, Info, Filter, ArrowLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CATEGORIAS_TEMATICAS_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
+import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -55,6 +55,8 @@ function EditManualSessionPageContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [sessionNotFound, setSessionNotFound] = useState(false);
+  const [originalNumeroSesion, setOriginalNumeroSesion] = useState<string | null | undefined>(undefined);
+
 
   const [calentamientoEjercicios, setCalentamientoEjercicios] = useState<Ejercicio[]>([]);
   const [principalEjercicios, setPrincipalEjercicios] = useState<Ejercicio[]>([]);
@@ -120,6 +122,8 @@ function EditManualSessionPageContent() {
           setIsLoadingData(false);
           return;
         }
+
+        setOriginalNumeroSesion(data.numero_sesion);
         
         const sessionDataForForm: SesionDataForForm = {
             warmUpExerciseId: data.warmUp?.id || "",
@@ -132,6 +136,16 @@ function EditManualSessionPageContent() {
             equipo: data.equipo || "",
         };
         form.reset(sessionDataForForm);
+
+        // Pre-seleccionar categorías si hay ejercicios principales
+        if (sessionDataForForm.mainExerciseIds.length > 0 && principalEjercicios.length > 0) {
+            const categoriesOfSelectedExercises = principalEjercicios
+                .filter(ej => sessionDataForForm.mainExerciseIds.includes(ej.id))
+                .map(ej => ej.categoria)
+                .filter((value, index, self) => self.indexOf(value) === index); // distinct categories
+            setSelectedCategorias(categoriesOfSelectedExercises.slice(0, 4));
+        }
+
         setSessionNotFound(false);
 
       } else {
@@ -144,13 +158,13 @@ function EditManualSessionPageContent() {
       setSessionNotFound(true);
     }
     setIsLoadingData(false);
-  }, [sessionId, user, form, toast]);
+  }, [sessionId, user, form, toast, principalEjercicios]); // Add principalEjercicios dependency
 
   useEffect(() => {
-    if (user) { // Ensure user is available before fetching
+    if (user && (loadingEjercicios.principal === false)) { // Ensure principal exercises are loaded before fetching session
         fetchSessionData();
     }
-  }, [user, fetchSessionData]);
+  }, [user, fetchSessionData, loadingEjercicios.principal]);
 
 
   const handleCategoryChange = (categoryLabel: string) => {
@@ -174,7 +188,6 @@ function EditManualSessionPageContent() {
        toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
     } else {
       setSelectedCategorias(newSelectedCategorias);
-      // form.setValue('mainExerciseIds', []); // Optionally reset main exercises on category change
     }
   };
 
@@ -188,9 +201,29 @@ function EditManualSessionPageContent() {
   async function onSubmit(values: ManualSessionFormValues) {
     if (!user || !sessionId) return;
     setIsSaving(true);
+    form.clearErrors("numero_sesion");
+
+    if (values.numero_sesion && values.numero_sesion !== originalNumeroSesion) {
+        try {
+            const q = query(collection(db, "mis_sesiones"), 
+                            where("userId", "==", user.uid), 
+                            where("numero_sesion", "==", values.numero_sesion));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
+              setIsSaving(false);
+              return;
+            }
+        } catch (error) {
+            console.error("Error checking duplicate session number:", error);
+            toast({ title: "Error de Validación", description: "No se pudo verificar el número de sesión. Inténtalo de nuevo.", variant: "destructive" });
+            setIsSaving(false);
+            return;
+        }
+    }
 
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
-    const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
+    const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id)); // Use principalEjercicios for up-to-date list
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
 
     let totalDuration = 0;
@@ -209,8 +242,6 @@ function EditManualSessionPageContent() {
     const titleToSave = `Sesión Manual - ${formattedDate}`;
 
     const sessionDataToUpdate = {
-      // userId: user.uid, // Should not update userId
-      // type: "Manual", // Should not update type
       sessionTitle: titleToSave,
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio, duracion: warmUpDoc.duracion } : null,
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio, duracion: e.duracion })),
@@ -320,7 +351,7 @@ function EditManualSessionPageContent() {
     }
   };
 
-  if (isLoadingData) {
+  if (isLoadingData || Object.values(loadingEjercicios).some(l => l && isLoadingData)) { // Combined loading check
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -390,7 +421,13 @@ function EditManualSessionPageContent() {
             <CardHeader><CardTitle className="font-headline text-xl">Detalles Adicionales de la Sesión</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField control={form.control} name="numero_sesion" render={({ field }) => (<FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 16" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="numero_sesion" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Número de Sesión</FormLabel>
+                        <FormControl><Input placeholder="Ej: 1" {...field} value={field.value || ""} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
                 <FormField control={form.control} name="fecha" render={({ field }) => (<FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="temporada" render={({ field }) => (<FormItem><FormLabel>Temporada</FormLabel><FormControl><Input placeholder="Ej: 2024-2025" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="club" render={({ field }) => (<FormItem><FormLabel>Club</FormLabel><FormControl><Input placeholder="Ej: Futsal Club Elite" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>)} />
@@ -417,3 +454,4 @@ export default function EditManualSessionPage() {
     );
 }
 
+    

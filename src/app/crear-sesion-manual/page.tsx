@@ -34,13 +34,25 @@ import { parseDurationToMinutes } from "@/lib/utils";
 interface Ejercicio {
   id: string;
   ejercicio: string;
-  descripcion: string; 
-  objetivos: string;   
+  descripcion: string;
+  objetivos: string;
   fase: string;
-  categoria: string; 
+  categoria: string;
   duracion: string; // Será "5", "10", "15", "20"
 }
 
+function getMaxNumericSessionNumber(sessionNumbers: (string | undefined)[]): number {
+  let maxNumber = 0;
+  sessionNumbers.forEach(numStr => {
+    if (numStr) {
+      const num = parseInt(numStr.replace(/\D/g, ''), 10); // Extrae solo dígitos
+      if (!isNaN(num) && num > maxNumber) {
+        maxNumber = num;
+      }
+    }
+  });
+  return maxNumber;
+}
 
 export default function CrearSesionManualPage() {
   return (
@@ -52,13 +64,14 @@ function CrearSesionManualContent() {
   const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isFetchingNextSessionNumber, setIsFetchingNextSessionNumber] = useState(false);
 
   const [calentamientoEjercicios, setCalentamientoEjercicios] = useState<Ejercicio[]>([]);
-  const [principalEjercicios, setPrincipalEjercicios] = useState<Ejercicio[]>([]); 
+  const [principalEjercicios, setPrincipalEjercicios] = useState<Ejercicio[]>([]);
   const [vueltaCalmaEjercicios, setVueltaCalmaEjercicios] = useState<Ejercicio[]>([]);
 
   const [loadingEjercicios, setLoadingEjercicios] = useState({ calentamiento: true, principal: true, vueltaCalma: true });
-  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]); 
+  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof manualSessionSchema>>({
     resolver: zodResolver(manualSessionSchema),
@@ -74,6 +87,27 @@ function CrearSesionManualContent() {
     },
   });
 
+  useEffect(() => {
+    if (user && isRegisteredUser) {
+      const fetchNextSessionNumber = async () => {
+        setIsFetchingNextSessionNumber(true);
+        try {
+          const q = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
+          const querySnapshot = await getDocs(q);
+          const existingNumbers = querySnapshot.docs.map(doc => doc.data().numero_sesion as string | undefined);
+          const maxNumber = getMaxNumericSessionNumber(existingNumbers);
+          form.setValue("numero_sesion", (maxNumber + 1).toString());
+        } catch (error) {
+          console.error("Error fetching next session number:", error);
+        }
+        setIsFetchingNextSessionNumber(false);
+      };
+      fetchNextSessionNumber();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isRegisteredUser]); // form.setValue no se añade para evitar bucles
+
+
   const fetchEjerciciosPorFase = async (fase: string, setter: React.Dispatch<React.SetStateAction<Ejercicio[]>>, loadingKey: keyof typeof loadingEjercicios) => {
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: true }));
     try {
@@ -82,11 +116,11 @@ function CrearSesionManualContent() {
       const ejerciciosData = snapshot.docs.map(doc => ({
         id: doc.id,
         ejercicio: doc.data().ejercicio || "",
-        descripcion: doc.data().descripcion || "", 
-        objetivos: doc.data().objetivos || "",  
+        descripcion: doc.data().descripcion || "",
+        objetivos: doc.data().objetivos || "",
         fase: doc.data().fase || "",
-        categoria: doc.data().categoria || "", 
-        duracion: doc.data().duracion || "0", 
+        categoria: doc.data().categoria || "",
+        duracion: doc.data().duracion || "0",
         ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria' | 'duracion'>)
       } as Ejercicio));
       setter(ejerciciosData);
@@ -108,7 +142,7 @@ function CrearSesionManualContent() {
     let newSelectedCategorias: string[];
     const currentSelected = selectedCategorias;
     const isSelected = currentSelected.includes(categoryLabel);
-    let showToast = false;
+    let showLimitToast = false;
 
     if (isSelected) {
       newSelectedCategorias = currentSelected.filter(label => label !== categoryLabel);
@@ -117,15 +151,15 @@ function CrearSesionManualContent() {
         newSelectedCategorias = [...currentSelected, categoryLabel];
       } else {
         newSelectedCategorias = currentSelected;
-        showToast = true; 
+        showLimitToast = true;
       }
     }
     
-    if (showToast) {
+    if (showLimitToast) {
        toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
     } else {
         setSelectedCategorias(newSelectedCategorias);
-        form.setValue('mainExerciseIds', []); 
+        form.setValue('mainExerciseIds', []);
     }
   };
 
@@ -135,7 +169,7 @@ function CrearSesionManualContent() {
       return principalEjercicios;
     }
     return principalEjercicios.filter(exercise => {
-      return selectedCategorias.includes(exercise.categoria); 
+      return selectedCategorias.includes(exercise.categoria);
     });
   }, [principalEjercicios, selectedCategorias]);
 
@@ -150,11 +184,29 @@ function CrearSesionManualContent() {
         return;
     }
     setIsSaving(true);
+    form.clearErrors("numero_sesion"); // Limpiar errores previos
+
+    if (values.numero_sesion) {
+        try {
+            const q = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid), where("numero_sesion", "==", values.numero_sesion));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
+              setIsSaving(false);
+              return;
+            }
+        } catch (error) {
+            console.error("Error checking duplicate session number:", error);
+            toast({ title: "Error de Validación", description: "No se pudo verificar el número de sesión. Inténtalo de nuevo.", variant: "destructive" });
+            setIsSaving(false);
+            return;
+        }
+    }
 
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
-    
+
     let totalDuration = 0;
     if (warmUpDoc) totalDuration += parseDurationToMinutes(warmUpDoc.duracion);
     mainDocs.forEach(doc => totalDuration += parseDurationToMinutes(doc.duracion));
@@ -183,7 +235,7 @@ function CrearSesionManualContent() {
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio, duracion: warmUpDoc.duracion } : null,
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio, duracion: e.duracion })),
       coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio, duracion: coolDownDoc.duracion } : null,
-      coachNotes: "", 
+      coachNotes: "",
       numero_sesion: values.numero_sesion || null,
       fecha: values.fecha || null,
       temporada: values.temporada || null,
@@ -203,13 +255,29 @@ function CrearSesionManualContent() {
         warmUpExerciseId: "",
         mainExerciseIds: [],
         coolDownExerciseId: "",
-        numero_sesion: "",
+        numero_sesion: "", // Será repoblado por useEffect
         fecha: new Date().toISOString().split('T')[0],
         temporada: "",
         club: "",
         equipo: "",
       });
       setSelectedCategorias([]);
+      // Re-fetch next session number after successful save and reset
+        if (user && isRegisteredUser) {
+            const fetchNextSessionNumber = async () => {
+                setIsFetchingNextSessionNumber(true);
+                try {
+                    const qSessions = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
+                    const snapshot = await getDocs(qSessions);
+                    const existingNumbers = snapshot.docs.map(doc => doc.data().numero_sesion as string | undefined);
+                    const maxNumber = getMaxNumericSessionNumber(existingNumbers);
+                    form.setValue("numero_sesion", (maxNumber + 1).toString());
+                } catch (fetchError) { console.error("Error re-fetching next session number:", fetchError); }
+                setIsFetchingNextSessionNumber(false);
+            };
+            fetchNextSessionNumber();
+        }
+
     } catch (error) {
       console.error("Error saving manual session:", error);
       toast({
@@ -237,7 +305,7 @@ function CrearSesionManualContent() {
         <ScrollArea className="h-64 rounded-md border p-4">
           <FormField
             control={form.control}
-            name={formFieldName as "mainExerciseIds"} 
+            name={formFieldName as "mainExerciseIds"}
             render={() => (
               <div className="space-y-2">
                 {exercises.map((item) => (
@@ -261,7 +329,7 @@ function CrearSesionManualContent() {
                                     field.onChange([...currentValues, item.id]);
                                   } else {
                                     toast({ title: "Límite alcanzado", description: "Puedes seleccionar hasta 4 ejercicios principales.", variant: "default" });
-                                    return; 
+                                    return;
                                   }
                                 } else {
                                   field.onChange(
@@ -286,7 +354,7 @@ function CrearSesionManualContent() {
           />
         </ScrollArea>
       );
-    } else { 
+    } else {
       return (
          <FormField
             control={form.control}
@@ -368,8 +436,8 @@ function CrearSesionManualContent() {
                     <FormItem key={category.id} className="flex flex-row items-start space-x-3 space-y-0">
                       <FormControl>
                         <Checkbox
-                          checked={selectedCategorias.includes(category.label)} 
-                          onCheckedChange={() => handleCategoryChange(category.label)} 
+                          checked={selectedCategorias.includes(category.label)}
+                          onCheckedChange={() => handleCategoryChange(category.label)}
                           id={`cat-${category.id}`}
                         />
                       </FormControl>
@@ -386,7 +454,7 @@ function CrearSesionManualContent() {
                 name="mainExerciseIds"
                 render={() => (
                   <FormItem className="mt-2">
-                    <FormMessage /> 
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -410,7 +478,11 @@ function CrearSesionManualContent() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="numero_sesion" render={({ field }) => (
-                    <FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 16" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                    <FormItem>
+                        <FormLabel>Número de Sesión</FormLabel>
+                        <FormControl><Input placeholder={isFetchingNextSessionNumber ? "Cargando..." : "Ej: 1"} {...field} value={field.value || ""} disabled={isFetchingNextSessionNumber} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
                 )} />
                 <FormField control={form.control} name="fecha" render={({ field }) => (
                     <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
@@ -431,7 +503,7 @@ function CrearSesionManualContent() {
           <Button
             type="submit"
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3 text-lg"
-            disabled={isSaving || Object.values(loadingEjercicios).some(l => l) || !isRegisteredUser}
+            disabled={isSaving || Object.values(loadingEjercicios).some(l => l) || !isRegisteredUser || isFetchingNextSessionNumber}
             title={!isRegisteredUser ? "Regístrate para guardar la sesión" : "Guardar Sesión Manual"}
           >
             {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
@@ -442,3 +514,5 @@ function CrearSesionManualContent() {
     </div>
   );
 }
+
+    

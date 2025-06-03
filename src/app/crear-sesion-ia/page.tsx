@@ -19,18 +19,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
 import { aiSessionSchema } from "@/lib/schemas";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateTrainingSession, type GenerateTrainingSessionOutput } from "@/ai/flows/generate-training-session";
 import { Loader2, Wand2, Save, Info } from "lucide-react";
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 
+function getMaxNumericSessionNumber(sessionNumbers: (string | undefined)[]): number {
+  let maxNumber = 0;
+  sessionNumbers.forEach(numStr => {
+    if (numStr) {
+      const num = parseInt(numStr.replace(/\D/g, ''), 10); // Extrae solo dígitos
+      if (!isNaN(num) && num > maxNumber) {
+        maxNumber = num;
+      }
+    }
+  });
+  return maxNumber;
+}
+
 export default function CrearSesionIAPage() {
   return (
-    // AuthGuard removed to allow guest access
     <CrearSesionIAContent />
   );
 }
@@ -41,6 +53,7 @@ function CrearSesionIAContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedSession, setGeneratedSession] = useState<GenerateTrainingSessionOutput | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFetchingNextSessionNumber, setIsFetchingNextSessionNumber] = useState(false);
 
   const form = useForm<z.infer<typeof aiSessionSchema>>({
     resolver: zodResolver(aiSessionSchema),
@@ -50,7 +63,7 @@ function CrearSesionIAContent() {
       sessionFocus: "",
       preferredSessionLengthMinutes: 60,
       numero_sesion: "",
-      fecha: new Date().toISOString().split('T')[0], 
+      fecha: new Date().toISOString().split('T')[0],
       temporada: "",
       club: "",
       equipo: "",
@@ -59,9 +72,49 @@ function CrearSesionIAContent() {
 
   const watchedTeamDescription = form.watch("teamDescription");
 
+  useEffect(() => {
+    if (user && isRegisteredUser) {
+      const fetchNextSessionNumber = async () => {
+        setIsFetchingNextSessionNumber(true);
+        try {
+          const q = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
+          const querySnapshot = await getDocs(q);
+          const existingNumbers = querySnapshot.docs.map(doc => doc.data().numero_sesion as string | undefined);
+          const maxNumber = getMaxNumericSessionNumber(existingNumbers);
+          form.setValue("numero_sesion", (maxNumber + 1).toString());
+        } catch (error) {
+          console.error("Error fetching next session number:", error);
+          // No mostramos toast aquí para no molestar, el usuario puede ingresar manualmente.
+        }
+        setIsFetchingNextSessionNumber(false);
+      };
+      fetchNextSessionNumber();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isRegisteredUser]); // form.setValue no se añade para evitar bucles
+
   async function onSubmit(values: z.infer<typeof aiSessionSchema>) {
     setIsLoading(true);
     setGeneratedSession(null);
+    form.clearErrors("numero_sesion"); // Limpiar errores previos
+
+    if (user && isRegisteredUser && values.numero_sesion) {
+      try {
+        const q = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid), where("numero_sesion", "==", values.numero_sesion));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking duplicate session number:", error);
+        toast({ title: "Error de Validación", description: "No se pudo verificar el número de sesión. Inténtalo de nuevo.", variant: "destructive" });
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
       const sessionPlan = await generateTrainingSession({
         teamDescription: values.teamDescription,
@@ -90,13 +143,33 @@ function CrearSesionIAContent() {
   }
 
   async function handleSaveSession() {
-    if (!generatedSession || !user || !isRegisteredUser) return; // Ensure user is registered
+    if (!generatedSession || !user || !isRegisteredUser) return;
     setIsSaving(true);
+    form.clearErrors("numero_sesion"); 
+    const currentFormValues = form.getValues();
+
+    if (currentFormValues.numero_sesion) {
+      try {
+        const q = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid), where("numero_sesion", "==", currentFormValues.numero_sesion));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
+          setIsSaving(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking duplicate session number before saving:", error);
+        toast({ title: "Error de Validación", description: "No se pudo verificar el número de sesión al guardar. Inténtalo de nuevo.", variant: "destructive" });
+        setIsSaving(false);
+        return;
+      }
+    }
+
     const sessionDataToSave = {
       userId: user.uid,
-      type: "AI",
-      ...form.getValues(), 
-      ...generatedSession, 
+      type: "AI" as "AI" | "Manual",
+      ...currentFormValues,
+      ...generatedSession,
       createdAt: serverTimestamp(),
     };
 
@@ -106,8 +179,22 @@ function CrearSesionIAContent() {
         title: "¡Sesión Guardada!",
         description: "Tu sesión de entrenamiento ha sido guardada en 'Mis Sesiones'.",
       });
-      setGeneratedSession(null); 
+      setGeneratedSession(null);
       form.reset();
+       if (user && isRegisteredUser) { // Re-fetch next session number after reset
+            const fetchNextSessionNumber = async () => {
+                setIsFetchingNextSessionNumber(true);
+                try {
+                    const qSessions = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
+                    const snapshot = await getDocs(qSessions);
+                    const existingNumbers = snapshot.docs.map(doc => doc.data().numero_sesion as string | undefined);
+                    const maxNumber = getMaxNumericSessionNumber(existingNumbers);
+                    form.setValue("numero_sesion", (maxNumber + 1).toString());
+                } catch (fetchError) { console.error("Error re-fetching next session number:", fetchError); }
+                setIsFetchingNextSessionNumber(false);
+            };
+            fetchNextSessionNumber();
+        }
     } catch (error) {
       console.error("Error saving session:", error);
       toast({
@@ -206,11 +293,15 @@ function CrearSesionIAContent() {
                     </FormItem>
                   )}
                 />
-                
+
                 <h3 className="text-lg font-semibold pt-4 border-t mt-6">Detalles Adicionales (Opcional para Guardar)</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField control={form.control} name="numero_sesion" render={({ field }) => (
-                        <FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 15" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem>
+                            <FormLabel>Número de Sesión</FormLabel>
+                            <FormControl><Input placeholder={isFetchingNextSessionNumber ? "Cargando..." : "Ej: 1"} {...field} disabled={isFetchingNextSessionNumber} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
                     )} />
                     <FormField control={form.control} name="fecha" render={({ field }) => (
                         <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
@@ -226,7 +317,7 @@ function CrearSesionIAContent() {
                     )} />
                 </div>
 
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || isFetchingNextSessionNumber}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                   Generar Sesión con IA
                 </Button>
@@ -269,7 +360,7 @@ function CrearSesionIAContent() {
                 <p className="text-sm text-foreground/80">{generatedSession.coachNotes}</p>
               </div>
               {isRegisteredUser && (
-                <Button onClick={handleSaveSession} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-6" disabled={isSaving || !isRegisteredUser}>
+                <Button onClick={handleSaveSession} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-6" disabled={isSaving || !isRegisteredUser || isFetchingNextSessionNumber}>
                   {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Guardar Sesión
                 </Button>
@@ -287,3 +378,5 @@ function CrearSesionIAContent() {
     </div>
   );
 }
+
+    
