@@ -222,7 +222,7 @@ export default function EjerciciosPage() {
   };
 
   const getAgeFilterButtonText = () => {
-    if (selectedAgeFilters.length === 0) return "Edad";
+    if (selectedAgeFilters.length === 0) return "Todas las Edades";
     if (selectedAgeFilters.length === 1) return selectedAgeFilters[0];
     return `${selectedAgeFilters.length} edades sel.`;
   };
@@ -453,4 +453,3 @@ export default function EjerciciosPage() {
     </div>
   );
 }
-
