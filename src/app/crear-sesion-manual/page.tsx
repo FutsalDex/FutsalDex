@@ -102,9 +102,9 @@ function CrearSesionManualContent() {
   }, []);
 
  const handleCategoryChange = (categoryLabel: string) => {
+    let newSelectedCategorias: string[];
     const currentSelected = selectedCategorias;
     const isSelected = currentSelected.includes(categoryLabel);
-    let newSelectedCategorias: string[];
 
     if (isSelected) {
       newSelectedCategorias = currentSelected.filter(label => label !== categoryLabel);
@@ -146,7 +146,6 @@ function CrearSesionManualContent() {
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
     
-    // Generar título por defecto
     const dateStringToUse = values.fecha || new Date().toISOString().split('T')[0];
     let formattedDate: string;
     try {
@@ -171,11 +170,11 @@ function CrearSesionManualContent() {
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio })),
       coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio } : null,
       coachNotes: "", 
-      numero_sesion: values.numero_sesion,
-      fecha: values.fecha,
-      temporada: values.temporada,
-      club: values.club,
-      equipo: values.equipo,
+      numero_sesion: values.numero_sesion || null,
+      fecha: values.fecha || null,
+      temporada: values.temporada || null,
+      club: values.club || null,
+      equipo: values.equipo || null,
       createdAt: serverTimestamp(),
     };
 
@@ -367,6 +366,15 @@ function CrearSesionManualContent() {
                 </div>
               </div>
                {renderExerciseList(filteredPrincipalEjercicios, loadingEjercicios.principal, "mainExerciseIds", true, "mainExerciseIds")}
+               <FormField
+                control={form.control}
+                name="mainExerciseIds"
+                render={() => (
+                  <FormItem className="mt-2">
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </CardContent>
           </Card>
 
@@ -387,19 +395,19 @@ function CrearSesionManualContent() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="numero_sesion" render={({ field }) => (
-                    <FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 16" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 16" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="fecha" render={({ field }) => (
-                    <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="temporada" render={({ field }) => (
-                    <FormItem><FormLabel>Temporada</FormLabel><FormControl><Input placeholder="Ej: 2024-2025" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Temporada</FormLabel><FormControl><Input placeholder="Ej: 2024-2025" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="club" render={({ field }) => (
-                    <FormItem><FormLabel>Club</FormLabel><FormControl><Input placeholder="Ej: Futsal Club Elite" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Club</FormLabel><FormControl><Input placeholder="Ej: Futsal Club Elite" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="equipo" render={({ field }) => (
-                    <FormItem><FormLabel>Equipo</FormLabel><FormControl><Input placeholder="Ej: Senior Masculino A" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Equipo</FormLabel><FormControl><Input placeholder="Ej: Senior Masculino A" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </CardContent>
@@ -420,3 +428,5 @@ function CrearSesionManualContent() {
   );
 }
 
+
+    
