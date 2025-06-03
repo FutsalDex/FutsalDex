@@ -151,7 +151,7 @@ export default function EjerciciosPage() {
       <header className="mb-8">
         <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Biblioteca de Ejercicios</h1>
         <p className="text-lg text-foreground/80">
-          Explora nuestra colección de ejercicios de futsal. Filtra por nombre, fase o categoría de edad.
+          Explora nuestra colección de ejercicios de futsal. Filtra por nombre, fase, categoría o edad.
         </p>
       </header>
 
