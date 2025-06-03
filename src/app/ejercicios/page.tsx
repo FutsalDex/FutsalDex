@@ -14,8 +14,9 @@ import Image from 'next/image';
 import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+// Checkbox no se usa más para categorías temáticas, Label podría no ser necesario tampoco en la parte de filtros temáticos.
+// import { Checkbox } from "@/components/ui/checkbox";
+// import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -46,6 +47,7 @@ interface Ejercicio {
 const ITEMS_PER_PAGE = 10;
 const GUEST_ITEM_LIMIT = 10;
 const ALL_PHASES_VALUE = "ALL_PHASES";
+const ALL_THEMATIC_CATEGORIES_VALUE = "ALL_THEMATIC_CATEGORIES";
 
 
 const THEMATIC_CATEGORIES = [
@@ -82,8 +84,8 @@ export default function EjerciciosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState(ALL_PHASES_VALUE);
   const [selectedAgeFilters, setSelectedAgeFilters] = useState<string[]>([]);
-  const [selectedThematicCategories, setSelectedThematicCategories] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<FavoriteState>({}); // UI state for favorites
+  const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_THEMATIC_CATEGORIES_VALUE);
+  const [favorites, setFavorites] = useState<FavoriteState>({});
 
   const uniqueAgeCategories = useMemo(() => {
     return [
@@ -107,6 +109,9 @@ export default function EjerciciosPage() {
       const constraints: QueryConstraint[] = [];
 
       if (search) {
+        // Firestore text search is limited. For more complex search, consider Algolia/Elasticsearch.
+        // This basic filter checks if 'ejercicio' field starts with the search term.
+        // For a "contains" search, you'd typically need a more advanced setup or client-side filtering on a larger dataset.
         constraints.push(where('ejercicio', '>=', search));
         constraints.push(where('ejercicio', '<=', search + '\uf8ff'));
       }
@@ -116,6 +121,7 @@ export default function EjerciciosPage() {
       if (ages.length > 0) {
         constraints.push(where('categoria_edad', 'in', ages));
       }
+      // Thematic category filtering will be done client-side for now
 
       constraints.push(firestoreOrderBy('ejercicio'));
 
@@ -125,12 +131,6 @@ export default function EjerciciosPage() {
         constraints.push(limit(ITEMS_PER_PAGE));
         if (direction === 'next' && lastVisible) {
           constraints.push(startAfter(lastVisible));
-        }
-        // Note: 'prev' direction or specific page jumps other than first/next would require more complex cursor management or offset-based pagination if Firestore supported it directly.
-        // For simplicity, 'prev' and specific jumps will reset to the first page.
-        else if (direction === 'prev' && page > 1) {
-             // This is tricky with cursors. For now, we'll simplify: going "back" means going to page 1.
-             // A more robust solution would store cursors for each page.
         }
       }
 
@@ -142,8 +142,6 @@ export default function EjerciciosPage() {
 
       if (isRegisteredUser) {
         setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
-        // A more accurate total count would require a separate count query, which adds cost/complexity.
-        // This is an estimation for pagination UI.
         setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1);
       } else {
         setTotalEjercicios(fetchedEjercicios.length);
@@ -162,16 +160,6 @@ export default function EjerciciosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRegisteredUser, searchTerm, phaseFilter, selectedAgeFilters]);
 
-  const handleThematicCategoryChange = (categoryId: string) => {
-    setSelectedThematicCategories(prev => {
-      const isSelected = prev.includes(categoryId);
-      if (isSelected) {
-        return prev.filter(id => id !== categoryId);
-      } else {
-        return [...prev, categoryId];
-      }
-    });
-  };
 
   const handleAgeCategoryChange = (ageCategory: string) => {
     setSelectedAgeFilters(prev => {
@@ -185,7 +173,7 @@ export default function EjerciciosPage() {
   };
 
   const toggleFavorite = (exerciseId: string) => {
-    if (!isRegisteredUser) return; // Or show a toast to register
+    if (!isRegisteredUser) return; 
     setFavorites(prev => ({
       ...prev,
       [exerciseId]: !prev[exerciseId]
@@ -195,21 +183,20 @@ export default function EjerciciosPage() {
 
 
   const displayedEjercicios = useMemo(() => {
-    if (selectedThematicCategories.length === 0) {
-      return ejercicios;
-    }
-    return ejercicios.filter(exercise => {
-      return selectedThematicCategories.some(catId => {
-        const categoryObj = THEMATIC_CATEGORIES.find(c => c.id === catId);
-        if (!categoryObj) return false;
-        // Simple keyword search in relevant fields.
-        // Uses the first word of the category label as a broad keyword.
+    let filtered = [...ejercicios]; 
+
+    if (thematicCategoryFilter !== ALL_THEMATIC_CATEGORIES_VALUE) {
+      const categoryObj = THEMATIC_CATEGORIES.find(c => c.id === thematicCategoryFilter);
+      if (categoryObj) {
         const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0];
-        const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
-        return exerciseText.includes(searchKeyword);
-      });
-    });
-  }, [ejercicios, selectedThematicCategories]);
+        filtered = filtered.filter(exercise => {
+          const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
+          return exerciseText.includes(searchKeyword);
+        });
+      }
+    }
+    return filtered;
+  }, [ejercicios, thematicCategoryFilter]);
 
 
   const handlePageChange = (newPage: number) => {
@@ -217,11 +204,10 @@ export default function EjerciciosPage() {
       setCurrentPage(newPage);
       fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilters, 'next');
     } else if (newPage < currentPage && newPage > 0) {
-      // Reset to first page when going "previous" from any page > 1 for simplicity with cursors
       setCurrentPage(1);
       setLastVisible(null);
       fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
-    } else if (newPage === 1) { // Explicitly go to page 1
+    } else if (newPage === 1) { 
       setCurrentPage(1);
       setLastVisible(null);
       fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
@@ -232,12 +218,11 @@ export default function EjerciciosPage() {
     const file = event.target.files?.[0];
     if (file) {
       console.log("File selected:", file.name);
-      // Future implementation: process file
     }
   };
 
   const getAgeFilterButtonText = () => {
-    if (selectedAgeFilters.length === 0) return "Categoría de Edad";
+    if (selectedAgeFilters.length === 0) return "Edad";
     if (selectedAgeFilters.length === 1) return selectedAgeFilters[0];
     return `${selectedAgeFilters.length} edades sel.`;
   };
@@ -247,7 +232,10 @@ export default function EjerciciosPage() {
       <header className="mb-8">
         <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Biblioteca de Ejercicios</h1>
         <p className="text-lg text-foreground/80">
-          Explora nuestra colección de ejercicios de futsal. Filtra por nombre, fase, categoría o edad.
+          Explora nuestra colección de ejercicios de futsal.
+        </p>
+         <p className="text-lg text-foreground/80">
+          Filtra por nombre, fase, categoría o edad.
         </p>
       </header>
 
@@ -293,6 +281,19 @@ export default function EjerciciosPage() {
                 {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
               </SelectContent>
             </Select>
+            
+            <Select value={thematicCategoryFilter} onValueChange={setThematicCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-[220px]"> {/* Adjusted width */}
+                <ListFilter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_THEMATIC_CATEGORIES_VALUE}>Todas las Categorías</SelectItem>
+                {THEMATIC_CATEGORIES.map(category => (
+                  <SelectItem key={category.id} value={category.id}>{category.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -312,7 +313,7 @@ export default function EjerciciosPage() {
                     key={ageCat}
                     checked={selectedAgeFilters.includes(ageCat)}
                     onCheckedChange={() => handleAgeCategoryChange(ageCat)}
-                    onSelect={(e) => e.preventDefault()}
+                    onSelect={(e) => e.preventDefault()} 
                   >
                     {ageCat}
                   </DropdownMenuCheckboxItem>
@@ -321,7 +322,7 @@ export default function EjerciciosPage() {
             </DropdownMenu>
 
           </div>
-          {isRegisteredUser && ( // Assuming only registered users (and admins) can upload
+          {isRegisteredUser && ( 
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" className="shrink-0 w-full md:w-auto">
@@ -343,30 +344,7 @@ export default function EjerciciosPage() {
             </Dialog>
           )}
         </div>
-
-        <div>
-          <Label className="text-md font-semibold flex items-center mb-2">
-            <ListFilter className="h-4 w-4 mr-2" />
-            Filtrar por Categoría Temática
-          </Label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-2 p-4 border rounded-md bg-card">
-            {THEMATIC_CATEGORIES.map((category) => (
-              <div key={category.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`thematic-cat-${category.id}`}
-                  checked={selectedThematicCategories.includes(category.id)}
-                  onCheckedChange={() => handleThematicCategoryChange(category.id)}
-                />
-                <Label htmlFor={`thematic-cat-${category.id}`} className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  {category.label}
-                </Label>
-              </div>
-            ))}
-          </div>
-           <p className="text-xs text-muted-foreground mt-1">
-              Nota: El filtrado por categoría temática busca palabras clave en los detalles del ejercicio.
-           </p>
-        </div>
+        {/* Removed old thematic category checkbox grid */}
       </div>
 
       {isLoading ? (
@@ -452,7 +430,7 @@ export default function EjerciciosPage() {
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
-                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} // Go to first page for simplicity
+                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} 
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
                   />
                 </PaginationItem>
@@ -462,7 +440,6 @@ export default function EjerciciosPage() {
                   </PaginationLink>
                 </PaginationItem>
 
-                {/* Show Next button only if we potentially have more items */}
                 {ejercicios.length === ITEMS_PER_PAGE && (
                   <PaginationItem>
                     <PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1);}} />
