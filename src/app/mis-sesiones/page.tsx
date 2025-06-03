@@ -95,7 +95,7 @@ function MisSesionesContent() {
 
     let q_constraints = [
         where("userId", "==", user.uid),
-        orderBy("createdAt", "asc") // Cambiado a "asc" para orden ascendente
+        orderBy("createdAt", "asc") 
     ];
 
     let targetYear: number, targetMonth: number;
@@ -103,14 +103,14 @@ function MisSesionesContent() {
     if (filter) {
         targetYear = filter.year;
         targetMonth = filter.month; // 1-indexed
-    } else { // Default to current month
+    } else { 
         const now = new Date();
         targetYear = now.getFullYear();
         targetMonth = now.getMonth() + 1; // 1-indexed
     }
     
-    const startDate = new Date(targetYear, targetMonth - 1, 1); // First day of target month
-    const endDate = new Date(targetYear, targetMonth, 1); // First day of next month
+    const startDate = new Date(targetYear, targetMonth - 1, 1); 
+    const endDate = new Date(targetYear, targetMonth, 1); 
 
     q_constraints.unshift(where("createdAt", "<", endDate)); 
     q_constraints.unshift(where("createdAt", ">=", startDate));
@@ -149,24 +149,19 @@ function MisSesionesContent() {
 
   useEffect(() => {
     const now = new Date();
-    fetchSesiones({ year: now.getFullYear(), month: now.getMonth() + 1 });
-  }, [fetchSesiones]); // Initial fetch for current month
+    const initialFilter = { year: now.getFullYear(), month: now.getMonth() + 1 };
+    setActiveFilter(initialFilter);
+    fetchSesiones(initialFilter);
+  }, [fetchSesiones]); 
 
   const handleApplyFilter = () => {
     if (selectedYear && selectedMonth) {
       const yearNum = parseInt(selectedYear, 10);
       const monthNum = parseInt(selectedMonth, 10);
-      setActiveFilter({ year: yearNum, month: monthNum });
-      fetchSesiones({ year: yearNum, month: monthNum });
+      const newFilter = { year: yearNum, month: monthNum };
+      setActiveFilter(newFilter);
+      fetchSesiones(newFilter);
     }
-  };
-
-  const handleShowCurrentMonth = () => {
-    const now = new Date();
-    setSelectedYear(now.getFullYear().toString());
-    setSelectedMonth((now.getMonth() + 1).toString());
-    setActiveFilter(null);
-    fetchSesiones({ year: now.getFullYear(), month: now.getMonth() + 1 });
   };
 
   const formatDate = (dateValue: string | Timestamp | undefined) => {
@@ -206,6 +201,7 @@ function MisSesionesContent() {
       if (activeFilter) {
         fetchSesiones(activeFilter);
       } else {
+        // This case should ideally not happen if activeFilter is always set on load
         const now = new Date();
         fetchSesiones({ year: now.getFullYear(), month: now.getMonth() + 1 });
       }
@@ -283,7 +279,6 @@ function MisSesionesContent() {
             </SelectContent>
           </Select>
           <Button onClick={handleApplyFilter} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">Aplicar Filtro</Button>
-          <Button onClick={handleShowCurrentMonth} variant="outline" className="w-full sm:w-auto">Mes Actual</Button>
         </CardContent>
       </Card>
 
