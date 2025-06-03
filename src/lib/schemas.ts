@@ -42,7 +42,6 @@ export const manualSessionSchema = z.object({
   temporada: z.string().optional(),
   club: z.string().optional(),
   equipo: z.string().optional(),
-  sessionTitle: z.string().optional(), // Modificado: permite cadena vacía o undefined
 });
 
 export const addExerciseSchema = z.object({

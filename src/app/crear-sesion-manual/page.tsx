@@ -64,7 +64,6 @@ function CrearSesionManualContent() {
       warmUpExerciseId: "",
       mainExerciseIds: [],
       coolDownExerciseId: "",
-      sessionTitle: "", 
       numero_sesion: "",
       fecha: new Date().toISOString().split('T')[0],
       temporada: "",
@@ -109,16 +108,15 @@ function CrearSesionManualContent() {
 
     if (isSelected) {
       newSelectedCategorias = currentSelected.filter(label => label !== categoryLabel);
-      setSelectedCategorias(newSelectedCategorias);
     } else {
       if (currentSelected.length < 4) {
         newSelectedCategorias = [...currentSelected, categoryLabel];
-        setSelectedCategorias(newSelectedCategorias);
       } else {
         toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
         return; 
       }
     }
+    setSelectedCategorias(newSelectedCategorias);
     form.setValue('mainExerciseIds', []); 
   };
 
@@ -147,24 +145,23 @@ function CrearSesionManualContent() {
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
-
-    const userProvidedTitle = values.sessionTitle?.trim();
-    let titleToSave: string;
-
-    if (userProvidedTitle && userProvidedTitle.length >= 3) {
-      titleToSave = userProvidedTitle;
-    } else {
-      // Generar título por defecto
-      const dateStringToUse = values.fecha || new Date().toISOString().split('T')[0];
+    
+    // Generar título por defecto
+    const dateStringToUse = values.fecha || new Date().toISOString().split('T')[0];
+    let formattedDate: string;
+    try {
       const dateObject = new Date(dateStringToUse);
-      let formattedDate: string;
       if (!isNaN(dateObject.getTime())) {
-        formattedDate = dateObject.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          formattedDate = dateObject.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
       } else {
-        formattedDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          throw new Error("Invalid date string from form values");
       }
-      titleToSave = `Sesión Manual - ${formattedDate}`;
+    } catch (e) {
+        console.warn("Could not parse date from form, using current date for title:", e);
+        formattedDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     }
+    const titleToSave = `Sesión Manual - ${formattedDate}`;
+
 
     const sessionDataToSave = {
       userId: user.uid,
@@ -192,7 +189,6 @@ function CrearSesionManualContent() {
         warmUpExerciseId: "",
         mainExerciseIds: [],
         coolDownExerciseId: "",
-        sessionTitle: "",
         numero_sesion: "",
         fecha: new Date().toISOString().split('T')[0],
         temporada: "",
@@ -386,20 +382,9 @@ function CrearSesionManualContent() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="font-headline text-xl">Detalles de la Sesión (Opcional para Guardar)</CardTitle>
+              <CardTitle className="font-headline text-xl">Detalles Adicionales de la Sesión</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="sessionTitle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Título de la Sesión</FormLabel>
-                    <FormControl><Input placeholder="Ej: Sesión de Técnica Individual" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="numero_sesion" render={({ field }) => (
                     <FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 16" {...field} /></FormControl><FormMessage /></FormItem>
