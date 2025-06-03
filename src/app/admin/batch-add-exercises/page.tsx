@@ -38,25 +38,24 @@ function BatchAddExercisesPageContent() {
   const handleProcessFile = async () => {
     if (!selectedFile) {
       toast({
-        title: "No hay archivo",
-        description: "Por favor, selecciona un archivo Excel para procesar.",
+        title: "No hay archivo seleccionado",
+        description: "Por favor, selecciona un archivo Excel para continuar.",
         variant: "destructive",
       });
       return;
     }
     setIsProcessing(true);
-    // Placeholder for actual file processing logic
-    // In a real scenario, you'd read the file, parse it, validate data, and batch-write to Firestore.
-    // This would likely involve a server action or a backend function.
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate processing time
+    
+    // Simulación de procesamiento
+    await new Promise(resolve => setTimeout(resolve, 2000)); 
 
     toast({
-      title: "Procesamiento Simulado",
-      description: `El archivo "${selectedFile.name}" ha sido "procesado". La lógica real de carga no está implementada en esta demo.`,
+      title: "Simulación de Carga",
+      description: `El archivo "${selectedFile.name}" ha sido "seleccionado". La funcionalidad para leer y guardar ejercicios desde Excel está en desarrollo y no está activa aún.`,
+      duration: 5000,
     });
+
     setSelectedFile(null);
-    // Reset file input if possible (difficult to do directly for security reasons)
-    // A common workaround is to reset the form or the key of the input component.
     const fileInput = document.getElementById('excel-file-input') as HTMLInputElement | null;
     if (fileInput) {
       fileInput.value = "";
@@ -130,9 +129,17 @@ function BatchAddExercisesPageContent() {
             {selectedFile && <p className="text-sm text-muted-foreground">Archivo seleccionado: {selectedFile.name}</p>}
           </div>
 
+          <Alert variant="destructive" className="border-amber-500 text-amber-700 [&>svg]:text-amber-700">
+            <Info className="h-4 w-4" />
+            <AlertTitle className="text-amber-800">Funcionalidad en Desarrollo</AlertTitle>
+            <AlertDescription className="text-amber-700">
+             IMPORTANTE: Esta sección es una demostración. La capacidad de leer archivos Excel y guardar ejercicios en la base de datos aún está en desarrollo y no está funcional. El botón "Procesar Archivo" solo simula la acción.
+            </AlertDescription>
+          </Alert>
+
           <Alert>
             <Info className="h-4 w-4" />
-            <AlertTitle>Formato del Archivo Excel</AlertTitle>
+            <AlertTitle>Formato del Archivo Excel (Ejemplo)</AlertTitle>
             <AlertDescription>
               <p>Asegúrate de que tu archivo Excel tenga las siguientes columnas en la primera hoja:</p>
               <ul className="list-disc list-inside text-xs mt-2 space-y-1">
@@ -146,16 +153,13 @@ function BatchAddExercisesPageContent() {
                 <li><strong>Variantes</strong> (Opcional, texto largo)</li>
                 <li><strong>Fase</strong> (Texto: Calentamiento, Principal, o Vuelta a la calma)</li>
                 <li><strong>Categoria</strong> (ID de categoría, ej: pase-control)</li>
-                <li><strong>Edad</strong> (Texto, ej: Alevín (10-11 años))</li>
+                <li><strong>Edad</strong> (Texto, ej: Alevín (10-11 años). Si son varias, separadas por coma: "Alevín (10-11 años),Infantil (12-13 años)")</li>
                 <li><strong>Consejos_Entrenador</strong> (Opcional, texto largo)</li>
                 <li><strong>Imagen</strong> (Opcional, URL completa a una imagen)</li>
               </ul>
-               <p className="mt-2 text-xs">Consulta la lista de IDs de categoría en la sección de añadir ejercicio individual.</p>
+               <p className="mt-2 text-xs">Consulta la lista de IDs de categoría en la sección de añadir ejercicio individual. Para 'Edad', si son varias, sepáralas por comas sin espacios adicionales (ej: "Cat1,Cat2").</p>
             </AlertDescription>
           </Alert>
-           <p className="text-sm text-center text-amber-600 font-semibold">
-              Importante: La funcionalidad de procesamiento y carga real de datos desde Excel está en desarrollo y no se implementará en esta fase. Este es un marcador de posición.
-            </p>
         </CardContent>
         <CardFooter>
           <Button onClick={handleProcessFile} className="w-full" disabled={!selectedFile || isProcessing}>
@@ -175,3 +179,5 @@ export default function BatchAddExercisesPage() {
     </AuthGuard>
   );
 }
+
+    
