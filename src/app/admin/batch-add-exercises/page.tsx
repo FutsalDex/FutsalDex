@@ -325,7 +325,7 @@ function BatchAddExercisesPageContent() {
                 <li><strong>{EXPECTED_HEADERS.jugadores}</strong> (Requerido. Ej: 10-12)</li>
                 <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido. Ej: 15 min)</li>
                 <li><strong>{EXPECTED_HEADERS.variantes}</strong> (Opcional)</li>
-                <li><strong>{EXPECTED_HEADERS.fase}</strong> (Requerido. Debe ser uno de: Calentamiento, Principal, Vuelta a la calma)</li>
+                <li><strong>{EXPECTED_HEADERS.fase}</strong> (Requerido. Debe ser uno de: Inicial, Principal, Final)</li>
                 <li><strong>{EXPECTED_HEADERS.categoria}</strong> (Requerido. Debe ser el <strong>ID de la categoría</strong>, ej: 'pase-control', 'finalizacion'. Consulta los IDs en la sección de añadir ejercicio individual, no el nombre completo de la categoría)</li>
                 <li><strong>{EXPECTED_HEADERS.edad}</strong> (Requerido. Ej: "Alevín (10-11 años)". Si son varias, separadas por coma: "Alevín (10-11 años),Infantil (12-13 años)"). La celda no puede estar vacía.</li>
                 <li><strong>{EXPECTED_HEADERS.consejos_entrenador}</strong> (Opcional)</li>

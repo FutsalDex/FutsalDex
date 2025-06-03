@@ -97,9 +97,9 @@ function CrearSesionManualContent() {
   };
 
   useEffect(() => {
-    fetchEjerciciosPorFase("Calentamiento", setCalentamientoEjercicios, "calentamiento");
+    fetchEjerciciosPorFase("Inicial", setCalentamientoEjercicios, "calentamiento");
     fetchEjerciciosPorFase("Principal", setPrincipalEjercicios, "principal");
-    fetchEjerciciosPorFase("Vuelta a la calma", setVueltaCalmaEjercicios, "vueltaCalma");
+    fetchEjerciciosPorFase("Final", setVueltaCalmaEjercicios, "vueltaCalma");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -308,8 +308,8 @@ function CrearSesionManualContent() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-12">
           <Card>
             <CardHeader>
-              <CardTitle className="font-headline text-xl">Fase Inicial: Calentamiento</CardTitle>
-              <CardDescription>Selecciona 1 ejercicio para el calentamiento.</CardDescription>
+              <CardTitle className="font-headline text-xl">Fase Inicial</CardTitle>
+              <CardDescription>Selecciona 1 ejercicio para la fase inicial.</CardDescription>
             </CardHeader>
             <CardContent>
               <FormField
@@ -368,8 +368,8 @@ function CrearSesionManualContent() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="font-headline text-xl">Fase Final: Vuelta a la Calma</CardTitle>
-              <CardDescription>Selecciona 1 ejercicio para la vuelta a la calma.</CardDescription>
+              <CardTitle className="font-headline text-xl">Fase Final</CardTitle>
+              <CardDescription>Selecciona 1 ejercicio para la fase final.</CardDescription>
             </CardHeader>
             <CardContent>
               <FormField
@@ -427,3 +427,4 @@ function CrearSesionManualContent() {
     </div>
   );
 }
+

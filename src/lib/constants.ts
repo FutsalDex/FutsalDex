@@ -1,5 +1,5 @@
 
-export const FASES_SESION = ["Calentamiento", "Principal", "Vuelta a la calma"];
+export const FASES_SESION = ["Inicial", "Principal", "Final"];
 
 export const CATEGORIAS_TEMATICAS_EJERCICIOS = [
   { id: "finalizacion", label: "Finalización" },
@@ -35,3 +35,4 @@ export const CATEGORIAS_TEMATICAS_MAP: { [key: string]: string } =
     acc[curr.id] = curr.label;
     return acc;
   }, {} as { [key: string]: string });
+
