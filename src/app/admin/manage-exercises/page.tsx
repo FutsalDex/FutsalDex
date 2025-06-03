@@ -94,10 +94,23 @@ function ManageExercisesPageContent() {
       
       const q = query(ejerciciosCollection, ...qConstraints);
       const querySnapshot = await getDocs(q);
-      const fetchedEjercicios = querySnapshot.docs.map(doc => ({
+      let fetchedEjercicios = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as EjercicioAdmin));
+      
+      // Aplicar ordenación natural en el cliente SI se está ordenando por 'numero'
+      if (currentSortField === 'numero' && fetchedEjercicios.length > 0) {
+        fetchedEjercicios.sort((a, b) => {
+          const numA = a.numero || ""; // Tratar undefined/null como string vacío
+          const numB = b.numero || "";
+          // localeCompare con numeric: true maneja la ordenación natural
+          return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        if (currentSortDirection === 'desc') {
+          fetchedEjercicios.reverse();
+        }
+      }
       
       setEjercicios(fetchedEjercicios);
 
@@ -137,7 +150,7 @@ function ManageExercisesPageContent() {
       }
     }
     setIsLoading(false);
-  }, [toast, ITEMS_PER_PAGE, pageDocSnapshots.last]); 
+  }, [toast, pageDocSnapshots.last]); 
 
   useEffect(() => {
     if (isAdmin) {
@@ -171,6 +184,20 @@ function ManageExercisesPageContent() {
 
   const handlePreviousPage = () => {
     if (currentPage > 1 && !isLoading) {
+      // Para la página anterior, necesitamos usar el 'lastVisible' de la página *anterior* a la *anterior*
+      // o resetear si no tenemos esa información y volver a la página 1.
+      // Por simplicidad, y dado que 'pageDocSnapshots.first' ahora guarda el primer doc de la página actual,
+      // el startAfter para la página anterior se basa en el último de la página N-2.
+      // Esto requiere que pageDocSnapshots.last esté bien poblado.
+      
+      // Una lógica más simple para "Anterior" si solo queremos ir una página atrás de forma secuencial
+      // sería necesitar el *primer* documento de la página *actual* para hacer un `endBefore`
+      // o el *último* de la página N-2 para hacer un `startAfter`.
+      // Firestore es más eficiente con startAfter.
+      
+      // Reset and fetch page 1 if going back from page 2 without complex logic
+      // For now, this logic relies on fetchEjercicios handling a generic newPage correctly.
+      // The 'pageDocSnapshots.last[newPage - 2]' in fetchEjercicios is key.
       fetchEjercicios(currentPage - 1, sortField, sortDirection);
     }
   };
@@ -188,8 +215,11 @@ function ManageExercisesPageContent() {
       toast({ title: "Ejercicio Eliminado", description: "El ejercicio ha sido eliminado correctamente." });
       fetchTotalCount(); 
       const newCurrentPage = (ejercicios.length === 1 && currentPage > 1) ? currentPage - 1 : currentPage;
-      setPageDocSnapshots({ first: [null], last: [] }); // Reset snapshots for refetch from potentially new page
+      
+      // Resetear snapshots y recargar es más seguro si la estructura de páginas puede cambiar mucho
+      setPageDocSnapshots({ first: [null], last: [] }); 
       fetchEjercicios(newCurrentPage, sortField, sortDirection);
+
     } catch (error) {
       console.error("Error deleting exercise: ", error);
       toast({ title: "Error al Eliminar", description: "No se pudo eliminar el ejercicio.", variant: "destructive" });
@@ -235,7 +265,7 @@ function ManageExercisesPageContent() {
     );
   }
   
-  if (isLoading && ejercicios.length === 0 && totalExercisesInDB === 0) { 
+  if (isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1) { 
      return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -288,11 +318,11 @@ function ManageExercisesPageContent() {
            {isLoading && <CardDescription>Actualizando ejercicios...</CardDescription>}
         </CardHeader>
         <CardContent>
-          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 ? ( 
+          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 && currentPage > 1 ? ( 
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 ? (
+          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1 ? (
             <p className="text-muted-foreground text-center py-10">No hay ejercicios en la biblioteca. <Link href="/admin/add-exercise" className="text-primary hover:underline">Añade el primero</Link>.</p>
           ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 ? (
              <p className="text-muted-foreground text-center py-10">No hay ejercicios que coincidan con la página actual o filtros.</p>
@@ -404,3 +434,4 @@ export default function ManageExercisesPage() {
   );
 }
     
+
