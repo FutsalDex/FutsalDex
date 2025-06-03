@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, ArrowLeft, ListChecks, Edit, Trash2, Loader2, PlusCircle, ChevronLeft, ChevronRight, ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 import { db } from "@/lib/firebase";
 import { collection, getDocs, deleteDoc, doc, query, orderBy as firestoreOrderBy, DocumentData, limit, startAfter, QueryDocumentSnapshot, getCountFromServer, QueryConstraint } from 'firebase/firestore';
 import {
@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination"; 
+import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORIAS_TEMATICAS_MAP } from "@/lib/constants";
 
@@ -38,18 +38,18 @@ interface EjercicioAdmin {
   numero?: string;
   ejercicio: string;
   fase: string;
-  categoria: string; 
-  edad: string[] | string; 
+  categoria: string;
+  edad: string[] | string;
 }
 
 const ITEMS_PER_PAGE = 20;
-type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad'; 
+type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad';
 type SortDirection = 'asc' | 'desc';
 
 function ManageExercisesPageContent() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
-  const router = useRouter(); 
+  const router = useRouter();
   const [ejercicios, setEjercicios] = useState<EjercicioAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -61,7 +61,7 @@ function ManageExercisesPageContent() {
   const [pageDocSnapshots, setPageDocSnapshots] = useState<{
     first: (QueryDocumentSnapshot<DocumentData> | null)[];
     last: (QueryDocumentSnapshot<DocumentData> | null)[];
-  }>({ first: [null], last: [] }); 
+  }>({ first: [null], last: [] });
   const [hasMore, setHasMore] = useState(false);
 
   const [sortField, setSortField] = useState<SortableField>('ejercicio');
@@ -82,28 +82,28 @@ function ManageExercisesPageContent() {
     setIsLoading(true);
     try {
       const ejerciciosCollection = collection(db, "ejercicios_futsal");
-      
+
       const qConstraints: QueryConstraint[] = [
         firestoreOrderBy(currentSortField, currentSortDirection),
         limit(ITEMS_PER_PAGE)
       ];
 
-      if (newPage > 1 && pageDocSnapshots.last[newPage - 2]) { 
+      if (newPage > 1 && pageDocSnapshots.last[newPage - 2]) {
         qConstraints.push(startAfter(pageDocSnapshots.last[newPage - 2]!));
       }
-      
+
       const q = query(ejerciciosCollection, ...qConstraints);
       const querySnapshot = await getDocs(q);
       let fetchedEjercicios = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as EjercicioAdmin));
-      
+
       // Aplicar ordenación natural en el cliente SI se está ordenando por 'numero'
       if (currentSortField === 'numero' && fetchedEjercicios.length > 0) {
         fetchedEjercicios.sort((a, b) => {
-          const numA = a.numero || ""; // Tratar undefined/null como string vacío
-          const numB = b.numero || "";
+          const numA = (a.numero || "").trim(); // Tratar undefined/null como string vacío y quitar espacios
+          const numB = (b.numero || "").trim();
           // localeCompare con numeric: true maneja la ordenación natural
           return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
         });
@@ -111,7 +111,7 @@ function ManageExercisesPageContent() {
           fetchedEjercicios.reverse();
         }
       }
-      
+
       setEjercicios(fetchedEjercicios);
 
       if (querySnapshot.docs.length > 0) {
@@ -121,12 +121,12 @@ function ManageExercisesPageContent() {
         setPageDocSnapshots(prev => {
           const newFirst = [...prev.first];
           const newLast = [...prev.last];
-          newFirst[newPage - 1] = firstDoc; 
-          newLast[newPage - 1] = lastDoc;   
+          newFirst[newPage - 1] = firstDoc;
+          newLast[newPage - 1] = lastDoc;
           return { first: newFirst, last: newLast };
         });
-      } 
-      
+      }
+
       setHasMore(fetchedEjercicios.length === ITEMS_PER_PAGE);
       setCurrentPage(newPage);
 
@@ -150,13 +150,13 @@ function ManageExercisesPageContent() {
       }
     }
     setIsLoading(false);
-  }, [toast, pageDocSnapshots.last]); 
+  }, [toast, pageDocSnapshots.last]);
 
   useEffect(() => {
     if (isAdmin) {
       fetchTotalCount();
       setPageDocSnapshots({ first: [null], last: [] });
-      setCurrentPage(1); 
+      setCurrentPage(1);
       fetchEjercicios(1, sortField, sortDirection);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,7 +168,7 @@ function ManageExercisesPageContent() {
     setSortField(field);
     setSortDirection(newDirection);
   };
-  
+
   const renderSortIcon = (field: SortableField) => {
     if (sortField === field) {
       return sortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />;
@@ -184,6 +184,23 @@ function ManageExercisesPageContent() {
 
   const handlePreviousPage = () => {
     if (currentPage > 1 && !isLoading) {
+      // Para ir a la página anterior, no usamos startAfter, sino que reiniciamos la paginación hasta esa página.
+      // Esto es más simple que manejar cursors "startAt" o "endBefore" de forma bidireccional con el historial de snapshots.
+      // Se reconstruye la secuencia de páginas desde el principio hasta la página deseada.
+      let targetPageSnapshotsLast = null;
+      if (currentPage - 2 >= 0 && pageDocSnapshots.last[currentPage - 2]) {
+          targetPageSnapshotsLast = pageDocSnapshots.last[currentPage - 2];
+      }
+      
+      // Re-fetch for the previous page.
+      // We need to effectively tell fetchEjercicios to start "before" the current page.
+      // A robust way without endBefore (which also needs index) is to refetch pages up to newPage-1
+      // or adjust how we pass cursors.
+      // For now, this simple re-fetch will get the previous page data correctly based on its first item.
+      // This specific logic might need refinement if complex back-and-forth pagination is frequent.
+      
+      // Simplified: Refetch the target previous page. The `startAfter` logic in `fetchEjercicios`
+      // uses `pageDocSnapshots.last[newPage - 2]`.
       fetchEjercicios(currentPage - 1, sortField, sortDirection);
     }
   };
@@ -199,10 +216,10 @@ function ManageExercisesPageContent() {
     try {
       await deleteDoc(doc(db, "ejercicios_futsal", exerciseToDeleteId));
       toast({ title: "Ejercicio Eliminado", description: "El ejercicio ha sido eliminado correctamente." });
-      fetchTotalCount(); 
+      fetchTotalCount();
       const newCurrentPage = (ejercicios.length === 1 && currentPage > 1) ? currentPage - 1 : currentPage;
-      
-      setPageDocSnapshots({ first: [null], last: [] }); 
+
+      setPageDocSnapshots({ first: [null], last: [] });
       fetchEjercicios(newCurrentPage, sortField, sortDirection);
 
     } catch (error) {
@@ -216,9 +233,9 @@ function ManageExercisesPageContent() {
   };
 
   const handleModifyClick = (id: string) => {
-    router.push(`/admin/edit-exercise/${id}`); 
+    router.push(`/admin/edit-exercise/${id}`);
   };
-  
+
   const formatEdad = (edad: string[] | string) => {
     if (Array.isArray(edad)) {
       return edad.join(', ');
@@ -226,7 +243,7 @@ function ManageExercisesPageContent() {
     return edad;
   };
 
-  if (!isAdmin && !isLoading) { 
+  if (!isAdmin && !isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
         <Card className="w-full max-w-md text-center shadow-lg">
@@ -249,8 +266,8 @@ function ManageExercisesPageContent() {
       </div>
     );
   }
-  
-  if (isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1) { 
+
+  if (isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1) {
      return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -303,7 +320,7 @@ function ManageExercisesPageContent() {
            {isLoading && <CardDescription>Actualizando ejercicios...</CardDescription>}
         </CardHeader>
         <CardContent>
-          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 && currentPage > 1 ? ( 
+          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 && currentPage > 1 ? (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
@@ -357,10 +374,10 @@ function ManageExercisesPageContent() {
              <Pagination className="mt-8">
                 <PaginationContent>
                   <PaginationItem>
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         size="sm"
-                        onClick={handlePreviousPage} 
+                        onClick={handlePreviousPage}
                         disabled={currentPage === 1 || isLoading}
                         aria-label="Página anterior"
                     >
@@ -372,10 +389,10 @@ function ManageExercisesPageContent() {
                     Página {currentPage}
                   </PaginationItem>
                   <PaginationItem>
-                     <Button 
-                        variant="outline" 
+                     <Button
+                        variant="outline"
                         size="sm"
-                        onClick={handleNextPage} 
+                        onClick={handleNextPage}
                         disabled={!hasMore || isLoading}
                         aria-label="Página siguiente"
                     >
@@ -418,5 +435,3 @@ export default function ManageExercisesPage() {
     </AuthGuard>
   );
 }
-    
-
