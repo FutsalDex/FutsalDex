@@ -5,12 +5,12 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, ListChecks, Edit, Trash2, Loader2, PlusCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ListChecks, Edit, Trash2, Loader2, PlusCircle, ChevronLeft, ChevronRight, ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation'; 
 import { db } from "@/lib/firebase";
-import { collection, getDocs, deleteDoc, doc, query, orderBy as firestoreOrderBy, DocumentData, limit, startAfter, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, query, orderBy as firestoreOrderBy, DocumentData, limit, startAfter, QueryDocumentSnapshot, getCountFromServer, QueryConstraint } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink } from "@/components/ui/pagination";
+import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination"; 
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORIAS_TEMATICAS_MAP } from "@/lib/constants";
 
@@ -43,6 +43,8 @@ interface EjercicioAdmin {
 }
 
 const ITEMS_PER_PAGE = 20;
+type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad'; 
+type SortDirection = 'asc' | 'desc';
 
 function ManageExercisesPageContent() {
   const { isAdmin } = useAuth();
@@ -55,39 +57,42 @@ function ManageExercisesPageContent() {
   const [exerciseToDeleteId, setExerciseToDeleteId] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [firstVisibleDocCurrentPage, setFirstVisibleDocCurrentPage] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [pageHistory, setPageHistory] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([null]); // Stores first doc of each page for 'Previous'
+  const [totalExercisesInDB, setTotalExercisesInDB] = useState(0);
+  const [pageDocSnapshots, setPageDocSnapshots] = useState<{
+    first: (QueryDocumentSnapshot<DocumentData> | null)[];
+    last: (QueryDocumentSnapshot<DocumentData> | null)[];
+  }>({ first: [null], last: [] }); 
   const [hasMore, setHasMore] = useState(false);
 
+  const [sortField, setSortField] = useState<SortableField>('ejercicio');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const fetchEjercicios = useCallback(async (page: number, direction: 'next' | 'prev' | 'first' = 'first') => {
+  const fetchTotalCount = useCallback(async () => {
+    try {
+      const countQuery = query(collection(db, "ejercicios_futsal"));
+      const snapshot = await getCountFromServer(countQuery);
+      setTotalExercisesInDB(snapshot.data().count);
+    } catch (error) {
+      console.error("Error fetching total exercise count: ", error);
+      toast({ title: "Error", description: "No se pudo obtener el número total de ejercicios.", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const fetchEjercicios = useCallback(async (newPage: number, currentSortField: SortableField, currentSortDirection: SortDirection) => {
     setIsLoading(true);
     try {
       const ejerciciosCollection = collection(db, "ejercicios_futsal");
-      let q;
       
-      const baseQuery = [firestoreOrderBy("ejercicio"), limit(ITEMS_PER_PAGE)];
+      const qConstraints: QueryConstraint[] = [
+        firestoreOrderBy(currentSortField, currentSortDirection),
+        limit(ITEMS_PER_PAGE)
+      ];
 
-      if (direction === 'first' || page === 1) {
-        q = query(ejerciciosCollection, ...baseQuery);
-        setPageHistory([null]); 
-      } else if (direction === 'next' && lastVisibleDoc) {
-        q = query(ejerciciosCollection, ...baseQuery, startAfter(lastVisibleDoc));
-      } else if (direction === 'prev' && page > 0 && pageHistory[page -1]) {
-         // For previous, we use the stored snapshot of the page we are going to
-        const previousPageStartAfter = pageHistory[page - 1];
-        if (previousPageStartAfter) {
-             q = query(ejerciciosCollection, ...baseQuery, startAfter(previousPageStartAfter));
-        } else { // page is 1, so no startAfter
-             q = query(ejerciciosCollection, ...baseQuery);
-        }
-      } else { // Default to first page if logic is unclear
-         q = query(ejerciciosCollection, ...baseQuery);
-         setPageHistory([null]);
+      if (newPage > 1 && pageDocSnapshots.last[newPage - 2]) { 
+        qConstraints.push(startAfter(pageDocSnapshots.last[newPage - 2]!));
       }
-
-
+      
+      const q = query(ejerciciosCollection, ...qConstraints);
       const querySnapshot = await getDocs(q);
       const fetchedEjercicios = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -97,79 +102,78 @@ function ManageExercisesPageContent() {
       setEjercicios(fetchedEjercicios);
 
       if (querySnapshot.docs.length > 0) {
-        setFirstVisibleDocCurrentPage(querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>);
-        setLastVisibleDoc(querySnapshot.docs[querySnapshot.docs.length - 1] as QueryDocumentSnapshot<DocumentData>);
-        
-        if (direction === 'next') {
-            setPageHistory(prev => {
-                const newHistory = [...prev];
-                newHistory[page -1] = firstVisibleDocCurrentPage; // Store first doc of current page before moving to next
-                return newHistory;
-            });
-        }
-      } else {
-        setLastVisibleDoc(null);
-        setFirstVisibleDocCurrentPage(null);
-      }
+        const firstDoc = querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>;
+        const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1] as QueryDocumentSnapshot<DocumentData>;
+
+        setPageDocSnapshots(prev => {
+          const newFirst = [...prev.first];
+          const newLast = [...prev.last];
+          newFirst[newPage - 1] = firstDoc; 
+          newLast[newPage - 1] = lastDoc;   
+          return { first: newFirst, last: newLast };
+        });
+      } 
       
       setHasMore(fetchedEjercicios.length === ITEMS_PER_PAGE);
-      setCurrentPage(page);
+      setCurrentPage(newPage);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching exercises: ", error);
-      toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
+      if (error.code === 'failed-precondition') {
+        toast({
+          title: "Índice Requerido por Firestore",
+          description: (
+            <div className="text-sm">
+              <p>La combinación actual de ordenación y/o filtros necesita un índice compuesto en Firestore que no existe.</p>
+              <p className="mt-1">Por favor, abre la consola de desarrollador del navegador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p>
+              <p className="mt-2 text-xs">Ejemplo del mensaje de Firebase: "The query requires an index. You can create it here: [enlace]"</p>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 30000,
+        });
+      } else {
+        toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios. " + error.message, variant: "destructive" });
+      }
     }
     setIsLoading(false);
-  }, [toast, lastVisibleDoc, pageHistory, firstVisibleDocCurrentPage]);
-
+  }, [toast, ITEMS_PER_PAGE, pageDocSnapshots.last]); 
 
   useEffect(() => {
     if (isAdmin) {
-      fetchEjercicios(1, 'first');
+      fetchTotalCount();
+      setPageDocSnapshots({ first: [null], last: [] });
+      setCurrentPage(1); 
+      fetchEjercicios(1, sortField, sortDirection);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]); // fetchEjercicios dependency removed due to useCallback, ensure it captures all needed values
+  }, [isAdmin, sortField, sortDirection, fetchTotalCount]);
+
+
+  const handleSort = (field: SortableField) => {
+    const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortField(field);
+    setSortDirection(newDirection);
+  };
+  
+  const renderSortIcon = (field: SortableField) => {
+    if (sortField === field) {
+      return sortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />;
+    }
+    return <ArrowDownUp className="ml-1 h-3 w-3 opacity-30" />;
+  };
 
   const handleNextPage = () => {
-    if (hasMore) {
-      fetchEjercicios(currentPage + 1, 'next');
+    if (hasMore && !isLoading) {
+      fetchEjercicios(currentPage + 1, sortField, sortDirection);
     }
   };
 
   const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      // Simplified: go to page 1
-      // For true previous page, more complex state needed for startAfter on previous page.
-      // For now, this just fetches the "previous set" based on the lastVisibleDoc of the *previous* page,
-      // which is effectively going back to the start of the previous page's data.
-       const targetPage = currentPage -1;
-       const startAfterDoc = pageHistory[targetPage -1]; // pageHistory is 0-indexed for pages 1...N
-
-       const qConstraints = [firestoreOrderBy("ejercicio"), limit(ITEMS_PER_PAGE)];
-       if(startAfterDoc) {
-           qConstraints.push(startAfter(startAfterDoc));
-       }
-       const q = query(collection(db, "ejercicios_futsal"), ...qConstraints);
-       
-       setIsLoading(true);
-       getDocs(q).then(querySnapshot => {
-           const fetchedEjercicios = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() } as EjercicioAdmin));
-           setEjercicios(fetchedEjercicios);
-           if (querySnapshot.docs.length > 0) {
-               setFirstVisibleDocCurrentPage(querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>);
-               setLastVisibleDoc(querySnapshot.docs[querySnapshot.docs.length - 1] as QueryDocumentSnapshot<DocumentData>);
-           }
-           setHasMore(fetchedEjercicios.length === ITEMS_PER_PAGE);
-           setCurrentPage(targetPage);
-           setIsLoading(false);
-       }).catch(error => {
-           console.error("Error fetching previous page:", error);
-           toast({ title: "Error", description: "No se pudo cargar la página anterior.", variant: "destructive" });
-           setIsLoading(false);
-       });
+    if (currentPage > 1 && !isLoading) {
+      fetchEjercicios(currentPage - 1, sortField, sortDirection);
     }
   };
-
 
   const handleDeleteClick = (id: string) => {
     setExerciseToDeleteId(id);
@@ -182,8 +186,10 @@ function ManageExercisesPageContent() {
     try {
       await deleteDoc(doc(db, "ejercicios_futsal", exerciseToDeleteId));
       toast({ title: "Ejercicio Eliminado", description: "El ejercicio ha sido eliminado correctamente." });
-      // Refetch current page or the first page if the current page becomes empty
-      fetchEjercicios(ejercicios.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage, 'first');
+      fetchTotalCount(); 
+      const newCurrentPage = (ejercicios.length === 1 && currentPage > 1) ? currentPage - 1 : currentPage;
+      setPageDocSnapshots({ first: [null], last: [] }); // Reset snapshots for refetch from potentially new page
+      fetchEjercicios(newCurrentPage, sortField, sortDirection);
     } catch (error) {
       console.error("Error deleting exercise: ", error);
       toast({ title: "Error al Eliminar", description: "No se pudo eliminar el ejercicio.", variant: "destructive" });
@@ -205,7 +211,7 @@ function ManageExercisesPageContent() {
     return edad;
   };
 
-  if (!isAdmin && !isLoading) { // ensure loading is false before redirecting
+  if (!isAdmin && !isLoading) { 
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
         <Card className="w-full max-w-md text-center shadow-lg">
@@ -229,13 +235,16 @@ function ManageExercisesPageContent() {
     );
   }
   
-  if (isLoading && ejercicios.length === 0) { // Show full page loader only on initial load
+  if (isLoading && ejercicios.length === 0 && totalExercisesInDB === 0) { 
      return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
+
+  const startIndex = totalExercisesInDB > 0 && ejercicios.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
+  const endIndex = totalExercisesInDB > 0 && ejercicios.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + ejercicios.length : 0;
 
 
   return (
@@ -265,29 +274,48 @@ function ManageExercisesPageContent() {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline text-xl flex items-center">
-            <ListChecks className="mr-2 h-5 w-5 text-primary" />
-            Listado de Ejercicios
-          </CardTitle>
-          {isLoading && ejercicios.length > 0 && <CardDescription>Actualizando ejercicios...</CardDescription>}
+          <div className="flex justify-between items-center">
+            <CardTitle className="font-headline text-xl flex items-center">
+              <ListChecks className="mr-2 h-5 w-5 text-primary" />
+              Listado de Ejercicios
+            </CardTitle>
+            {totalExercisesInDB > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Mostrando {ejercicios.length > 0 ? `${startIndex}-${endIndex}` : '0'} de {totalExercisesInDB}
+              </p>
+            )}
+          </div>
+           {isLoading && <CardDescription>Actualizando ejercicios...</CardDescription>}
         </CardHeader>
         <CardContent>
-          {isLoading && ejercicios.length === 0 ? ( // This case is handled by the full page loader now
+          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 ? ( 
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : !isLoading && ejercicios.length === 0 ? (
+          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 ? (
             <p className="text-muted-foreground text-center py-10">No hay ejercicios en la biblioteca. <Link href="/admin/add-exercise" className="text-primary hover:underline">Añade el primero</Link>.</p>
-          ) : (
+          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 ? (
+             <p className="text-muted-foreground text-center py-10">No hay ejercicios que coincidan con la página actual o filtros.</p>
+          ): (
             <>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px]">Número</TableHead>
-                  <TableHead>Ejercicio</TableHead>
-                  <TableHead>Fase</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Edad</TableHead>
+                  <TableHead className="w-[100px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('numero')}>
+                    <span className="flex items-center">Número {renderSortIcon('numero')}</span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('ejercicio')}>
+                    <span className="flex items-center">Ejercicio {renderSortIcon('ejercicio')}</span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('fase')}>
+                     <span className="flex items-center">Fase {renderSortIcon('fase')}</span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('categoria')}>
+                    <span className="flex items-center">Categoría {renderSortIcon('categoria')}</span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('edad')}>
+                    <span className="flex items-center">Edad {renderSortIcon('edad')}</span>
+                  </TableHead>
                   <TableHead className="text-right w-[150px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -325,7 +353,7 @@ function ManageExercisesPageContent() {
                         Anterior
                     </Button>
                   </PaginationItem>
-                  <PaginationItem className="font-medium text-sm px-3">
+                  <PaginationItem className="font-medium text-sm px-3 text-muted-foreground">
                     Página {currentPage}
                   </PaginationItem>
                   <PaginationItem>
@@ -375,6 +403,4 @@ export default function ManageExercisesPage() {
     </AuthGuard>
   );
 }
-
-
     
