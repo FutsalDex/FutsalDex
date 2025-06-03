@@ -69,7 +69,7 @@ export default function EjerciciosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState(ALL_FILTER_VALUE);
   const [selectedAgeFilter, setSelectedAgeFilter] = useState<string>(ALL_FILTER_VALUE);
-  const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_FILTER_VALUE); // Now stores category label
+  const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_FILTER_VALUE); 
   const [favorites, setFavorites] = useState<FavoriteState>({});
 
   const uniqueAgeCategories = useMemo(() => CATEGORIAS_EDAD_EJERCICIOS, []);
@@ -155,7 +155,7 @@ export default function EjerciciosPage() {
     }
     setIsLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, toast]); // Removed dependencies that were causing re-fetch loops
+  }, [isRegisteredUser, toast]); 
 
   useEffect(() => {
     setLastVisible(null);
@@ -312,11 +312,9 @@ export default function EjerciciosPage() {
                   )}
                 </div>
                 <CardHeader>
-                  <div className="flex justify-between items-start gap-2">
-                    <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
-                    {ej.categoria && <Badge variant="secondary" className="shrink-0 truncate" title={ej.categoria}>{ej.categoria}</Badge>}
-                  </div>
-                   <CardDescription className="text-xs space-y-0.5">
+                  <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
+                  {ej.categoria && <Badge variant="secondary" className="mt-1 truncate self-start" title={ej.categoria}>{ej.categoria}</Badge>}
+                  <CardDescription className="text-xs pt-2 space-y-0.5">
                     <div><strong>Fase:</strong> {ej.fase}</div>
                     <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
                     <div><strong>Duración:</strong> {ej.duracion}</div>
@@ -375,8 +373,6 @@ export default function EjerciciosPage() {
                         <p><strong className="font-semibold">Nº Jugadores:</strong> {ej.jugadores}</p>
                         <p><strong className="font-semibold">Variantes:</strong> {ej.variantes || 'No especificadas.'}</p>
                         <p><strong className="font-semibold">Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
-                        {/* Categoría ya se muestra en DialogHeader, se puede quitar de aquí si se desea */}
-                        {/* <p><strong className="font-semibold">Categoría:</strong> {ej.categoria}</p> */}
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -416,3 +412,4 @@ export default function EjerciciosPage() {
   );
 }
     
+
