@@ -308,12 +308,13 @@ export default function EjerciciosPage() {
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
                   <CardDescription className="text-xs">
-                    {ej.fase} - {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad} - {ej.duracion} 
+                    <div><strong>Fase:</strong> {ej.fase}</div>
+                    <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
+                    <div><strong>Duración:</strong> {ej.duracion}</div>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
                   <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2" title={ej.objetivos}><strong>Objetivos:</strong> {ej.objetivos}</p>
                 </CardContent>
                 <CardFooter>
                   <Dialog>
