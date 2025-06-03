@@ -290,7 +290,7 @@ export default function EjerciciosPage() {
                     src={ej.imagen || `https://placehold.co/400x300.png`}
                     alt={ej.ejercicio}
                     layout="fill"
-                    objectFit="cover"
+                    objectFit="contain"
                     data-ai-hint="futsal drill"
                   />
                    {isRegisteredUser && (
@@ -325,7 +325,7 @@ export default function EjerciciosPage() {
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
-                        <div className="text-sm text-muted-foreground pt-1">
+                         <div className="text-sm text-muted-foreground pt-1">
                           <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
                           <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
                           <p><strong className="font-semibold text-foreground/90">Duración:</strong> {ej.duracion}</p>
@@ -333,7 +333,7 @@ export default function EjerciciosPage() {
                       </DialogHeader>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         <div className="relative aspect-video">
-                           <Image src={ej.imagen || `https://placehold.co/600x400.png`} alt={ej.ejercicio} layout="fill" objectFit="cover" className="rounded-md" data-ai-hint="futsal game"/>
+                           <Image src={ej.imagen || `https://placehold.co/600x400.png`} alt={ej.ejercicio} layout="fill" objectFit="contain" className="rounded-md" data-ai-hint="futsal game"/>
                         </div>
                         <div>
                           <h3 className="font-semibold text-lg mb-1">Descripción</h3>
@@ -342,12 +342,12 @@ export default function EjerciciosPage() {
                           <div>
                             <h3 className="font-semibold text-lg mb-1">Objetivos</h3>
                             {ej.objetivos && ej.objetivos.length > 0 ? (
-                              <ul className="list-disc pl-5 space-y-1 text-sm mb-3">
-                                {ej.objetivos.split('.')
+                               <ul className="list-disc pl-5 space-y-1 text-sm mb-3">
+                                {ej.objetivos.split(/[.;]+/) 
                                   .map(obj => obj.trim())
                                   .filter(obj => obj.length > 0)
                                   .map((obj, index) => (
-                                    <li key={index}>{obj}.</li>
+                                    <li key={index}>{obj}{obj.endsWith('.') || obj.endsWith(';') ? '' : '.'}</li>
                                 ))}
                               </ul>
                             ) : (
