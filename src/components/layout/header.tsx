@@ -40,12 +40,11 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2">
-          <FutsalAppIcon />
+          <FutsalAppIcon className="h-6 w-6" />
           <span className="text-xl font-bold font-headline">FutsalDex</span>
         </Link>
         <nav className="hidden items-center space-x-2 md:flex">
           {navLinks.map((link) =>
-            // Removed (link.guestAllowed || isRegisteredUser) condition for desktop view
             (
             <Button
               key={link.href}
@@ -118,7 +117,7 @@ export default function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {navLinks.map((link) =>
-                  (link.guestAllowed || isRegisteredUser) && ( // Condition remains for mobile view
+                  (link.guestAllowed || isRegisteredUser) && ( 
                   <DropdownMenuItem key={link.href} asChild>
                     <Link href={link.href}>
                       <span className="flex items-center">
@@ -128,7 +127,6 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                 ))}
-                {/* Separador y enlaces de autenticación para el menú móvil */}
                 {!user && !loading && (
                   <>
                     <DropdownMenuSeparator />
