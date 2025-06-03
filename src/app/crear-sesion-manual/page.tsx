@@ -36,8 +36,7 @@ interface Ejercicio {
   descripcion: string; 
   objetivos: string;   
   fase: string;
-  categoria: string; // Esta es la etiqueta de la categoría
-  // Otros campos de Ejercicio si los hay y son relevantes
+  categoria: string; 
 }
 
 
@@ -57,7 +56,7 @@ function CrearSesionManualContent() {
   const [vueltaCalmaEjercicios, setVueltaCalmaEjercicios] = useState<Ejercicio[]>([]);
 
   const [loadingEjercicios, setLoadingEjercicios] = useState({ calentamiento: true, principal: true, vueltaCalma: true });
-  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]); // Almacenará las etiquetas de las categorías
+  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]); 
 
   const form = useForm<z.infer<typeof manualSessionSchema>>({
     resolver: zodResolver(manualSessionSchema),
@@ -65,7 +64,7 @@ function CrearSesionManualContent() {
       warmUpExerciseId: "",
       mainExerciseIds: [],
       coolDownExerciseId: "",
-      sessionTitle: `Sesión Manual - ${new Date().toLocaleDateString('es-ES')}`,
+      sessionTitle: "", // Modificado: valor inicial vacío para mostrar placeholder
       numero_sesion: "",
       fecha: new Date().toISOString().split('T')[0],
       temporada: "",
@@ -85,7 +84,7 @@ function CrearSesionManualContent() {
         descripcion: doc.data().descripcion || "", 
         objetivos: doc.data().objetivos || "",  
         fase: doc.data().fase || "",
-        categoria: doc.data().categoria || "", // Este es el nombre/label de la categoría
+        categoria: doc.data().categoria || "", 
         ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria'>)
       } as Ejercicio));
       setter(ejerciciosData);
@@ -103,7 +102,7 @@ function CrearSesionManualContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCategoryChange = (categoryLabel: string) => {
+ const handleCategoryChange = (categoryLabel: string) => {
     const currentSelected = selectedCategorias;
     const isSelected = currentSelected.includes(categoryLabel);
     let newSelectedCategorias: string[];
@@ -114,19 +113,21 @@ function CrearSesionManualContent() {
       if (currentSelected.length < 4) {
         newSelectedCategorias = [...currentSelected, categoryLabel];
       } else {
+        // Llamar a toast fuera de la función de actualización del estado
         toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
-        return; // No actualiza el estado si se alcanza el límite
+        return; 
       }
     }
+    // Actualizar el estado después de la lógica de toast
     setSelectedCategorias(newSelectedCategorias);
-    form.setValue('mainExerciseIds', []); // Resetear selección de ejercicios principales al cambiar filtro
+    form.setValue('mainExerciseIds', []); 
   };
+
 
   const filteredPrincipalEjercicios = useMemo(() => {
     if (selectedCategorias.length === 0) {
       return principalEjercicios;
     }
-    // Compara la etiqueta de la categoría del ejercicio con las etiquetas seleccionadas
     return principalEjercicios.filter(exercise => {
       return selectedCategorias.includes(exercise.categoria); 
     });
@@ -174,7 +175,7 @@ function CrearSesionManualContent() {
         warmUpExerciseId: "",
         mainExerciseIds: [],
         coolDownExerciseId: "",
-        sessionTitle: `Sesión Manual - ${new Date().toLocaleDateString('es-ES')}`,
+        sessionTitle: "", // Reset a vacío para mostrar placeholder
         numero_sesion: "",
         fecha: new Date().toISOString().split('T')[0],
         temporada: "",
@@ -209,7 +210,7 @@ function CrearSesionManualContent() {
         <ScrollArea className="h-64 rounded-md border p-4">
           <FormField
             control={form.control}
-            name={formFieldName as "mainExerciseIds"} // Asegurar que es el nombre correcto del campo
+            name={formFieldName as "mainExerciseIds"} 
             render={() => (
               <div className="space-y-2">
                 {exercises.map((item) => (
@@ -258,7 +259,7 @@ function CrearSesionManualContent() {
           />
         </ScrollArea>
       );
-    } else { // Selección única con Select
+    } else { 
       return (
          <FormField
             control={form.control}
@@ -340,8 +341,8 @@ function CrearSesionManualContent() {
                     <FormItem key={category.id} className="flex flex-row items-start space-x-3 space-y-0">
                       <FormControl>
                         <Checkbox
-                          checked={selectedCategorias.includes(category.label)} // Comprobar contra la etiqueta
-                          onCheckedChange={() => handleCategoryChange(category.label)} // Pasar la etiqueta
+                          checked={selectedCategorias.includes(category.label)} 
+                          onCheckedChange={() => handleCategoryChange(category.label)} 
                           id={`cat-${category.id}`}
                         />
                       </FormControl>
@@ -374,16 +375,13 @@ function CrearSesionManualContent() {
               <FormField
                 control={form.control}
                 name="sessionTitle"
-                render={({ field }) => {
-                  const watchedSessionTitle = form.watch("sessionTitle");
-                  return (
-                    <FormItem>
-                      {(!watchedSessionTitle || watchedSessionTitle.length === 0) && <FormLabel>Título de la Sesión</FormLabel>}
-                      <FormControl><Input placeholder="Ej: Sesión de Técnica Individual" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Título de la Sesión</FormLabel> {/* Restaurada la etiqueta para que siempre sea visible */}
+                    <FormControl><Input placeholder="Ej: Sesión de Técnica Individual" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="numero_sesion" render={({ field }) => (
