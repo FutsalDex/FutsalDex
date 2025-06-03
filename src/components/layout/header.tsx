@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { LogIn, LogOut, UserPlus, Sparkles, Edit3, BookUser, Menu } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Sparkles, Edit3, BookUser, Menu, Heart, ShieldCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -26,7 +26,7 @@ const FutsalAppIcon = ({ className }: { className?: string }) => (
 
 
 export default function Header() {
-  const { user, signOut, loading, isRegisteredUser } = useAuth();
+  const { user, signOut, loading, isRegisteredUser, isAdmin } = useAuth();
   const pathname = usePathname();
 
   const navLinks = [
@@ -34,6 +34,11 @@ export default function Header() {
     { href: '/crear-sesion-manual', label: 'Crear Sesión (Manual)', icon: <Edit3 className="mr-2 h-4 w-4" />, guestAllowed: true },
     { href: '/crear-sesion-ia', label: 'Crear Sesión (IA)', icon: <Sparkles className="mr-2 h-4 w-4" />, guestAllowed: true },
     { href: '/mis-sesiones', label: 'Mis Sesiones', icon: <BookUser className="mr-2 h-4 w-4" />, guestAllowed: false },
+    { href: '/favoritos', label: 'Favoritos', icon: <Heart className="mr-2 h-4 w-4" />, guestAllowed: false, requiresAuth: true },
+  ];
+
+  const adminLinks = [
+    { href: '/admin', label: 'Panel Admin', icon: <ShieldCheck className="mr-2 h-4 w-4" /> }
   ];
 
   return (
@@ -43,14 +48,29 @@ export default function Header() {
           <FutsalAppIcon className="h-6 w-6" />
           <span className="text-xl font-bold font-headline">FutsalDex</span>
         </Link>
-        <nav className="hidden items-center space-x-2 md:flex">
+        <nav className="hidden items-center space-x-1 md:flex">
           {navLinks.map((link) =>
-            (
+            (link.guestAllowed || isRegisteredUser || (link.requiresAuth && isRegisteredUser) || !link.requiresAuth) && (
             <Button
               key={link.href}
               variant={pathname === link.href ? 'secondary' : 'ghost'}
               asChild
               className={pathname === link.href ? 'text-primary-foreground bg-primary/80 hover:bg-primary/70' : 'hover:bg-primary/80'}
+            >
+              <Link href={link.href}>
+                <span className="flex items-center">
+                  {link.icon}
+                  {link.label}
+                </span>
+              </Link>
+            </Button>
+          ))}
+          {isAdmin && adminLinks.map((link) => (
+            <Button
+              key={link.href}
+              variant={pathname === link.href ? 'secondary' : 'ghost'}
+              asChild
+              className={pathname === link.href ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'hover:bg-primary/80 text-red-300'}
             >
               <Link href={link.href}>
                 <span className="flex items-center">
@@ -79,6 +99,7 @@ export default function Header() {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{user.displayName || user.email}</p>
                     {user.displayName && <p className="text-xs leading-none text-muted-foreground">{user.email}</p>}
+                    {isAdmin && <p className="text-xs leading-none text-red-500 font-semibold">Admin</p>}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -91,18 +112,10 @@ export default function Header() {
           ) : (
             <>
               <Button variant="ghost" asChild className="hidden md:flex hover:bg-primary/80">
-                <Link href="/login">
-                  <span className="flex items-center">
-                    <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
-                  </span>
-                </Link>
+                <Link href="/login"><span className="flex items-center"><LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión</span></Link>
               </Button>
               <Button variant="secondary" asChild className="hidden md:flex bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href="/register">
-                  <span className="flex items-center">
-                    <UserPlus className="mr-2 h-4 w-4" /> Registrarse
-                  </span>
-                </Link>
+                <Link href="/register"><span className="flex items-center"><UserPlus className="mr-2 h-4 w-4" /> Registrarse</span></Link>
               </Button>
             </>
           )}
@@ -117,10 +130,20 @@ export default function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {navLinks.map((link) =>
-                  (link.guestAllowed || isRegisteredUser) && ( 
+                  ((link.guestAllowed || isRegisteredUser) && (!link.requiresAuth || isRegisteredUser)) && ( 
                   <DropdownMenuItem key={link.href} asChild>
                     <Link href={link.href}>
                       <span className="flex items-center">
+                        {link.icon}
+                        {link.label}
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                {isAdmin && adminLinks.map((link) => (
+                  <DropdownMenuItem key={link.href} asChild>
+                    <Link href={link.href}>
+                      <span className="flex items-center text-red-500">
                         {link.icon}
                         {link.label}
                       </span>
@@ -163,3 +186,4 @@ export default function Header() {
     </header>
   );
 }
+

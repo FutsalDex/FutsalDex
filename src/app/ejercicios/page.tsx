@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint } from 'firebase/firestore';
 import Image from 'next/image';
-import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown } from 'lucide-react';
+import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +24,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from '@/lib/utils';
+
 
 interface Ejercicio {
   id: string;
@@ -38,7 +40,7 @@ interface Ejercicio {
   fase: string;
   categoria_edad: string;
   imagen: string;
-  consejos_entrenador?: string; // Added optional for safety
+  consejos_entrenador?: string; 
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -54,6 +56,10 @@ const THEMATIC_CATEGORIES = [
   { id: "porteros", label: "Porteros" },
 ];
 
+interface FavoriteState {
+  [exerciseId: string]: boolean;
+}
+
 export default function EjerciciosPage() {
   const { user, isRegisteredUser } = useAuth();
   const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
@@ -66,6 +72,7 @@ export default function EjerciciosPage() {
   const [phaseFilter, setPhaseFilter] = useState(ALL_PHASES_VALUE);
   const [selectedAgeFilters, setSelectedAgeFilters] = useState<string[]>([]);
   const [selectedThematicCategories, setSelectedThematicCategories] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteState>({}); // UI state for favorites
 
   const uniqueAgeCategories = useMemo(() => {
     return [
@@ -89,7 +96,6 @@ export default function EjerciciosPage() {
       const constraints: QueryConstraint[] = [];
 
       if (search) {
-        // Basic prefix search, might need more sophisticated search for production
         constraints.push(where('ejercicio', '>=', search));
         constraints.push(where('ejercicio', '<=', search + '\uf8ff'));
       }
@@ -109,6 +115,12 @@ export default function EjerciciosPage() {
         if (direction === 'next' && lastVisible) {
           constraints.push(startAfter(lastVisible));
         }
+        // Note: 'prev' direction or specific page jumps other than first/next would require more complex cursor management or offset-based pagination if Firestore supported it directly.
+        // For simplicity, 'prev' and specific jumps will reset to the first page.
+        else if (direction === 'prev' && page > 1) {
+             // This is tricky with cursors. For now, we'll simplify: going "back" means going to page 1.
+             // A more robust solution would store cursors for each page.
+        }
       }
       
       const q = query(ejerciciosCollection, ...constraints);
@@ -119,6 +131,8 @@ export default function EjerciciosPage() {
 
       if (isRegisteredUser) {
         setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
+        // A more accurate total count would require a separate count query, which adds cost/complexity.
+        // This is an estimation for pagination UI.
         setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1); 
       } else {
         setTotalEjercicios(fetchedEjercicios.length);
@@ -159,6 +173,15 @@ export default function EjerciciosPage() {
     });
   };
 
+  const toggleFavorite = (exerciseId: string) => {
+    if (!isRegisteredUser) return; // Or show a toast to register
+    setFavorites(prev => ({
+      ...prev,
+      [exerciseId]: !prev[exerciseId]
+    }));
+    // TODO: Add Firestore logic to save/remove favorite
+  };
+
 
   const displayedEjercicios = useMemo(() => {
     if (selectedThematicCategories.length === 0) {
@@ -181,10 +204,13 @@ export default function EjerciciosPage() {
       setCurrentPage(newPage);
       fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilters, 'next');
     } else if (newPage < currentPage && newPage > 0) { 
+      // Reset to first page when going "previous" from any page > 1 for simplicity with cursors
       setCurrentPage(1); 
+      setLastVisible(null);
       fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first'); 
-    } else if (newPage === 1) {
+    } else if (newPage === 1) { // Explicitly go to page 1
       setCurrentPage(1);
+      setLastVisible(null);
       fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
     }
   };
@@ -193,6 +219,7 @@ export default function EjerciciosPage() {
     const file = event.target.files?.[0];
     if (file) {
       console.log("File selected:", file.name);
+      // Future implementation: process file
     }
   };
 
@@ -281,7 +308,7 @@ export default function EjerciciosPage() {
             </DropdownMenu>
 
           </div>
-          {isRegisteredUser && (
+          {isRegisteredUser && ( // Assuming only registered users (and admins) can upload
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" className="shrink-0 w-full md:w-auto">
@@ -348,6 +375,17 @@ export default function EjerciciosPage() {
                     objectFit="cover"
                     data-ai-hint="futsal drill"
                   />
+                   {isRegisteredUser && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute top-2 right-2 bg-background/70 hover:bg-background/90 text-primary rounded-full h-8 w-8"
+                      onClick={() => toggleFavorite(ej.id)}
+                      title={favorites[ej.id] ? "Quitar de favoritos" : "Añadir a favoritos"}
+                    >
+                      <Heart className={cn("h-4 w-4", favorites[ej.id] ? "fill-red-500 text-red-500" : "text-primary")} />
+                    </Button>
+                  )}
                 </div>
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
@@ -401,7 +439,7 @@ export default function EjerciciosPage() {
                 <PaginationItem>
                   <PaginationPrevious 
                     href="#" 
-                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}}
+                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} // Go to first page for simplicity
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
                   />
                 </PaginationItem>
@@ -411,6 +449,7 @@ export default function EjerciciosPage() {
                   </PaginationLink>
                 </PaginationItem>
                 
+                {/* Show Next button only if we potentially have more items */}
                 {ejercicios.length === ITEMS_PER_PAGE && (
                   <PaginationItem>
                     <PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1);}} />
