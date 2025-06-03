@@ -4,19 +4,30 @@
 import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, ListChecks, Bot, Edit, Clock } from "lucide-react";
+import { Loader2, Eye, ListChecks, Bot, Edit, Clock, Edit2, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EjercicioInfo {
   id: string;
   ejercicio: string;
-  duracion?: string; // El campo original de duración como cadena
+  duracion?: string; 
 }
 
 interface Sesion {
@@ -24,9 +35,9 @@ interface Sesion {
   userId: string;
   type: "AI" | "Manual";
   sessionTitle: string; 
-  warmUp: string | EjercicioInfo; // Puede ser string para IA, objeto para Manual
-  mainExercises: (string | EjercicioInfo)[]; // Puede ser array de strings para IA, array de objetos para Manual
-  coolDown: string | EjercicioInfo; // Puede ser string para IA, objeto para Manual
+  warmUp: string | EjercicioInfo; 
+  mainExercises: (string | EjercicioInfo)[]; 
+  coolDown: string | EjercicioInfo; 
   coachNotes?: string;
   numero_sesion?: string;
   fecha?: string | Timestamp;
@@ -34,7 +45,7 @@ interface Sesion {
   club?: string;
   equipo?: string;
   preferredSessionLengthMinutes?: number; 
-  duracionTotalManualEstimada?: number; // Nuevo campo para la duración total calculada
+  duracionTotalManualEstimada?: number; 
   createdAt: Timestamp;
 }
 
@@ -48,8 +59,12 @@ export default function MisSesionesPage() {
 
 function MisSesionesContent() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [sessionToDeleteId, setSessionToDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -67,13 +82,17 @@ function MisSesionesContent() {
         setSesiones(fetchedSesiones);
       } catch (error) {
         console.error("Error fetching sessions:", error);
-        // Add toast notification for error
+        toast({
+          title: "Error al Cargar Sesiones",
+          description: "No se pudieron cargar tus sesiones.",
+          variant: "destructive",
+        });
       }
       setIsLoading(false);
     };
 
     fetchSesiones();
-  }, [user]);
+  }, [user, toast]);
 
   const formatDate = (dateValue: string | Timestamp | undefined) => {
     if (!dateValue) return 'N/A';
@@ -94,8 +113,53 @@ function MisSesionesContent() {
   
   const formatExerciseName = (exercise: string | EjercicioInfo | null | undefined): string => {
     if (!exercise) return "Ejercicio no especificado";
-    if (typeof exercise === 'string') return exercise; // Para sesiones AI
-    return exercise.ejercicio; // Para sesiones Manuales
+    if (typeof exercise === 'string') return exercise; 
+    return exercise.ejercicio; 
+  };
+
+  const handleDeleteSessionClick = (sessionId: string) => {
+    setSessionToDeleteId(sessionId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteSession = async () => {
+    if (!sessionToDeleteId) return;
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(db, "mis_sesiones", sessionToDeleteId));
+      setSesiones(prev => prev.filter(s => s.id !== sessionToDeleteId));
+      toast({
+        title: "Sesión Eliminada",
+        description: "La sesión ha sido eliminada correctamente.",
+      });
+    } catch (error) {
+      console.error("Error deleting session:", error);
+      toast({
+        title: "Error al Eliminar",
+        description: "No se pudo eliminar la sesión. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setSessionToDeleteId(null);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+  const handleEditSessionClick = (sesionType: "AI" | "Manual", sessionId: string) => {
+    if (sesionType === "AI") {
+       toast({
+        title: "Función no disponible",
+        description: "La edición de sesiones generadas por IA no está disponible actualmente.",
+      });
+      return;
+    }
+    // Placeholder para la lógica de edición de sesiones manuales
+    // router.push(`/mis-sesiones/edit/${sessionId}`);
+    toast({
+      title: "En Desarrollo",
+      description: "La funcionalidad para editar sesiones manuales está en desarrollo.",
+    });
   };
 
 
@@ -112,7 +176,7 @@ function MisSesionesContent() {
       <header className="mb-8">
         <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Mis Sesiones</h1>
         <p className="text-lg text-foreground/80">
-          Aquí encontrarás todas las sesiones de entrenamiento que has creado, tanto con IA como manualmente.
+          Aquí encontrarás todas las sesiones de entrenamiento que has creado.
         </p>
       </header>
 
@@ -143,7 +207,7 @@ function MisSesionesContent() {
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sesiones.map((sesion) => (
-            <Card key={sesion.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl">
+            <Card key={sesion.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
               <CardHeader className="pb-3">
                  <p className="text-xl font-semibold text-primary">
                   Fecha: {formatDate(sesion.fecha || sesion.createdAt)}
@@ -153,19 +217,19 @@ function MisSesionesContent() {
                  <p className="text-sm text-foreground/80"><strong>Equipo:</strong> {sesion.equipo || 'N/A'}</p>
                  <p className="text-sm text-foreground/80"><strong>Temporada:</strong> {sesion.temporada || 'N/A'}</p>
                  
-                 {sesion.type === "AI" && sesion.preferredSessionLengthMinutes && (
+                 {(sesion.type === "AI" && sesion.preferredSessionLengthMinutes) && (
                     <p className="text-sm text-foreground/80 flex items-center">
                         <Clock className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
                         <strong>Duración IA:</strong> {sesion.preferredSessionLengthMinutes} min
                     </p>
                  )}
-                 {sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined && (
+                 {(sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined) && (
                     <p className="text-sm text-foreground/80 flex items-center">
                         <Clock className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
                         <strong>Duración Total (aprox.):</strong> {sesion.duracionTotalManualEstimada} min
                     </p>
                  )}
-                 {sesion.type === "Manual" && sesion.duracionTotalManualEstimada === undefined && (
+                 {(sesion.type === "Manual" && sesion.duracionTotalManualEstimada === undefined) && (
                     <p className="text-sm text-muted-foreground flex items-center">
                         <Clock className="mr-1.5 h-3.5 w-3.5" />
                         Duración no especificada
@@ -193,7 +257,7 @@ function MisSesionesContent() {
                   <p className="text-sm ml-2">{formatExerciseName(sesion.coolDown)}</p>
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex-col space-y-2 items-stretch">
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full">
@@ -241,11 +305,48 @@ function MisSesionesContent() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                <div className="flex gap-2 w-full">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => handleEditSessionClick(sesion.type, sesion.id)}
+                    disabled={sesion.type === "AI"}
+                    title={sesion.type === "AI" ? "La edición de sesiones AI no está disponible" : "Editar sesión"}
+                  >
+                    <Edit2 className="mr-2 h-4 w-4" /> Editar
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    className="flex-1"
+                    onClick={() => handleDeleteSessionClick(sesion.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Borrar
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}
         </div>
       )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que quieres eliminar esta sesión permanentemente? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSessionToDeleteId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteSession} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
