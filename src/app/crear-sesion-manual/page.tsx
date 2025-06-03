@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
+import { parseDurationToMinutes } from "@/lib/utils";
 
 
 interface Ejercicio {
@@ -37,6 +38,7 @@ interface Ejercicio {
   objetivos: string;   
   fase: string;
   categoria: string; 
+  duracion: string; // Añadido para calcular la duración total
 }
 
 
@@ -84,7 +86,8 @@ function CrearSesionManualContent() {
         objetivos: doc.data().objetivos || "",  
         fase: doc.data().fase || "",
         categoria: doc.data().categoria || "", 
-        ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria'>)
+        duracion: doc.data().duracion || "0", // Asegurar que 'duracion' existe
+        ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria' | 'duracion'>)
       } as Ejercicio));
       setter(ejerciciosData);
     } catch (error) {
@@ -106,18 +109,25 @@ function CrearSesionManualContent() {
     const currentSelected = selectedCategorias;
     const isSelected = currentSelected.includes(categoryLabel);
 
+    let showToast = false;
+
     if (isSelected) {
       newSelectedCategorias = currentSelected.filter(label => label !== categoryLabel);
     } else {
       if (currentSelected.length < 4) {
         newSelectedCategorias = [...currentSelected, categoryLabel];
       } else {
-        toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
-        return; 
+        newSelectedCategorias = currentSelected; // No cambiar si se excede el límite
+        showToast = true; 
       }
     }
+    
     setSelectedCategorias(newSelectedCategorias);
     form.setValue('mainExerciseIds', []); 
+
+    if (showToast) {
+       toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
+    }
   };
 
 
@@ -146,6 +156,11 @@ function CrearSesionManualContent() {
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
     
+    let totalDuration = 0;
+    if (warmUpDoc) totalDuration += parseDurationToMinutes(warmUpDoc.duracion);
+    mainDocs.forEach(doc => totalDuration += parseDurationToMinutes(doc.duracion));
+    if (coolDownDoc) totalDuration += parseDurationToMinutes(coolDownDoc.duracion);
+
     const dateStringToUse = values.fecha || new Date().toISOString().split('T')[0];
     let formattedDate: string;
     try {
@@ -166,15 +181,16 @@ function CrearSesionManualContent() {
       userId: user.uid,
       type: "Manual",
       sessionTitle: titleToSave,
-      warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio } : null,
-      mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio })),
-      coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio } : null,
+      warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio, duracion: warmUpDoc.duracion } : null,
+      mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio, duracion: e.duracion })),
+      coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio, duracion: coolDownDoc.duracion } : null,
       coachNotes: "", 
       numero_sesion: values.numero_sesion || null,
       fecha: values.fecha || null,
       temporada: values.temporada || null,
       club: values.club || null,
       equipo: values.equipo || null,
+      duracionTotalManualEstimada: totalDuration,
       createdAt: serverTimestamp(),
     };
 
@@ -259,7 +275,7 @@ function CrearSesionManualContent() {
                             />
                           </FormControl>
                           <FormLabel className="text-sm font-normal">
-                            {item.ejercicio}
+                            {item.ejercicio} ({item.duracion || 'N/A'})
                           </FormLabel>
                         </FormItem>
                       );
@@ -287,7 +303,7 @@ function CrearSesionManualContent() {
                   <SelectContent>
                     {exercises.map((ej) => (
                       <SelectItem key={ej.id} value={ej.id}>
-                        {ej.ejercicio}
+                        {ej.ejercicio} ({ej.duracion || 'N/A'})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -371,7 +387,7 @@ function CrearSesionManualContent() {
                 name="mainExerciseIds"
                 render={() => (
                   <FormItem className="mt-2">
-                    <FormMessage />
+                    <FormMessage /> {/* Asegura que el mensaje de error para mainExerciseIds se muestre aquí */}
                   </FormItem>
                 )}
               />
@@ -427,6 +443,3 @@ function CrearSesionManualContent() {
     </div>
   );
 }
-
-
-    

@@ -13,21 +13,28 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
 
+interface EjercicioInfo {
+  id: string;
+  ejercicio: string;
+  duracion?: string; // El campo original de duración como cadena
+}
+
 interface Sesion {
   id: string;
   userId: string;
   type: "AI" | "Manual";
-  sessionTitle: string; // Sigue existiendo en los datos, pero no se usa en la cabecera de la tarjeta
-  warmUp: string | { id: string; ejercicio: string };
-  mainExercises: (string | { id: string; ejercicio: string })[];
-  coolDown: string | { id: string; ejercicio: string };
+  sessionTitle: string; 
+  warmUp: string | EjercicioInfo; // Puede ser string para IA, objeto para Manual
+  mainExercises: (string | EjercicioInfo)[]; // Puede ser array de strings para IA, array de objetos para Manual
+  coolDown: string | EjercicioInfo; // Puede ser string para IA, objeto para Manual
   coachNotes?: string;
   numero_sesion?: string;
   fecha?: string | Timestamp;
   temporada?: string;
   club?: string;
   equipo?: string;
-  preferredSessionLengthMinutes?: number; // Para sesiones de IA
+  preferredSessionLengthMinutes?: number; 
+  duracionTotalManualEstimada?: number; // Nuevo campo para la duración total calculada
   createdAt: Timestamp;
 }
 
@@ -73,7 +80,7 @@ function MisSesionesContent() {
     if (typeof dateValue === 'string') {
       try {
         const date = new Date(dateValue);
-         if (isNaN(date.getTime())) return dateValue; // Devuelve la cadena si no es una fecha válida
+         if (isNaN(date.getTime())) return dateValue; 
         return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
       } catch (e) {
         return dateValue; 
@@ -85,10 +92,10 @@ function MisSesionesContent() {
     return 'Fecha inválida';
   };
   
-  const formatExerciseName = (exercise: string | { id: string; ejercicio: string } | null | undefined): string => {
+  const formatExerciseName = (exercise: string | EjercicioInfo | null | undefined): string => {
     if (!exercise) return "Ejercicio no especificado";
-    if (typeof exercise === 'string') return exercise;
-    return exercise.ejercicio;
+    if (typeof exercise === 'string') return exercise; // Para sesiones AI
+    return exercise.ejercicio; // Para sesiones Manuales
   };
 
 
@@ -138,7 +145,7 @@ function MisSesionesContent() {
           {sesiones.map((sesion) => (
             <Card key={sesion.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl">
               <CardHeader className="pb-3">
-                <p className="text-lg font-semibold text-primary">
+                 <p className="text-xl font-semibold text-primary">
                   Fecha: {formatDate(sesion.fecha || sesion.createdAt)}
                   {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
                 </p>
@@ -152,7 +159,13 @@ function MisSesionesContent() {
                         <strong>Duración IA:</strong> {sesion.preferredSessionLengthMinutes} min
                     </p>
                  )}
-                 {sesion.type === "Manual" && (
+                 {sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined && (
+                    <p className="text-sm text-foreground/80 flex items-center">
+                        <Clock className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                        <strong>Duración Total (aprox.):</strong> {sesion.duracionTotalManualEstimada} min
+                    </p>
+                 )}
+                 {sesion.type === "Manual" && sesion.duracionTotalManualEstimada === undefined && (
                     <p className="text-sm text-muted-foreground flex items-center">
                         <Clock className="mr-1.5 h-3.5 w-3.5" />
                         Duración no especificada
@@ -190,7 +203,6 @@ function MisSesionesContent() {
                   <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <div className="flex justify-between items-center">
-                        {/* El título original de la sesión ahora se muestra aquí */}
                         <DialogTitle className="text-2xl text-primary font-headline">{sesion.sessionTitle}</DialogTitle>
                         <Badge variant={sesion.type === "AI" ? "default" : "secondary"}>
                            {sesion.type === "AI" ? <Bot className="mr-1 h-3 w-3"/> : <Edit className="mr-1 h-3 w-3"/>}
@@ -202,6 +214,7 @@ function MisSesionesContent() {
                         {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
                         <br/>Club: {sesion.club || 'N/A'} | Equipo: {sesion.equipo || 'N/A'} | Temporada: {sesion.temporada || 'N/A'}
                         {sesion.type === "AI" && sesion.preferredSessionLengthMinutes && ` | Duración IA: ${sesion.preferredSessionLengthMinutes} min`}
+                        {sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined && ` | Duración Total (aprox.): ${sesion.duracionTotalManualEstimada} min`}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="mt-4 space-y-4">
