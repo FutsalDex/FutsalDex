@@ -103,20 +103,22 @@ function CrearSesionManualContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCategoryChange = (categoryLabel: string) => { // Ahora recibe la etiqueta
-    setSelectedCategorias(prev => {
-      const isSelected = prev.includes(categoryLabel);
-      if (isSelected) {
-        return prev.filter(label => label !== categoryLabel);
+  const handleCategoryChange = (categoryLabel: string) => {
+    const currentSelected = selectedCategorias;
+    const isSelected = currentSelected.includes(categoryLabel);
+    let newSelectedCategorias: string[];
+
+    if (isSelected) {
+      newSelectedCategorias = currentSelected.filter(label => label !== categoryLabel);
+    } else {
+      if (currentSelected.length < 4) {
+        newSelectedCategorias = [...currentSelected, categoryLabel];
       } else {
-        if (prev.length < 4) {
-          return [...prev, categoryLabel];
-        } else {
-          toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
-          return prev;
-        }
+        toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
+        return; // No actualiza el estado si se alcanza el límite
       }
-    });
+    }
+    setSelectedCategorias(newSelectedCategorias);
     form.setValue('mainExerciseIds', []); // Resetear selección de ejercicios principales al cambiar filtro
   };
 
@@ -369,9 +371,20 @@ function CrearSesionManualContent() {
               <CardTitle className="font-headline text-xl">Detalles de la Sesión (Opcional para Guardar)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField control={form.control} name="sessionTitle" render={({ field }) => (
-                  <FormItem><FormLabel>Título de la Sesión</FormLabel><FormControl><Input placeholder="Ej: Sesión de Técnica Individual" {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="sessionTitle"
+                render={({ field }) => {
+                  const watchedSessionTitle = form.watch("sessionTitle");
+                  return (
+                    <FormItem>
+                      {(!watchedSessionTitle || watchedSessionTitle.length === 0) && <FormLabel>Título de la Sesión</FormLabel>}
+                      <FormControl><Input placeholder="Ej: Sesión de Técnica Individual" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="numero_sesion" render={({ field }) => (
                     <FormItem><FormLabel>Número de Sesión</FormLabel><FormControl><Input placeholder="Ej: 16" {...field} /></FormControl><FormMessage /></FormItem>
