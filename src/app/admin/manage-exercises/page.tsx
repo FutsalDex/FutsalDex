@@ -184,20 +184,6 @@ function ManageExercisesPageContent() {
 
   const handlePreviousPage = () => {
     if (currentPage > 1 && !isLoading) {
-      // Para la página anterior, necesitamos usar el 'lastVisible' de la página *anterior* a la *anterior*
-      // o resetear si no tenemos esa información y volver a la página 1.
-      // Por simplicidad, y dado que 'pageDocSnapshots.first' ahora guarda el primer doc de la página actual,
-      // el startAfter para la página anterior se basa en el último de la página N-2.
-      // Esto requiere que pageDocSnapshots.last esté bien poblado.
-      
-      // Una lógica más simple para "Anterior" si solo queremos ir una página atrás de forma secuencial
-      // sería necesitar el *primer* documento de la página *actual* para hacer un `endBefore`
-      // o el *último* de la página N-2 para hacer un `startAfter`.
-      // Firestore es más eficiente con startAfter.
-      
-      // Reset and fetch page 1 if going back from page 2 without complex logic
-      // For now, this logic relies on fetchEjercicios handling a generic newPage correctly.
-      // The 'pageDocSnapshots.last[newPage - 2]' in fetchEjercicios is key.
       fetchEjercicios(currentPage - 1, sortField, sortDirection);
     }
   };
@@ -216,7 +202,6 @@ function ManageExercisesPageContent() {
       fetchTotalCount(); 
       const newCurrentPage = (ejercicios.length === 1 && currentPage > 1) ? currentPage - 1 : currentPage;
       
-      // Resetear snapshots y recargar es más seguro si la estructura de páginas puede cambiar mucho
       setPageDocSnapshots({ first: [null], last: [] }); 
       fetchEjercicios(newCurrentPage, sortField, sortDirection);
 
