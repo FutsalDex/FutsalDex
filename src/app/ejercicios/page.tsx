@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint } from 'firebase/firestore';
 import Image from 'next/image';
-import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart, FileText } from 'lucide-react';
+import { Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
 import {
@@ -171,13 +171,6 @@ export default function EjerciciosPage() {
     setCurrentPage(newPage);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      console.log("File selected:", file.name);
-    }
-  };
-
   const getAgeFilterButtonText = () => {
     if (selectedAgeFilters.length === 0) return "Todas las Edades";
     if (selectedAgeFilters.length === 1) return selectedAgeFilters[0];
@@ -277,29 +270,7 @@ export default function EjerciciosPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
           </div>
-          {isRegisteredUser && ( 
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="shrink-0 w-full md:w-auto">
-                  <Upload className="mr-2 h-4 w-4" /> Subir Excel
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Subir Ejercicios desde Excel</DialogTitle>
-                  <DialogDescription>
-                    Selecciona un archivo Excel (.xlsx o .xls) para importar ejercicios. Asegúrate de que el archivo sigue el formato especificado.
-                  </DialogDescription>
-                </DialogHeader>
-                <Input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Esta funcionalidad está en desarrollo. La carga de archivos no está implementada en esta demostración.
-                </p>
-              </DialogContent>
-            </Dialog>
-          )}
         </div>
       </div>
 
