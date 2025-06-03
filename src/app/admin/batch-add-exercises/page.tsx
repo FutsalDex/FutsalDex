@@ -26,7 +26,7 @@ const EXPECTED_HEADERS = {
   duracion: "Duración",
   variantes: "Variantes",
   fase: "Fase",
-  categoria: "Categoría temática",
+  categoria: "Categoría", // Cambiado de "Categoría temática"
   edad: "Categorías de edad",
   consejos_entrenador: "Consejos para el entrenador",
   imagen: "Imágenes",
@@ -122,7 +122,6 @@ function BatchAddExercisesPageContent() {
                 exerciseData.imagen = `https://placehold.co/400x300.png?text=${encodeURIComponent(exerciseData.ejercicio || 'Ejercicio')}`;
             }
             
-            // Asegurar que los campos opcionales sean string vacío si no vienen, para que Zod no los tome como undefined si son opcionales pero string.
             exerciseData.numero = exerciseData.numero || ""; 
             exerciseData.variantes = exerciseData.variantes || "";
             exerciseData.consejos_entrenador = exerciseData.consejos_entrenador || "";
@@ -149,7 +148,7 @@ function BatchAddExercisesPageContent() {
                 <p className="mb-1">Por favor, revisa tu archivo Excel y asegúrate de que:</p>
                 <ul className="list-disc list-inside pl-4 space-y-0.5 text-xs">
                   <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo". ¡Cuidado con espacios extra!</li>
-                  <li>Todos los campos marcados como <strong>requeridos</strong> en el schema (Ejercicio, Descripción, Objetivos, Fase, Categoría, Edad, Espacio y Materiales, Nº Jugadores, Duración) están <strong>completos y tienen la longitud mínima</strong>.</li>
+                  <li>Todos los campos marcados como <strong>requeridos</strong> en el schema (Ejercicio, Descripción, Objetivos, Fase, Categoría, Edad, Espacio y Materiales, Nº Jugadores, Duración) están <strong>completos y no son cadenas vacías</strong>.</li>
                   <li>El campo '{EXPECTED_HEADERS.categoria}' usa el <strong>ID de la categoría</strong> (ej: 'pase-control', 'finalizacion'), no el nombre completo. Consulta los IDs en la sección de "Añadir ejercicio".</li>
                   <li>El campo '{EXPECTED_HEADERS.edad}' no está vacío y contiene categorías de edad válidas. Si son varias, sepáralas por comas (ej: "Alevín (10-11 años),Infantil (12-13 años)").</li>
                 </ul>
@@ -319,12 +318,12 @@ function BatchAddExercisesPageContent() {
               <p className="font-semibold">Asegúrate de que tu archivo Excel/CSV tenga las siguientes columnas en la primera hoja. Los nombres deben coincidir <strong>EXACTAMENTE</strong> (mayúsculas, minúsculas, espacios, tildes y guiones bajos):</p>
               <ul className="list-disc list-inside text-xs mt-2 space-y-1">
                 <li><strong>{EXPECTED_HEADERS.numero}</strong> (Opcional. Ej: 001)</li>
-                <li><strong>{EXPECTED_HEADERS.ejercicio}</strong> (Requerido, mín. 3 caracteres. Ej: Pase y movimiento)</li>
-                <li><strong>{EXPECTED_HEADERS.descripcion}</strong> (Requerido, mín. 10 caracteres)</li>
-                <li><strong>{EXPECTED_HEADERS.objetivos}</strong> (Requerido, mín. 10 caracteres)</li>
-                <li><strong>{EXPECTED_HEADERS.espacio_materiales}</strong> (Requerido, mín. 5 caracteres. Ej: Media pista, 5 conos)</li>
-                <li><strong>{EXPECTED_HEADERS.jugadores}</strong> (Requerido, mín. 1 caracter. Ej: 10-12)</li>
-                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido, mín. 1 caracter. Ej: 15 min)</li>
+                <li><strong>{EXPECTED_HEADERS.ejercicio}</strong> (Requerido. Ej: Pase y movimiento)</li>
+                <li><strong>{EXPECTED_HEADERS.descripcion}</strong> (Requerido)</li>
+                <li><strong>{EXPECTED_HEADERS.objetivos}</strong> (Requerido)</li>
+                <li><strong>{EXPECTED_HEADERS.espacio_materiales}</strong> (Requerido. Ej: Media pista, 5 conos)</li>
+                <li><strong>{EXPECTED_HEADERS.jugadores}</strong> (Requerido. Ej: 10-12)</li>
+                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido. Ej: 15 min)</li>
                 <li><strong>{EXPECTED_HEADERS.variantes}</strong> (Opcional)</li>
                 <li><strong>{EXPECTED_HEADERS.fase}</strong> (Requerido. Debe ser uno de: Calentamiento, Principal, Vuelta a la calma)</li>
                 <li><strong>{EXPECTED_HEADERS.categoria}</strong> (Requerido. Debe ser el <strong>ID de la categoría</strong>, ej: 'pase-control', 'finalizacion'. Consulta los IDs en la sección de añadir ejercicio individual, no el nombre completo de la categoría)</li>
@@ -332,7 +331,7 @@ function BatchAddExercisesPageContent() {
                 <li><strong>{EXPECTED_HEADERS.consejos_entrenador}</strong> (Opcional)</li>
                 <li><strong>{EXPECTED_HEADERS.imagen}</strong> (Opcional, URL completa. Si se deja vacío, se usará una imagen genérica)</li>
               </ul>
-               <p className="mt-2 text-xs"><strong className="text-destructive">Importante:</strong> Todos los campos marcados como "Requerido" deben tener contenido válido y cumplir con la longitud mínima especificada. Las celdas vacías en campos requeridos causarán errores de validación.</p>
+               <p className="mt-2 text-xs"><strong className="text-destructive">Importante:</strong> Todos los campos marcados como "Requerido" deben tener contenido válido y no ser cadenas vacías. Las celdas vacías en campos requeridos causarán errores de validación.</p>
             </AlertDescription>
           </Alert>
         </CardContent>
