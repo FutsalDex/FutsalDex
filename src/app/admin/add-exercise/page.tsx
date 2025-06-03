@@ -14,6 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -68,7 +69,7 @@ function AddExercisePageContent() {
       variantes: "",
       fase: "",
       categoria: "",
-      edad: "",
+      edad: [], // Default to empty array for multi-select
       consejos_entrenador: "",
       imagen: "",
     },
@@ -79,7 +80,7 @@ function AddExercisePageContent() {
     try {
       await addDoc(collection(db, "ejercicios_futsal"), {
         ...data,
-        numero: data.numero || null, // Guardar como null si está vacío
+        numero: data.numero || null, 
         variantes: data.variantes || null,
         consejos_entrenador: data.consejos_entrenador || null,
         imagen: data.imagen || `https://placehold.co/400x300.png?text=${encodeURIComponent(data.ejercicio)}`,
@@ -216,19 +217,57 @@ function AddExercisePageContent() {
                 )} />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <FormField control={form.control} name="edad" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="edad"
+                render={() => (
                   <FormItem>
-                    <FormLabel>Categoría de Edad</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona edad" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {CATEGORIAS_EDAD.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Categorías de Edad (Selecciona una o más)</FormLabel>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 border rounded-md">
+                      {CATEGORIAS_EDAD.map((edadCat) => (
+                        <FormField
+                          key={edadCat}
+                          control={form.control}
+                          name="edad"
+                          render={({ field }) => {
+                            return (
+                              <FormItem
+                                key={edadCat}
+                                className="flex flex-row items-center space-x-3 space-y-0"
+                              >
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(edadCat)}
+                                    onCheckedChange={(checked) => {
+                                      const currentValue = field.value || [];
+                                      if (checked) {
+                                        field.onChange([...currentValue, edadCat]);
+                                      } else {
+                                        field.onChange(
+                                          currentValue.filter(
+                                            (value) => value !== edadCat
+                                          )
+                                        );
+                                      }
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-sm font-normal">
+                                  {edadCat}
+                                </FormLabel>
+                              </FormItem>
+                            );
+                          }}
+                        />
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
+                 {/* Spacer div - remove FormField for edad from here */}
                  <FormField control={form.control} name="jugadores" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Número de Jugadores</FormLabel>

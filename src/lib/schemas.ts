@@ -56,9 +56,10 @@ export const addExerciseSchema = z.object({
   variantes: z.string().optional(),
   fase: z.string().min(1, "La fase es requerida."),
   categoria: z.string().min(1, "La categoría temática es requerida."),
-  edad: z.string().min(1, "La categoría de edad es requerida."),
+  edad: z.array(z.string()).min(1, "Debes seleccionar al menos una categoría de edad."),
   consejos_entrenador: z.string().optional(),
   imagen: z.string().url({ message: "Debe ser una URL válida para la imagen." }).optional().or(z.literal('')),
 });
 
 export type AddExerciseFormValues = z.infer<typeof addExerciseSchema>;
+
