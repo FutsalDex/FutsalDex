@@ -3,16 +3,16 @@
 import type { User as FirebaseUser, AuthError } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { auth } from '@/lib/firebase';
-import { 
-  onAuthStateChanged, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut as firebaseSignOut 
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut
 } from 'firebase/auth';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
 
-const ADMIN_EMAIL = 'adminfutsaldex@futsaldex.com'; // Email del superusuario
+const ADMIN_EMAIL = 'futsaldex@gmail.com'; // Email del superusuario
 
 type AuthContextType = {
   user: FirebaseUser | null;
@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       await firebaseSignOut(auth);
-      setIsAdmin(false); 
+      setIsAdmin(false);
     } catch (e) {
       const authError = e as AuthError;
       setError(authError.message);
@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const clearError = () => {
     setError(null);
   };
-  
+
   const isRegisteredUser = !!user;
 
 

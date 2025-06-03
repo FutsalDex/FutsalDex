@@ -40,7 +40,7 @@ interface Ejercicio {
   fase: string;
   categoria_edad: string;
   imagen: string;
-  consejos_entrenador?: string; 
+  consejos_entrenador?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -49,11 +49,22 @@ const ALL_PHASES_VALUE = "ALL_PHASES";
 
 
 const THEMATIC_CATEGORIES = [
-  { id: "tecnica", label: "Técnica" },
-  { id: "tactica", label: "Táctica" },
-  { id: "fisico", label: "Preparación Física" },
-  { id: "estrategia", label: "Estrategia (ABP)" },
-  { id: "porteros", label: "Porteros" },
+  { id: "finalizacion", label: "Finalización" },
+  { id: "tecnica-individual-combinada", label: "Técnica individual y combinada" },
+  { id: "pase-control", label: "Pase y control" },
+  { id: "transiciones", label: "Transiciones (ofensivas y defensivas)" },
+  { id: "coordinacion-agilidad-velocidad", label: "Coordinación, agilidad y velocidad" },
+  { id: "defensa", label: "Defensa (individual, colectiva y táctica)" },
+  { id: "conduccion-regate", label: "Conducción y regate" },
+  { id: "toma-decisiones-vision", label: "Toma de decisiones y visión de juego" },
+  { id: "posesion-circulacion", label: "Posesión y circulación del balón" },
+  { id: "superioridades-inferioridades", label: "Superioridades e inferioridades numéricas" },
+  { id: "portero-trabajo-especifico", label: "Portero y trabajo específico" },
+  { id: "balon-parado-remates", label: "Balón parado y remates" },
+  { id: "contraataques-ataque-rapido", label: "Contraataques y ataque rápido" },
+  { id: "desmarques-movilidad", label: "Desmarques y movilidad" },
+  { id: "juego-reducido-condicionado", label: "Juego reducido y condicionado" },
+  { id: "calentamiento-activacion", label: "Calentamiento y activación" },
 ];
 
 interface FavoriteState {
@@ -76,15 +87,15 @@ export default function EjerciciosPage() {
 
   const uniqueAgeCategories = useMemo(() => {
     return [
-      "Benjamín (8-9 años)", 
-      "Alevín (10-11 años)", 
-      "Infantil (12-13 años)", 
-      "Cadete (14-15 años)", 
-      "Juvenil (16-18 años)", 
+      "Benjamín (8-9 años)",
+      "Alevín (10-11 años)",
+      "Infantil (12-13 años)",
+      "Cadete (14-15 años)",
+      "Juvenil (16-18 años)",
       "Senior (+18 años)"
     ];
   }, []);
-  
+
   const uniqueFases = useMemo(() => {
      return ["Calentamiento", "Principal", "Vuelta a la calma"];
   }, []);
@@ -99,14 +110,14 @@ export default function EjerciciosPage() {
         constraints.push(where('ejercicio', '>=', search));
         constraints.push(where('ejercicio', '<=', search + '\uf8ff'));
       }
-      if (phase && phase !== ALL_PHASES_VALUE) { 
+      if (phase && phase !== ALL_PHASES_VALUE) {
         constraints.push(where('fase', '==', phase));
       }
       if (ages.length > 0) {
         constraints.push(where('categoria_edad', 'in', ages));
       }
 
-      constraints.push(firestoreOrderBy('ejercicio')); 
+      constraints.push(firestoreOrderBy('ejercicio'));
 
       if (!isRegisteredUser) {
         constraints.push(limit(GUEST_ITEM_LIMIT));
@@ -122,10 +133,10 @@ export default function EjerciciosPage() {
              // A more robust solution would store cursors for each page.
         }
       }
-      
+
       const q = query(ejerciciosCollection, ...constraints);
       const documentSnapshots = await getDocs(q);
-      
+
       const fetchedEjercicios = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ejercicio));
       setEjercicios(fetchedEjercicios);
 
@@ -133,7 +144,7 @@ export default function EjerciciosPage() {
         setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
         // A more accurate total count would require a separate count query, which adds cost/complexity.
         // This is an estimation for pagination UI.
-        setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1); 
+        setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1);
       } else {
         setTotalEjercicios(fetchedEjercicios.length);
       }
@@ -143,13 +154,13 @@ export default function EjerciciosPage() {
     }
     setIsLoading(false);
   };
-  
+
   useEffect(() => {
-    setCurrentPage(1); 
-    setLastVisible(null); 
+    setCurrentPage(1);
+    setLastVisible(null);
     fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, searchTerm, phaseFilter, selectedAgeFilters]); 
+  }, [isRegisteredUser, searchTerm, phaseFilter, selectedAgeFilters]);
 
   const handleThematicCategoryChange = (categoryId: string) => {
     setSelectedThematicCategories(prev => {
@@ -161,7 +172,7 @@ export default function EjerciciosPage() {
       }
     });
   };
-  
+
   const handleAgeCategoryChange = (ageCategory: string) => {
     setSelectedAgeFilters(prev => {
       const isSelected = prev.includes(ageCategory);
@@ -191,7 +202,9 @@ export default function EjerciciosPage() {
       return selectedThematicCategories.some(catId => {
         const categoryObj = THEMATIC_CATEGORIES.find(c => c.id === catId);
         if (!categoryObj) return false;
-        const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0]; 
+        // Simple keyword search in relevant fields.
+        // Uses the first word of the category label as a broad keyword.
+        const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0];
         const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
         return exerciseText.includes(searchKeyword);
       });
@@ -200,14 +213,14 @@ export default function EjerciciosPage() {
 
 
   const handlePageChange = (newPage: number) => {
-    if (newPage > currentPage) { 
+    if (newPage > currentPage) {
       setCurrentPage(newPage);
       fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilters, 'next');
-    } else if (newPage < currentPage && newPage > 0) { 
+    } else if (newPage < currentPage && newPage > 0) {
       // Reset to first page when going "previous" from any page > 1 for simplicity with cursors
-      setCurrentPage(1); 
+      setCurrentPage(1);
       setLastVisible(null);
-      fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first'); 
+      fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
     } else if (newPage === 1) { // Explicitly go to page 1
       setCurrentPage(1);
       setLastVisible(null);
@@ -280,7 +293,7 @@ export default function EjerciciosPage() {
                 {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
               </SelectContent>
             </Select>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-[200px] justify-between">
@@ -299,7 +312,7 @@ export default function EjerciciosPage() {
                     key={ageCat}
                     checked={selectedAgeFilters.includes(ageCat)}
                     onCheckedChange={() => handleAgeCategoryChange(ageCat)}
-                    onSelect={(e) => e.preventDefault()} 
+                    onSelect={(e) => e.preventDefault()}
                   >
                     {ageCat}
                   </DropdownMenuCheckboxItem>
@@ -330,7 +343,7 @@ export default function EjerciciosPage() {
             </Dialog>
           )}
         </div>
-        
+
         <div>
           <Label className="text-md font-semibold flex items-center mb-2">
             <ListFilter className="h-4 w-4 mr-2" />
@@ -368,17 +381,17 @@ export default function EjerciciosPage() {
             {displayedEjercicios.map((ej) => (
               <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
                 <div className="relative h-48 w-full">
-                  <Image 
-                    src={ej.imagen || `https://placehold.co/400x300.png`} 
-                    alt={ej.ejercicio} 
-                    layout="fill" 
+                  <Image
+                    src={ej.imagen || `https://placehold.co/400x300.png`}
+                    alt={ej.ejercicio}
+                    layout="fill"
                     objectFit="cover"
                     data-ai-hint="futsal drill"
                   />
                    {isRegisteredUser && (
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="absolute top-2 right-2 bg-background/70 hover:bg-background/90 text-primary rounded-full h-8 w-8"
                       onClick={() => toggleFavorite(ej.id)}
                       title={favorites[ej.id] ? "Quitar de favoritos" : "Añadir a favoritos"}
@@ -437,8 +450,8 @@ export default function EjerciciosPage() {
              <Pagination className="mt-8">
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious 
-                    href="#" 
+                  <PaginationPrevious
+                    href="#"
                     onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} // Go to first page for simplicity
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
                   />
@@ -448,7 +461,7 @@ export default function EjerciciosPage() {
                     {currentPage}
                   </PaginationLink>
                 </PaginationItem>
-                
+
                 {/* Show Next button only if we potentially have more items */}
                 {ejercicios.length === ITEMS_PER_PAGE && (
                   <PaginationItem>

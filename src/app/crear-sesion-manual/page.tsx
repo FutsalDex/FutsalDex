@@ -39,12 +39,23 @@ interface Ejercicio {
   // Otros campos de Ejercicio si los hay y son relevantes para el filtrado
 }
 
-const CATEGORIAS_PRINCIPALES = [
-  { id: "tecnica", label: "Técnica" },
-  { id: "tactica", label: "Táctica" },
-  { id: "fisico", label: "Preparación Física" },
-  { id: "estrategia", label: "Estrategia (ABP)" },
-  { id: "porteros", label: "Porteros" },
+const THEMATIC_CATEGORIES = [
+  { id: "finalizacion", label: "Finalización" },
+  { id: "tecnica-individual-combinada", label: "Técnica individual y combinada" },
+  { id: "pase-control", label: "Pase y control" },
+  { id: "transiciones", label: "Transiciones (ofensivas y defensivas)" },
+  { id: "coordinacion-agilidad-velocidad", label: "Coordinación, agilidad y velocidad" },
+  { id: "defensa", label: "Defensa (individual, colectiva y táctica)" },
+  { id: "conduccion-regate", label: "Conducción y regate" },
+  { id: "toma-decisiones-vision", label: "Toma de decisiones y visión de juego" },
+  { id: "posesion-circulacion", label: "Posesión y circulación del balón" },
+  { id: "superioridades-inferioridades", label: "Superioridades e inferioridades numéricas" },
+  { id: "portero-trabajo-especifico", label: "Portero y trabajo específico" },
+  { id: "balon-parado-remates", label: "Balón parado y remates" },
+  { id: "contraataques-ataque-rapido", label: "Contraataques y ataque rápido" },
+  { id: "desmarques-movilidad", label: "Desmarques y movilidad" },
+  { id: "juego-reducido-condicionado", label: "Juego reducido y condicionado" },
+  { id: "calentamiento-activacion", label: "Calentamiento y activación" },
 ];
 
 
@@ -63,7 +74,7 @@ function CrearSesionManualContent() {
   const [calentamientoEjercicios, setCalentamientoEjercicios] = useState<Ejercicio[]>([]);
   const [principalEjercicios, setPrincipalEjercicios] = useState<Ejercicio[]>([]); // Todos los de fase principal
   const [vueltaCalmaEjercicios, setVueltaCalmaEjercicios] = useState<Ejercicio[]>([]);
-  
+
   const [loadingEjercicios, setLoadingEjercicios] = useState({ calentamiento: true, principal: true, vueltaCalma: true });
   const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]);
 
@@ -87,13 +98,13 @@ function CrearSesionManualContent() {
     try {
       const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(150)); // Aumentado límite para filtrado en cliente
       const snapshot = await getDocs(q);
-      const ejerciciosData = snapshot.docs.map(doc => ({ 
-        id: doc.id, 
+      const ejerciciosData = snapshot.docs.map(doc => ({
+        id: doc.id,
         ejercicio: doc.data().ejercicio || "",
         descripcion: doc.data().descripcion || "",
         objetivos: doc.data().objetivos || "",
         fase: doc.data().fase || "",
-        ...doc.data() 
+        ...doc.data()
       } as Ejercicio));
       setter(ejerciciosData);
     } catch (error) {
@@ -134,10 +145,10 @@ function CrearSesionManualContent() {
     }
     return principalEjercicios.filter(exercise => {
       return selectedCategorias.some(catId => {
-        const categoryObj = CATEGORIAS_PRINCIPALES.find(c => c.id === catId);
+        const categoryObj = THEMATIC_CATEGORIES.find(c => c.id === catId);
         if (!categoryObj) return false;
         // Heurística simple: buscar la etiqueta de la categoría (o parte de ella) en campos relevantes.
-        const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0]; 
+        const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0];
         const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
         return exerciseText.includes(searchKeyword);
       });
@@ -146,7 +157,7 @@ function CrearSesionManualContent() {
 
 
   async function onSubmit(values: z.infer<typeof manualSessionSchema>) {
-    if (!user || !isRegisteredUser) { 
+    if (!user || !isRegisteredUser) {
         toast({
             title: "Acción Requerida",
             description: "Por favor, regístrate o inicia sesión para guardar la sesión.",
@@ -157,11 +168,11 @@ function CrearSesionManualContent() {
     setIsSaving(true);
 
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
-    // Usar principalEjercicios (la lista completa) para encontrar los documentos, no filteredPrincipalEjercicios, 
+    // Usar principalEjercicios (la lista completa) para encontrar los documentos, no filteredPrincipalEjercicios,
     // ya que los IDs guardados deben referenciar a cualquier ejercicio principal válido.
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
-    
+
     const sessionDataToSave = {
       userId: user.uid,
       type: "Manual",
@@ -169,7 +180,7 @@ function CrearSesionManualContent() {
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio } : null,
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio })),
       coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio } : null,
-      coachNotes: "", 
+      coachNotes: "",
       numero_sesion: values.numero_sesion,
       fecha: values.fecha,
       temporada: values.temporada,
@@ -206,10 +217,10 @@ function CrearSesionManualContent() {
     }
     setIsSaving(false);
   }
-  
+
   const renderExerciseList = (
-    exercises: Ejercicio[], 
-    loading: boolean, 
+    exercises: Ejercicio[],
+    loading: boolean,
     name: "warmUpExerciseId" | "coolDownExerciseId" | "mainExerciseIds",
     isMultiSelect: boolean = false
   ) => {
@@ -247,7 +258,7 @@ function CrearSesionManualContent() {
                                   field.onChange([...currentValues, item.id]);
                                 } else {
                                   toast({ title: "Límite alcanzado", description: "Puedes seleccionar hasta 4 ejercicios principales.", variant: "default" });
-                                  return; 
+                                  return;
                                 }
                               } else {
                                 field.onChange(
@@ -354,7 +365,7 @@ function CrearSesionManualContent() {
                   Filtrar por Categorías (máx. 4)
                 </FormLabel>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2 p-4 border rounded-md">
-                  {CATEGORIAS_PRINCIPALES.map((category) => (
+                  {THEMATIC_CATEGORIES.map((category) => (
                     <FormItem key={category.id} className="flex flex-row items-start space-x-3 space-y-0">
                       <FormControl>
                         <Checkbox
@@ -404,7 +415,7 @@ function CrearSesionManualContent() {
               />
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle className="font-headline text-xl">Detalles de la Sesión (Opcional para Guardar)</CardTitle>
@@ -433,9 +444,9 @@ function CrearSesionManualContent() {
             </CardContent>
           </Card>
 
-          <Button 
-            type="submit" 
-            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3 text-lg" 
+          <Button
+            type="submit"
+            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3 text-lg"
             disabled={isSaving || Object.values(loadingEjercicios).some(l => l) || !isRegisteredUser}
             title={!isRegisteredUser ? "Regístrate para guardar la sesión" : "Guardar Sesión Manual"}
           >
