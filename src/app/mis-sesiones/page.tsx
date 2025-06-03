@@ -42,13 +42,13 @@ interface Sesion {
   coolDown: string | EjercicioInfo; 
   coachNotes?: string;
   numero_sesion?: string;
-  fecha?: string | Timestamp; // Puede ser string 'YYYY-MM-DD' o Timestamp de Firestore
+  fecha?: string; // Guardado como YYYY-MM-DD
   temporada?: string;
   club?: string;
   equipo?: string;
   preferredSessionLengthMinutes?: number; 
   duracionTotalManualEstimada?: number; 
-  createdAt: Timestamp;
+  createdAt: Timestamp; // Todavía útil para una ordenación secundaria o si fecha no existe
 }
 
 const MESES = [
@@ -93,11 +93,6 @@ function MisSesionesContent() {
     if (!user) return;
     setIsLoading(true);
 
-    let q_constraints = [
-        where("userId", "==", user.uid),
-        orderBy("createdAt", "asc") 
-    ];
-
     let targetYear: number, targetMonth: number;
 
     if (filter) {
@@ -109,11 +104,23 @@ function MisSesionesContent() {
         targetMonth = now.getMonth() + 1; // 1-indexed
     }
     
-    const startDate = new Date(targetYear, targetMonth - 1, 1); 
-    const endDate = new Date(targetYear, targetMonth, 1); 
+    // Formatear mes para el string YYYY-MM-DD
+    const monthString = targetMonth < 10 ? `0${targetMonth}` : `${targetMonth}`;
+    const startDateString = `${targetYear}-${monthString}-01`;
 
-    q_constraints.unshift(where("createdAt", "<", endDate)); 
-    q_constraints.unshift(where("createdAt", ">=", startDate));
+    // Calcular inicio del siguiente mes para el rango
+    let nextMonth = targetMonth === 12 ? 1 : targetMonth + 1;
+    let nextYear = targetMonth === 12 ? targetYear + 1 : targetYear;
+    const nextMonthString = nextMonth < 10 ? `0${nextMonth}` : `${nextMonth}`;
+    const startOfNextMonthString = `${nextYear}-${nextMonthString}-01`;
+    
+    let q_constraints = [
+        where("userId", "==", user.uid),
+        where("fecha", ">=", startDateString),
+        where("fecha", "<", startOfNextMonthString),
+        orderBy("fecha", "asc"), 
+        orderBy("createdAt", "asc") // Orden secundario por si hay varias sesiones en la misma fecha
+    ];
 
 
     try {
@@ -151,6 +158,8 @@ function MisSesionesContent() {
     const now = new Date();
     const initialFilter = { year: now.getFullYear(), month: now.getMonth() + 1 };
     setActiveFilter(initialFilter);
+    setSelectedYear(initialFilter.year.toString());
+    setSelectedMonth((initialFilter.month).toString());
     fetchSesiones(initialFilter);
   }, [fetchSesiones]); 
 
@@ -167,18 +176,22 @@ function MisSesionesContent() {
   const formatDate = (dateValue: string | Timestamp | undefined) => {
     if (!dateValue) return 'N/A';
     let date: Date;
+
     if (typeof dateValue === 'string') {
-      date = new Date(dateValue);
-      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) { // Formato YYYY-MM-DD
          const [year, month, day] = dateValue.split('-').map(Number);
-         date = new Date(year, month - 1, day, 12,0,0);
+         date = new Date(year, month - 1, day, 12,0,0); // Set to midday to avoid timezone issues affecting day
+      } else {
+         date = new Date(dateValue); // Try parsing other string formats
       }
-    } else if (dateValue.toDate) { 
+    } else if (dateValue && typeof dateValue.toDate === 'function') { // Firestore Timestamp
       date = dateValue.toDate();
     } else {
       return 'Fecha inválida';
     }
-    if (isNaN(date.getTime())) return (typeof dateValue === 'string' ? dateValue : 'Fecha inválida');
+
+    if (isNaN(date.getTime())) return (typeof dateValue === 'string' ? dateValue : 'Fecha inválida'); // If still invalid
+    
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
   };
   
@@ -201,7 +214,6 @@ function MisSesionesContent() {
       if (activeFilter) {
         fetchSesiones(activeFilter);
       } else {
-        // This case should ideally not happen if activeFilter is always set on load
         const now = new Date();
         fetchSesiones({ year: now.getFullYear(), month: now.getMonth() + 1 });
       }
@@ -322,8 +334,8 @@ function MisSesionesContent() {
           {sesiones.map((sesion) => (
             <Card key={sesion.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
               <CardHeader className="pb-3">
-                 <p className="text-xl font-semibold text-primary">
-                  {formatDate(sesion.fecha || sesion.createdAt)}
+                 <p className="text-lg font-semibold text-primary">
+                  {formatDate(sesion.fecha)}
                   {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
                 </p>
                  <p className="text-sm text-foreground/80"><strong>Club:</strong> {sesion.club || 'N/A'}</p>
@@ -370,7 +382,7 @@ function MisSesionesContent() {
                     <DialogHeader>
                       <div className="flex justify-between items-center">
                         <DialogTitle className="text-2xl text-primary font-headline">
-                           {formatDate(sesion.fecha || sesion.createdAt)}
+                           {formatDate(sesion.fecha)}
                            {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
                         </DialogTitle>
                         <Badge variant={sesion.type === "AI" ? "default" : "secondary"}>
@@ -454,4 +466,3 @@ function MisSesionesContent() {
     </div>
   );
 }
-
