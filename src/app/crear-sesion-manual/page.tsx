@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -28,6 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
+import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
 
 
 interface Ejercicio {
@@ -36,33 +36,13 @@ interface Ejercicio {
   descripcion: string; 
   objetivos: string;   
   fase: string;
-  categoria: string; // Anteriormente categoria_tematica
+  categoria: string;
   // Otros campos de Ejercicio si los hay y son relevantes
 }
-
-const THEMATIC_CATEGORIES = [
-  { id: "finalizacion", label: "Finalización" },
-  { id: "tecnica-individual-combinada", label: "Técnica individual y combinada" },
-  { id: "pase-control", label: "Pase y control" },
-  { id: "transiciones", label: "Transiciones (ofensivas y defensivas)" },
-  { id: "coordinacion-agilidad-velocidad", label: "Coordinación, agilidad y velocidad" },
-  { id: "defensa", label: "Defensa (individual, colectiva y táctica)" },
-  { id: "conduccion-regate", label: "Conducción y regate" },
-  { id: "toma-decisiones-vision", label: "Toma de decisiones y visión de juego" },
-  { id: "posesion-circulacion", label: "Posesión y circulación del balón" },
-  { id: "superioridades-inferioridades", label: "Superioridades e inferioridades numéricas" },
-  { id: "portero-trabajo-especifico", label: "Portero y trabajo específico" },
-  { id: "balon-parado-remates", label: "Balón parado y remates" },
-  { id: "contraataques-ataque-rapido", label: "Contraataques y ataque rápido" },
-  { id: "desmarques-movilidad", label: "Desmarques y movilidad" },
-  { id: "juego-reducido-condicionado", label: "Juego reducido y condicionado" },
-  { id: "calentamiento-activacion", label: "Calentamiento y activación" },
-];
 
 
 export default function CrearSesionManualPage() {
   return (
-    // AuthGuard removed to allow guest access
     <CrearSesionManualContent />
   );
 }
@@ -77,7 +57,7 @@ function CrearSesionManualContent() {
   const [vueltaCalmaEjercicios, setVueltaCalmaEjercicios] = useState<Ejercicio[]>([]);
 
   const [loadingEjercicios, setLoadingEjercicios] = useState({ calentamiento: true, principal: true, vueltaCalma: true });
-  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]); // Array de IDs de categorías temáticas
+  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof manualSessionSchema>>({
     resolver: zodResolver(manualSessionSchema),
@@ -105,7 +85,7 @@ function CrearSesionManualContent() {
         descripcion: doc.data().descripcion || "", 
         objetivos: doc.data().objetivos || "",  
         fase: doc.data().fase || "",
-        categoria: doc.data().categoria || "", // Cambiado de categoria_tematica
+        categoria: doc.data().categoria || "",
         ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria'>)
       } as Ejercicio));
       setter(ejerciciosData);
@@ -145,8 +125,7 @@ function CrearSesionManualContent() {
       return principalEjercicios;
     }
     return principalEjercicios.filter(exercise => {
-      // Filtrar por el campo 'categoria' del ejercicio
-      return selectedCategorias.includes(exercise.categoria); // Cambiado de categoria_tematica
+      return selectedCategorias.includes(exercise.categoria);
     });
   }, [principalEjercicios, selectedCategorias]);
 
@@ -173,7 +152,7 @@ function CrearSesionManualContent() {
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio } : null,
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio })),
       coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio } : null,
-      coachNotes: "", // Manual sessions might not have AI coach notes
+      coachNotes: "", 
       numero_sesion: values.numero_sesion,
       fecha: values.fecha,
       temporada: values.temporada,
@@ -251,7 +230,6 @@ function CrearSesionManualContent() {
                                   field.onChange([...currentValues, item.id]);
                                 } else {
                                   toast({ title: "Límite alcanzado", description: "Puedes seleccionar hasta 4 ejercicios principales.", variant: "default" });
-                                  // Do not change field.value if limit is reached
                                   return; 
                                 }
                               } else {
@@ -359,7 +337,7 @@ function CrearSesionManualContent() {
                   Filtrar por Categorías (máx. 4)
                 </FormLabel>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2 p-4 border rounded-md">
-                  {THEMATIC_CATEGORIES.map((category) => (
+                  {CATEGORIAS_TEMATICAS_EJERCICIOS.map((category) => (
                     <FormItem key={category.id} className="flex flex-row items-start space-x-3 space-y-0">
                       <FormControl>
                         <Checkbox
@@ -374,9 +352,6 @@ function CrearSesionManualContent() {
                     </FormItem>
                   ))}
                 </div>
-                 <p className="text-xs text-muted-foreground mt-2">
-                  Nota: El filtrado por categorías ahora usa el campo 'categoria' del ejercicio.
-                </p>
               </div>
                <FormField
                 control={form.control}
@@ -452,5 +427,3 @@ function CrearSesionManualContent() {
     </div>
   );
 }
-
-    

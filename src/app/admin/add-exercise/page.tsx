@@ -19,36 +19,7 @@ import { useState } from "react";
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-
-const FASES = ["Calentamiento", "Principal", "Vuelta a la calma"];
-
-const CATEGORIAS_TEMATICAS = [
-  { id: "finalizacion", label: "Finalización" },
-  { id: "tecnica-individual-combinada", label: "Técnica individual y combinada" },
-  { id: "pase-control", label: "Pase y control" },
-  { id: "transiciones", label: "Transiciones (ofensivas y defensivas)" },
-  { id: "coordinacion-agilidad-velocidad", label: "Coordinación, agilidad y velocidad" },
-  { id: "defensa", label: "Defensa (individual, colectiva y táctica)" },
-  { id: "conduccion-regate", label: "Conducción y regate" },
-  { id: "toma-decisiones-vision", label: "Toma de decisiones y visión de juego" },
-  { id: "posesion-circulacion", label: "Posesión y circulación del balón" },
-  { id: "superioridades-inferioridades", label: "Superioridades e inferioridades numéricas" },
-  { id: "portero-trabajo-especifico", label: "Portero y trabajo específico" },
-  { id: "balon-parado-remates", label: "Balón parado y remates" },
-  { id: "contraataques-ataque-rapido", label: "Contraataques y ataque rápido" },
-  { id: "desmarques-movilidad", label: "Desmarques y movilidad" },
-  { id: "juego-reducido-condicionado", label: "Juego reducido y condicionado" },
-  { id: "calentamiento-activacion", label: "Calentamiento y activación" },
-];
-
-const CATEGORIAS_EDAD = [
-  "Benjamín (8-9 años)",
-  "Alevín (10-11 años)",
-  "Infantil (12-13 años)",
-  "Cadete (14-15 años)",
-  "Juvenil (16-18 años)",
-  "Senior (+18 años)"
-];
+import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS } from "@/lib/constants";
 
 
 function AddExercisePageContent() {
@@ -69,7 +40,7 @@ function AddExercisePageContent() {
       variantes: "",
       fase: "",
       categoria: "",
-      edad: [], // Default to empty array for multi-select
+      edad: [], 
       consejos_entrenador: "",
       imagen: "",
     },
@@ -197,7 +168,7 @@ function AddExercisePageContent() {
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona una fase" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {FASES.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                        {FASES_SESION.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -209,7 +180,7 @@ function AddExercisePageContent() {
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona una categoría" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {CATEGORIAS_TEMATICAS.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                        {CATEGORIAS_TEMATICAS_EJERCICIOS.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -224,7 +195,7 @@ function AddExercisePageContent() {
                   <FormItem>
                     <FormLabel>Categorías de Edad (Selecciona una o más)</FormLabel>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 border rounded-md">
-                      {CATEGORIAS_EDAD.map((edadCat) => (
+                      {CATEGORIAS_EDAD_EJERCICIOS.map((edadCat) => (
                         <FormField
                           key={edadCat}
                           control={form.control}
@@ -267,7 +238,6 @@ function AddExercisePageContent() {
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
-                 {/* Spacer div - remove FormField for edad from here */}
                  <FormField control={form.control} name="jugadores" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Número de Jugadores</FormLabel>
