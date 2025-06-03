@@ -11,11 +11,19 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint } from 'firebase/firestore';
 import Image from 'next/image';
-import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter } from 'lucide-react';
+import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Ejercicio {
   id: string;
@@ -29,14 +37,14 @@ interface Ejercicio {
   variantes: string;
   fase: string;
   categoria_edad: string;
-  consejos_entrenador: string;
   imagen: string;
+  consejos_entrenador?: string; // Added optional for safety
 }
 
 const ITEMS_PER_PAGE = 10;
 const GUEST_ITEM_LIMIT = 10;
 const ALL_PHASES_VALUE = "ALL_PHASES";
-const ALL_AGES_VALUE = "ALL_AGES";
+
 
 const THEMATIC_CATEGORIES = [
   { id: "tecnica", label: "Técnica" },
@@ -53,23 +61,28 @@ export default function EjerciciosPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalEjercicios, setTotalEjercicios] = useState(0);
   const [lastVisible, setLastVisible] = useState<DocumentData | null>(null);
-  // const [firstVisible, setFirstVisible] = useState<DocumentData | null>(null); // Not currently used for prev page logic
-  // const [pageHistory, setPageHistory] = useState<(DocumentData | null)[]>([null]); // Simplified pagination
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [phaseFilter, setPhaseFilter] = useState(ALL_PHASES_VALUE); 
-  const [ageFilter, setAgeFilter] = useState(ALL_AGES_VALUE); 
+  const [phaseFilter, setPhaseFilter] = useState(ALL_PHASES_VALUE);
+  const [selectedAgeFilters, setSelectedAgeFilters] = useState<string[]>([]);
   const [selectedThematicCategories, setSelectedThematicCategories] = useState<string[]>([]);
 
   const uniqueAgeCategories = useMemo(() => {
-    return ["Benjamín (U8-U9)", "Alevín (U10-U11)", "Infantil (U12-U13)", "Cadete (U14-U15)", "Juvenil (U16-U18)", "Senior"];
+    return [
+      "Benjamín (8-9 años)", 
+      "Alevín (10-11 años)", 
+      "Infantil (12-13 años)", 
+      "Cadete (14-15 años)", 
+      "Juvenil (16-18 años)", 
+      "Senior (+18 años)"
+    ];
   }, []);
   
   const uniqueFases = useMemo(() => {
      return ["Calentamiento", "Principal", "Vuelta a la calma"];
   }, []);
 
-  const fetchEjercicios = async (page = 1, search = searchTerm, phase = phaseFilter, age = ageFilter, direction: 'next' | 'prev' | 'first' = 'first') => {
+  const fetchEjercicios = async (page = 1, search = searchTerm, phase = phaseFilter, ages = selectedAgeFilters, direction: 'next' | 'prev' | 'first' = 'first') => {
     setIsLoading(true);
     try {
       const ejerciciosCollection = collection(db, 'ejercicios_futsal');
@@ -83,8 +96,8 @@ export default function EjerciciosPage() {
       if (phase && phase !== ALL_PHASES_VALUE) { 
         constraints.push(where('fase', '==', phase));
       }
-      if (age && age !== ALL_AGES_VALUE) {
-        constraints.push(where('categoria_edad', '==', age));
+      if (ages.length > 0) {
+        constraints.push(where('categoria_edad', 'in', ages));
       }
 
       constraints.push(firestoreOrderBy('ejercicio')); 
@@ -96,7 +109,6 @@ export default function EjerciciosPage() {
         if (direction === 'next' && lastVisible) {
           constraints.push(startAfter(lastVisible));
         }
-        // Note: 'prev' direction would require storing firstVisible of pages or more complex logic
       }
       
       const q = query(ejerciciosCollection, ...constraints);
@@ -107,8 +119,6 @@ export default function EjerciciosPage() {
 
       if (isRegisteredUser) {
         setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
-        // setFirstVisible(documentSnapshots.docs[0]); // For robust prev page
-        // Simplified page history/tracking for this example
         setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1); 
       } else {
         setTotalEjercicios(fetchedEjercicios.length);
@@ -122,10 +132,10 @@ export default function EjerciciosPage() {
   
   useEffect(() => {
     setCurrentPage(1); 
-    setLastVisible(null); // Reset pagination cursor on filter change
-    fetchEjercicios(1, searchTerm, phaseFilter, ageFilter, 'first');
+    setLastVisible(null); 
+    fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, searchTerm, phaseFilter, ageFilter]); 
+  }, [isRegisteredUser, searchTerm, phaseFilter, selectedAgeFilters]); 
 
   const handleThematicCategoryChange = (categoryId: string) => {
     setSelectedThematicCategories(prev => {
@@ -137,6 +147,18 @@ export default function EjerciciosPage() {
       }
     });
   };
+  
+  const handleAgeCategoryChange = (ageCategory: string) => {
+    setSelectedAgeFilters(prev => {
+      const isSelected = prev.includes(ageCategory);
+      if (isSelected) {
+        return prev.filter(cat => cat !== ageCategory);
+      } else {
+        return [...prev, ageCategory];
+      }
+    });
+  };
+
 
   const displayedEjercicios = useMemo(() => {
     if (selectedThematicCategories.length === 0) {
@@ -146,7 +168,6 @@ export default function EjerciciosPage() {
       return selectedThematicCategories.some(catId => {
         const categoryObj = THEMATIC_CATEGORIES.find(c => c.id === catId);
         if (!categoryObj) return false;
-        // Heuristic simple: buscar la etiqueta de la categoría (o parte de ella) en campos relevantes.
         const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0]; 
         const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
         return exerciseText.includes(searchKeyword);
@@ -158,15 +179,13 @@ export default function EjerciciosPage() {
   const handlePageChange = (newPage: number) => {
     if (newPage > currentPage) { 
       setCurrentPage(newPage);
-      fetchEjercicios(newPage, searchTerm, phaseFilter, ageFilter, 'next');
+      fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilters, 'next');
     } else if (newPage < currentPage && newPage > 0) { 
-      // Simplified previous page logic for this example: go to first page of current filter set.
-      // For true 'prev' page, you'd need to store 'firstVisible' docs for each page.
-      setCurrentPage(1); // Or newPage if implementing more robust prev
-      fetchEjercicios(1, searchTerm, phaseFilter, ageFilter, 'first'); 
+      setCurrentPage(1); 
+      fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first'); 
     } else if (newPage === 1) {
       setCurrentPage(1);
-      fetchEjercicios(1, searchTerm, phaseFilter, ageFilter, 'first');
+      fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
     }
   };
 
@@ -174,13 +193,14 @@ export default function EjerciciosPage() {
     const file = event.target.files?.[0];
     if (file) {
       console.log("File selected:", file.name);
-      // Placeholder for actual upload logic
     }
   };
 
-  const totalPages = isRegisteredUser ? Math.ceil(totalEjercicios / ITEMS_PER_PAGE) : 1;
-  // Adjust totalPages if client-side filtering is active and you want pagination to reflect that.
-  // However, for simplicity, totalPages is based on Firestore query for now.
+  const getAgeFilterButtonText = () => {
+    if (selectedAgeFilters.length === 0) return "Categoría de Edad";
+    if (selectedAgeFilters.length === 1) return selectedAgeFilters[0];
+    return `${selectedAgeFilters.length} edades sel.`;
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -233,16 +253,33 @@ export default function EjerciciosPage() {
                 {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={ageFilter} onValueChange={setAgeFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Categoría de Edad" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_AGES_VALUE}>Todas las Edades</SelectItem>
-                {uniqueAgeCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-[200px] justify-between">
+                  <div className="flex items-center">
+                    <Filter className="h-4 w-4 mr-2" />
+                    {getAgeFilterButtonText()}
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[250px]">
+                <DropdownMenuLabel>Selecciona Edades</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {uniqueAgeCategories.map(ageCat => (
+                  <DropdownMenuCheckboxItem
+                    key={ageCat}
+                    checked={selectedAgeFilters.includes(ageCat)}
+                    onCheckedChange={() => handleAgeCategoryChange(ageCat)}
+                    onSelect={(e) => e.preventDefault()} 
+                  >
+                    {ageCat}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
           </div>
           {isRegisteredUser && (
             <Dialog>
@@ -349,7 +386,7 @@ export default function EjerciciosPage() {
                         <p><strong>Materiales y Espacio:</strong> {ej.espacio_materiales}</p>
                         <p><strong>Nº Jugadores:</strong> {ej.jugadores}</p>
                         <p><strong>Variantes:</strong> {ej.variantes}</p>
-                        <p><strong>Consejos del Entrenador:</strong> {ej.consejos_entrenador}</p>
+                        <p><strong>Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -364,7 +401,7 @@ export default function EjerciciosPage() {
                 <PaginationItem>
                   <PaginationPrevious 
                     href="#" 
-                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} // Simplified to go to first page
+                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}}
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
                   />
                 </PaginationItem>
@@ -374,7 +411,6 @@ export default function EjerciciosPage() {
                   </PaginationLink>
                 </PaginationItem>
                 
-                {/* Show Next button only if there are potentially more items (last fetch returned full page) */}
                 {ejercicios.length === ITEMS_PER_PAGE && (
                   <PaginationItem>
                     <PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1);}} />
@@ -388,3 +424,4 @@ export default function EjerciciosPage() {
     </div>
   );
 }
+
