@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Removed DialogDescription
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
-import { Sparkles } from 'lucide-react'; // Icon for AI session creation button
+import { Sparkles } from 'lucide-react';
 
 interface EjercicioInfo {
   id: string;
@@ -128,7 +128,7 @@ function MisSesionesContent() {
     try {
       const finalQuery = query(collection(db, "mis_sesiones"), ...q_constraints);
       const querySnapshot = await getDocs(finalQuery);
-      const fetchedSesiones = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sesion));
+      const fetchedSesiones = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Sesion));
       setSesiones(fetchedSesiones);
     } catch (error: any) {
       console.error("Error fetching sessions:", error);
@@ -257,7 +257,9 @@ function MisSesionesContent() {
 
   const getSessionTema = (sesion: Sesion): string => {
     if (sesion.type === "AI" && sesion.sessionFocus) return sesion.sessionFocus;
-    if (sesion.sessionTitle && !sesion.sessionTitle.startsWith("Sesión Manual -")) return sesion.sessionTitle;
+    if (sesion.sessionTitle && !sesion.sessionTitle.startsWith("Sesión Manual -")) return sesion.sessionTitle; // If AI title is custom
+    if (sesion.type === "AI" && sesion.sessionTitle && sesion.sessionTitle.startsWith("Sesión para equipo")) return sesion.sessionTitle; // default AI title
+
     if (sesion.equipo) return `Entrenamiento ${sesion.equipo}`;
     return "Tema no especificado";
   }
@@ -353,19 +355,19 @@ function MisSesionesContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sesiones.map((sesion) => (
-            <Card key={sesion.id} className="shadow-lg">
+            <Card key={sesion.id} className="shadow-lg flex flex-col">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-grow">
-                    <p className="text-xl font-bold text-primary font-headline">
+                    <p className="text-2xl font-bold text-primary font-headline">
                       {formatDate(sesion.fecha)}
-                      {sesion.numero_sesion && (
-                        <span className="text-lg"> | Sesión #{sesion.numero_sesion}</span>
-                      )}
                     </p>
-                    <CardDescription className="text-sm">
+                     {sesion.numero_sesion && (
+                        <p className="text-md text-primary font-semibold">Sesión #{sesion.numero_sesion}</p>
+                      )}
+                    <CardDescription className="text-xs mt-1">
                       Club: {sesion.club || 'N/A'} | Equipo: {sesion.equipo || 'N/A'} | Temporada: {sesion.temporada || 'N/A'}
                     </CardDescription>
                   </div>
@@ -375,52 +377,52 @@ function MisSesionesContent() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 flex-grow">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Tema/Enfoque:</p>
-                  <p className="font-medium">{getSessionTema(sesion)}</p>
+                  <p className="font-medium text-sm line-clamp-2">{getSessionTema(sesion)}</p>
                 </div>
                 
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Tiempo Total (aprox.):</p>
-                  <p className="font-medium">{getTotalDuration(sesion)}</p>
+                  <p className="font-medium text-sm">{getTotalDuration(sesion)}</p>
                 </div>
 
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-muted-foreground">Calentamiento:</p>
-                  <p className="text-sm pl-2">- {formatExerciseName(sesion.warmUp)}</p>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold text-muted-foreground">Calentamiento:</p>
+                  <p className="text-xs pl-2 line-clamp-1">- {formatExerciseName(sesion.warmUp)}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-muted-foreground">Ejercicios Principales:</p>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold text-muted-foreground">Ejercicios Principales:</p>
                   {sesion.mainExercises.length > 0 ? (
-                    sesion.mainExercises.map((ex, index) => (
-                      <p key={index} className="text-sm pl-2">- {formatExerciseName(ex)}</p>
+                    sesion.mainExercises.slice(0,2).map((ex, index) => ( // Show max 2 main exercises
+                      <p key={index} className="text-xs pl-2 line-clamp-1">- {formatExerciseName(ex)}</p>
                     ))
                   ) : (
-                    <p className="text-sm pl-2 text-muted-foreground">- No especificados</p>
+                    <p className="text-xs pl-2 text-muted-foreground">- No especificados</p>
                   )}
+                  {sesion.mainExercises.length > 2 && <p className="text-xs pl-2 text-muted-foreground">... y más</p>}
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-muted-foreground">Vuelta a la Calma:</p>
-                  <p className="text-sm pl-2">- {formatExerciseName(sesion.coolDown)}</p>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold text-muted-foreground">Vuelta a la Calma:</p>
+                  <p className="text-xs pl-2 line-clamp-1">- {formatExerciseName(sesion.coolDown)}</p>
                 </div>
                  {sesion.coachNotes && sesion.type === "AI" && (
                     <div>
-                        <p className="text-sm font-semibold text-muted-foreground">Notas (IA):</p>
-                        <p className="text-sm pl-2 line-clamp-2">{sesion.coachNotes}</p>
+                        <p className="text-xs font-semibold text-muted-foreground">Notas (IA):</p>
+                        <p className="text-xs pl-2 line-clamp-2">{sesion.coachNotes}</p>
                     </div>
                 )}
               </CardContent>
-              <CardFooter className="flex flex-col sm:flex-row gap-2">
+              <CardFooter className="flex flex-col sm:flex-row gap-2 pt-4 border-t mt-auto">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto">
-                      <Eye className="mr-2 h-4 w-4" /> Ver Ficha Detallada
+                    <Button variant="outline" className="w-full sm:w-auto text-sm">
+                      <Eye className="mr-2 h-4 w-4" /> Ver Ficha
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
                     <div className="border border-gray-700 bg-gray-50 text-gray-800 shadow-lg rounded-md m-0">
-                      {/* Header Section of the Sheet */}
                       <div className="bg-gray-800 text-white p-4 rounded-t-md">
                         <div className="flex justify-between items-center mb-2">
                           <h2 className="text-xl font-bold uppercase">TEMA: {getSessionTema(sesion)}</h2>
@@ -435,11 +437,10 @@ function MisSesionesContent() {
                         </div>
                       </div>
 
-                      {/* Parte Inicial */}
                       <div className="p-4 border-b border-gray-300">
                         <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
                           <h3 className="font-semibold text-lg">PARTE INICIAL</h3>
-                          <span className="text-sm">{getExerciseDuration(sesion.warmUp) || (typeof sesion.warmUp === 'object' ? 'Tiempo no esp.' : '')}</span>
+                          <span className="text-sm">{getExerciseDuration(sesion.warmUp) || (typeof sesion.warmUp === 'object' && sesion.warmUp?.duracion ? '' : 'Tiempo no esp.')}</span>
                         </div>
                         <div className="flex flex-col md:flex-row gap-4 items-start">
                           <Image src="https://placehold.co/300x200.png?text=Calentamiento" alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal warmup drill" />
@@ -452,7 +453,6 @@ function MisSesionesContent() {
                         )}
                       </div>
 
-                      {/* Parte Principal */}
                       <div className="p-4 border-b border-gray-300">
                         <div className="bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
                           <h3 className="font-semibold text-lg text-center">PARTE PRINCIPAL</h3>
@@ -461,7 +461,7 @@ function MisSesionesContent() {
                           {sesion.mainExercises.map((ex, index) => (
                             <div key={index} className="p-3 border border-gray-400 rounded bg-white">
                               <div className="flex justify-end items-center mb-1 text-sm">
-                                <span className="font-medium">TIEMPO: {getExerciseDuration(ex) || (typeof ex === 'object' ? 'No esp.' : '')}</span>
+                                <span className="font-medium">TIEMPO: {getExerciseDuration(ex) || (typeof ex === 'object' && ex?.duracion ? '' : 'No esp.')}</span>
                               </div>
                               <div className="flex flex-col md:flex-row gap-4 items-start">
                                 <Image src={`https://placehold.co/300x200.png?text=Principal+${index + 1}`} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal main exercise" />
@@ -487,7 +487,7 @@ function MisSesionesContent() {
                       <div className="p-4 border-b border-gray-300">
                         <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
                           <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
-                          <span className="text-sm">{getExerciseDuration(sesion.coolDown) || (typeof sesion.coolDown === 'object' ? 'Tiempo no esp.' : '')}</span>
+                          <span className="text-sm">{getExerciseDuration(sesion.coolDown) || (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion ? '' : 'Tiempo no esp.')}</span>
                         </div>
                         <p className="text-md">{formatExerciseName(sesion.coolDown)}</p>
                          {typeof sesion.coolDown === 'object' && sesion.coolDown.id && (
@@ -514,19 +514,19 @@ function MisSesionesContent() {
                 </Dialog>
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto text-sm"
                   onClick={() => handleEditSessionClick(sesion.type, sesion.id)}
                   disabled={sesion.type === "AI"}
                   title={sesion.type === "AI" ? "La edición de sesiones AI no está disponible" : "Editar sesión"}
                 >
-                  <Edit2 className="mr-2 h-4 w-4" /> Editar Sesión
+                  <Edit2 className="mr-2 h-4 w-4" /> Editar
                 </Button>
                 <Button
                   variant="destructive"
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto text-sm"
                   onClick={() => handleDeleteSessionClick(sesion.id)}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" /> Borrar Sesión
+                  <Trash2 className="mr-2 h-4 w-4" /> Borrar
                 </Button>
               </CardFooter>
             </Card>
@@ -554,4 +554,3 @@ function MisSesionesContent() {
     </div>
   );
 }
-
