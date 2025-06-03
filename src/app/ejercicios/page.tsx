@@ -26,6 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 import { CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, FASES_SESION } from '@/lib/constants';
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 
 interface Ejercicio {
@@ -80,6 +81,7 @@ export default function EjerciciosPage() {
       const ejerciciosCollection = collection(db, 'ejercicios_futsal');
       let constraintsList: QueryConstraint[] = [];
 
+      // Apply filters first
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
         constraintsList.push(where('fase', '==', currentPhase));
       }
@@ -87,10 +89,10 @@ export default function EjerciciosPage() {
         constraintsList.push(where('edad', 'array-contains', currentAge));
       }
       if (currentThematicCat && currentThematicCat !== ALL_FILTER_VALUE) {
-        // Querying by category label
         constraintsList.push(where('categoria', '==', currentThematicCat));
       }
 
+      // Then apply search term based ordering or default ordering
       if (currentSearch) {
         constraintsList.push(where('ejercicio', '>=', currentSearch));
         constraintsList.push(where('ejercicio', '<=', currentSearch + '\uf8ff'));
@@ -99,6 +101,7 @@ export default function EjerciciosPage() {
         constraintsList.push(firestoreOrderBy('ejercicio'));
       }
       
+      // Then apply pagination
       if (isRegisteredUser && pageToFetch > 1 && isNextPage && lastVisible) {
           constraintsList.push(startAfter(lastVisible));
       }
@@ -309,7 +312,10 @@ export default function EjerciciosPage() {
                   )}
                 </div>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
+                  <div className="flex justify-between items-start gap-2">
+                    <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
+                    {ej.categoria && <Badge variant="secondary" className="shrink-0 truncate" title={ej.categoria}>{ej.categoria}</Badge>}
+                  </div>
                    <CardDescription className="text-xs space-y-0.5">
                     <div><strong>Fase:</strong> {ej.fase}</div>
                     <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
@@ -328,7 +334,10 @@ export default function EjerciciosPage() {
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
+                        <div className="flex justify-between items-start">
+                            <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
+                            {ej.categoria && <Badge variant="default" className="ml-2 shrink-0 text-sm py-1 px-2">{ej.categoria}</Badge>}
+                        </div>
                          <div className="text-sm text-muted-foreground pt-1">
                           <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
                           <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
@@ -366,7 +375,8 @@ export default function EjerciciosPage() {
                         <p><strong className="font-semibold">Nº Jugadores:</strong> {ej.jugadores}</p>
                         <p><strong className="font-semibold">Variantes:</strong> {ej.variantes || 'No especificadas.'}</p>
                         <p><strong className="font-semibold">Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
-                        <p><strong className="font-semibold">Categoría:</strong> {ej.categoria}</p>
+                        {/* Categoría ya se muestra en DialogHeader, se puede quitar de aquí si se desea */}
+                        {/* <p><strong className="font-semibold">Categoría:</strong> {ej.categoria}</p> */}
                       </div>
                     </DialogContent>
                   </Dialog>
