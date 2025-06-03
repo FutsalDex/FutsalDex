@@ -64,7 +64,7 @@ function CrearSesionManualContent() {
       warmUpExerciseId: "",
       mainExerciseIds: [],
       coolDownExerciseId: "",
-      sessionTitle: "", // Modificado: valor inicial vacío para mostrar placeholder
+      sessionTitle: "", 
       numero_sesion: "",
       fecha: new Date().toISOString().split('T')[0],
       temporada: "",
@@ -109,17 +109,16 @@ function CrearSesionManualContent() {
 
     if (isSelected) {
       newSelectedCategorias = currentSelected.filter(label => label !== categoryLabel);
+      setSelectedCategorias(newSelectedCategorias);
     } else {
       if (currentSelected.length < 4) {
         newSelectedCategorias = [...currentSelected, categoryLabel];
+        setSelectedCategorias(newSelectedCategorias);
       } else {
-        // Llamar a toast fuera de la función de actualización del estado
         toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
         return; 
       }
     }
-    // Actualizar el estado después de la lógica de toast
-    setSelectedCategorias(newSelectedCategorias);
     form.setValue('mainExerciseIds', []); 
   };
 
@@ -149,10 +148,28 @@ function CrearSesionManualContent() {
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
 
+    const userProvidedTitle = values.sessionTitle?.trim();
+    let titleToSave: string;
+
+    if (userProvidedTitle && userProvidedTitle.length >= 3) {
+      titleToSave = userProvidedTitle;
+    } else {
+      // Generar título por defecto
+      const dateStringToUse = values.fecha || new Date().toISOString().split('T')[0];
+      const dateObject = new Date(dateStringToUse);
+      let formattedDate: string;
+      if (!isNaN(dateObject.getTime())) {
+        formattedDate = dateObject.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      } else {
+        formattedDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+      titleToSave = `Sesión Manual - ${formattedDate}`;
+    }
+
     const sessionDataToSave = {
       userId: user.uid,
       type: "Manual",
-      sessionTitle: values.sessionTitle || `Sesión Manual ${values.fecha}`,
+      sessionTitle: titleToSave,
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio } : null,
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio })),
       coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio } : null,
@@ -175,7 +192,7 @@ function CrearSesionManualContent() {
         warmUpExerciseId: "",
         mainExerciseIds: [],
         coolDownExerciseId: "",
-        sessionTitle: "", // Reset a vacío para mostrar placeholder
+        sessionTitle: "",
         numero_sesion: "",
         fecha: new Date().toISOString().split('T')[0],
         temporada: "",
@@ -377,7 +394,7 @@ function CrearSesionManualContent() {
                 name="sessionTitle"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Título de la Sesión</FormLabel> {/* Restaurada la etiqueta para que siempre sea visible */}
+                    <FormLabel>Título de la Sesión</FormLabel>
                     <FormControl><Input placeholder="Ej: Sesión de Técnica Individual" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>

@@ -42,7 +42,7 @@ export const manualSessionSchema = z.object({
   temporada: z.string().optional(),
   club: z.string().optional(),
   equipo: z.string().optional(),
-  sessionTitle: z.string().min(3, "El título de la sesión es requerido.").optional(),
+  sessionTitle: z.string().optional(), // Modificado: permite cadena vacía o undefined
 });
 
 export const addExerciseSchema = z.object({
@@ -55,7 +55,7 @@ export const addExerciseSchema = z.object({
   duracion: z.string().min(1, "La duración estimada es requerida."),
   variantes: z.string().optional(),
   fase: z.string().min(1, "La fase es requerida."),
-  categoria: z.string().min(1, "La categoría es requerida."),
+  categoria: z.string().min(1, "La categoría es requerida."), // Espera la etiqueta completa
   edad: z.array(z.string()).min(1, "Debes seleccionar al menos una categoría de edad."),
   consejos_entrenador: z.string().optional(),
   imagen: z.string().url({ message: "Debe ser una URL válida para la imagen." }).optional().or(z.literal('')),
