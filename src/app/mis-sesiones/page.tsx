@@ -95,7 +95,7 @@ function MisSesionesContent() {
 
     let q_constraints = [
         where("userId", "==", user.uid),
-        orderBy("createdAt", "desc")
+        orderBy("createdAt", "asc") // Cambiado a "asc" para orden ascendente
     ];
 
     let targetYear: number, targetMonth: number;
@@ -112,7 +112,7 @@ function MisSesionesContent() {
     const startDate = new Date(targetYear, targetMonth - 1, 1); // First day of target month
     const endDate = new Date(targetYear, targetMonth, 1); // First day of next month
 
-    q_constraints.unshift(where("createdAt", "<", endDate)); // Using unshift to keep orderBy last if possible, or let firestore decide best index
+    q_constraints.unshift(where("createdAt", "<", endDate)); 
     q_constraints.unshift(where("createdAt", ">=", startDate));
 
 
@@ -173,10 +173,7 @@ function MisSesionesContent() {
     if (!dateValue) return 'N/A';
     let date: Date;
     if (typeof dateValue === 'string') {
-      // Handles 'YYYY-MM-DD' or other parsable string formats
       date = new Date(dateValue);
-      // Adjust for potential timezone issues if dateValue is 'YYYY-MM-DD'
-      // by setting time to midday to avoid day shifts.
       if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
          const [year, month, day] = dateValue.split('-').map(Number);
          date = new Date(year, month - 1, day, 12,0,0);
@@ -206,7 +203,6 @@ function MisSesionesContent() {
     setIsDeleting(true);
     try {
       await deleteDoc(doc(db, "mis_sesiones", sessionToDeleteId));
-      // Refetch sessions based on current filter after deletion
       if (activeFilter) {
         fetchSesiones(activeFilter);
       } else {
@@ -245,7 +241,7 @@ function MisSesionesContent() {
   const years = getYearsRange();
 
 
-  if (isLoading && sesiones.length === 0) { // Show main loader only on initial full load
+  if (isLoading && sesiones.length === 0) { 
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
