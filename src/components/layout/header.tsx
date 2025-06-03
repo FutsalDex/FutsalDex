@@ -45,7 +45,8 @@ export default function Header() {
         </Link>
         <nav className="hidden items-center space-x-2 md:flex">
           {navLinks.map((link) =>
-            (link.guestAllowed || isRegisteredUser) && (
+            // Removed (link.guestAllowed || isRegisteredUser) condition for desktop view
+            (
             <Button
               key={link.href}
               variant={pathname === link.href ? 'secondary' : 'ghost'}
@@ -69,7 +70,7 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-primary/80">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || `https://placehold.co/40x40.png?text=${user.email?.[0]?.toUpperCase() ?? 'U'}`} alt={user.displayName || user.email || "Usuario"} data-ai-hint="user avatar" />
+                    <AvatarImage src={user.photoURL || `https://placehold.co/40x40.png?text=${user.email?.[0]?.toUpperCase() ?? 'U'}`} alt={user.displayName || user.email || "Usuario"} data-ai-hint="user avatar"/>
                     <AvatarFallback>{user.email?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -117,7 +118,7 @@ export default function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {navLinks.map((link) =>
-                  (link.guestAllowed || isRegisteredUser) && (
+                  (link.guestAllowed || isRegisteredUser) && ( // Condition remains for mobile view
                   <DropdownMenuItem key={link.href} asChild>
                     <Link href={link.href}>
                       <span className="flex items-center">
