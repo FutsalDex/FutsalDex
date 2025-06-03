@@ -121,8 +121,8 @@ function MisSesionesContent() {
         where("userId", "==", user.uid),
         where("fecha", ">=", startDateString),
         where("fecha", "<", startOfNextMonthString),
-        firestoreOrderBy("fecha", "asc"),
-        firestoreOrderBy("createdAt", "asc") 
+        firestoreOrderBy("fecha", "asc"), 
+        firestoreOrderBy("createdAt", "asc")
     ];
 
     try {
@@ -355,7 +355,7 @@ function MisSesionesContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"> {/* Increased gap for protruding buttons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {sesiones.map((sesion) => (
             <Card key={sesion.id} className="shadow-lg flex flex-col overflow-visible">
               <CardHeader>
@@ -371,7 +371,7 @@ function MisSesionesContent() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 flex-grow pb-8"> {/* Added pb-8 to prevent content overlap */}
+              <CardContent className="space-y-3 flex-grow pb-8">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Tema/Enfoque:</p>
                   <p className="font-medium text-sm line-clamp-2">{getSessionTema(sesion)}</p>
@@ -408,11 +408,12 @@ function MisSesionesContent() {
                     </div>
                 )}
               </CardContent>
-              <CardFooter className="flex flex-row justify-center gap-2 px-4 py-2 -mb-3 relative z-10 mt-auto">
+              <CardFooter className="flex flex-col items-center gap-2 px-4 py-2 -mb-3 relative z-10 mt-auto">
+                {/* Row 1: Ver Ficha Detallada */}
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="w-auto text-sm bg-background shadow-md hover:shadow-lg">
-                      <Eye className="mr-2 h-4 w-4" /> Ver Ficha
+                    <Button variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg">
+                      <Eye className="mr-2 h-4 w-4" /> Ver Ficha Detallada
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
@@ -506,22 +507,25 @@ function MisSesionesContent() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button
-                  variant="outline"
-                  className="w-auto text-sm bg-background shadow-md hover:shadow-lg"
-                  onClick={() => handleEditSessionClick(sesion.type, sesion.id)}
-                  disabled={sesion.type === "AI"}
-                  title={sesion.type === "AI" ? "La edición de sesiones AI no está disponible" : "Editar sesión"}
-                >
-                  <Edit2 className="mr-2 h-4 w-4" /> Editar
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="w-auto text-sm shadow-md hover:shadow-lg"
-                  onClick={() => handleDeleteSessionClick(sesion.id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> Borrar
-                </Button>
+                {/* Row 2: Editar y Borrar */}
+                <div className="flex flex-row justify-center gap-2 w-full">
+                  <Button
+                    variant="outline"
+                    className="flex-1 text-sm bg-background shadow-md hover:shadow-lg"
+                    onClick={() => handleEditSessionClick(sesion.type, sesion.id)}
+                    disabled={sesion.type === "AI"}
+                    title={sesion.type === "AI" ? "La edición de sesiones AI no está disponible" : "Editar sesión"}
+                  >
+                    <Edit2 className="mr-2 h-4 w-4" /> Editar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1 text-sm shadow-md hover:shadow-lg"
+                    onClick={() => handleDeleteSessionClick(sesion.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Borrar
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}
