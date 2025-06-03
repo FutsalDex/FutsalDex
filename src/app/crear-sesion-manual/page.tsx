@@ -24,7 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, Info, Filter } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
@@ -36,7 +36,7 @@ interface Ejercicio {
   descripcion: string; 
   objetivos: string;   
   fase: string;
-  categoria: string;
+  categoria: string; // Esta es la etiqueta de la categoría
   // Otros campos de Ejercicio si los hay y son relevantes
 }
 
@@ -57,7 +57,7 @@ function CrearSesionManualContent() {
   const [vueltaCalmaEjercicios, setVueltaCalmaEjercicios] = useState<Ejercicio[]>([]);
 
   const [loadingEjercicios, setLoadingEjercicios] = useState({ calentamiento: true, principal: true, vueltaCalma: true });
-  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]);
+  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]); // Almacenará las etiquetas de las categorías
 
   const form = useForm<z.infer<typeof manualSessionSchema>>({
     resolver: zodResolver(manualSessionSchema),
@@ -85,7 +85,7 @@ function CrearSesionManualContent() {
         descripcion: doc.data().descripcion || "", 
         objetivos: doc.data().objetivos || "",  
         fase: doc.data().fase || "",
-        categoria: doc.data().categoria || "",
+        categoria: doc.data().categoria || "", // Este es el nombre/label de la categoría
         ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria'>)
       } as Ejercicio));
       setter(ejerciciosData);
@@ -103,29 +103,30 @@ function CrearSesionManualContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCategoryChange = (categoryId: string) => {
+  const handleCategoryChange = (categoryLabel: string) => { // Ahora recibe la etiqueta
     setSelectedCategorias(prev => {
-      const isSelected = prev.includes(categoryId);
+      const isSelected = prev.includes(categoryLabel);
       if (isSelected) {
-        return prev.filter(id => id !== categoryId);
+        return prev.filter(label => label !== categoryLabel);
       } else {
         if (prev.length < 4) {
-          return [...prev, categoryId];
+          return [...prev, categoryLabel];
         } else {
           toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
           return prev;
         }
       }
     });
-    form.setValue('mainExerciseIds', []);
+    form.setValue('mainExerciseIds', []); // Resetear selección de ejercicios principales al cambiar filtro
   };
 
   const filteredPrincipalEjercicios = useMemo(() => {
     if (selectedCategorias.length === 0) {
       return principalEjercicios;
     }
+    // Compara la etiqueta de la categoría del ejercicio con las etiquetas seleccionadas
     return principalEjercicios.filter(exercise => {
-      return selectedCategorias.includes(exercise.categoria);
+      return selectedCategorias.includes(exercise.categoria); 
     });
   }, [principalEjercicios, selectedCategorias]);
 
@@ -194,89 +195,94 @@ function CrearSesionManualContent() {
     exercises: Ejercicio[],
     loading: boolean,
     name: "warmUpExerciseId" | "coolDownExerciseId" | "mainExerciseIds",
-    isMultiSelect: boolean = false
+    isMultiSelect: boolean = false,
+    formFieldName: "warmUpExerciseId" | "coolDownExerciseId" | "mainExerciseIds"
   ) => {
-    if (loading) return <div className="flex items-center justify-center h-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
-    if (exercises.length === 0 && name === "mainExerciseIds" && selectedCategorias.length > 0) return <p className="text-sm text-muted-foreground">No hay ejercicios que coincidan con las categorías seleccionadas. Prueba con otros filtros.</p>;
-    if (exercises.length === 0) return <p className="text-sm text-muted-foreground">No hay ejercicios disponibles para esta fase.</p>;
+    if (loading) return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    if (exercises.length === 0 && name === "mainExerciseIds" && selectedCategorias.length > 0) return <p className="text-sm text-muted-foreground py-4 text-center">No hay ejercicios que coincidan con las categorías seleccionadas.</p>;
+    if (exercises.length === 0) return <p className="text-sm text-muted-foreground py-4 text-center">No hay ejercicios disponibles para esta fase.</p>;
 
-
-    return (
-      <ScrollArea className="h-64 rounded-md border p-4">
-        {isMultiSelect ? (
-           <FormField
+    if (isMultiSelect) {
+      return (
+        <ScrollArea className="h-64 rounded-md border p-4">
+          <FormField
             control={form.control}
-            name={name as "mainExerciseIds"}
+            name={formFieldName as "mainExerciseIds"} // Asegurar que es el nombre correcto del campo
             render={() => (
               <div className="space-y-2">
-              {exercises.map((item) => (
-                <FormField
-                  key={item.id}
-                  control={form.control}
-                  name={name as "mainExerciseIds"}
-                  render={({ field }) => {
-                    return (
-                      <FormItem
-                        key={item.id}
-                        className="flex flex-row items-start space-x-3 space-y-0"
-                      >
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value?.includes(item.id)}
-                            onCheckedChange={(checked) => {
-                              const currentValues = field.value || [];
-                              if (checked) {
-                                if (currentValues.length < 4) {
-                                  field.onChange([...currentValues, item.id]);
+                {exercises.map((item) => (
+                  <FormField
+                    key={item.id}
+                    control={form.control}
+                    name={formFieldName as "mainExerciseIds"}
+                    render={({ field }) => {
+                      return (
+                        <FormItem
+                          key={item.id}
+                          className="flex flex-row items-start space-x-3 space-y-0"
+                        >
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(item.id)}
+                              onCheckedChange={(checked) => {
+                                const currentValues = field.value || [];
+                                if (checked) {
+                                  if (currentValues.length < 4) {
+                                    field.onChange([...currentValues, item.id]);
+                                  } else {
+                                    toast({ title: "Límite alcanzado", description: "Puedes seleccionar hasta 4 ejercicios principales.", variant: "default" });
+                                    return; 
+                                  }
                                 } else {
-                                  toast({ title: "Límite alcanzado", description: "Puedes seleccionar hasta 4 ejercicios principales.", variant: "default" });
-                                  return; 
+                                  field.onChange(
+                                    currentValues.filter(
+                                      (value) => value !== item.id
+                                    )
+                                  );
                                 }
-                              } else {
-                                field.onChange(
-                                  currentValues.filter(
-                                    (value) => value !== item.id
-                                  )
-                                );
-                              }
-                            }}
-                          />
-                        </FormControl>
-                        <FormLabel className="text-sm font-normal">
-                          {item.ejercicio}
-                        </FormLabel>
-                      </FormItem>
-                    );
-                  }}
-                />
-              ))}
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="text-sm font-normal">
+                            {item.ejercicio}
+                          </FormLabel>
+                        </FormItem>
+                      );
+                    }}
+                  />
+                ))}
               </div>
             )}
           />
-        ) : (
-          <Controller
+        </ScrollArea>
+      );
+    } else { // Selección única con Select
+      return (
+         <FormField
             control={form.control}
-            name={name as "warmUpExerciseId" | "coolDownExerciseId"}
+            name={formFieldName as "warmUpExerciseId" | "coolDownExerciseId"}
             render={({ field }) => (
-              <RadioGroup
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-                className="flex flex-col space-y-1"
-              >
-                {exercises.map((ej) => (
-                  <FormItem key={ej.id} className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value={ej.id} />
-                    </FormControl>
-                    <FormLabel className="font-normal">{ej.ejercicio}</FormLabel>
-                  </FormItem>
-                ))}
-              </RadioGroup>
+              <FormItem>
+                <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={`Selecciona un ejercicio`} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {exercises.map((ej) => (
+                      <SelectItem key={ej.id} value={ej.id}>
+                        {ej.ejercicio}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
             )}
           />
-        )}
-      </ScrollArea>
-    );
+      );
+    }
   };
 
 
@@ -312,16 +318,7 @@ function CrearSesionManualContent() {
               <CardDescription>Selecciona 1 ejercicio para la fase inicial.</CardDescription>
             </CardHeader>
             <CardContent>
-              <FormField
-                control={form.control}
-                name="warmUpExerciseId"
-                render={() => (
-                  <FormItem>
-                    {renderExerciseList(calentamientoEjercicios, loadingEjercicios.calentamiento, "warmUpExerciseId")}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {renderExerciseList(calentamientoEjercicios, loadingEjercicios.calentamiento, "warmUpExerciseId", false, "warmUpExerciseId")}
             </CardContent>
           </Card>
 
@@ -341,8 +338,8 @@ function CrearSesionManualContent() {
                     <FormItem key={category.id} className="flex flex-row items-start space-x-3 space-y-0">
                       <FormControl>
                         <Checkbox
-                          checked={selectedCategorias.includes(category.id)}
-                          onCheckedChange={() => handleCategoryChange(category.id)}
+                          checked={selectedCategorias.includes(category.label)} // Comprobar contra la etiqueta
+                          onCheckedChange={() => handleCategoryChange(category.label)} // Pasar la etiqueta
                           id={`cat-${category.id}`}
                         />
                       </FormControl>
@@ -353,16 +350,7 @@ function CrearSesionManualContent() {
                   ))}
                 </div>
               </div>
-               <FormField
-                control={form.control}
-                name="mainExerciseIds"
-                render={() => (
-                  <FormItem>
-                    {renderExerciseList(filteredPrincipalEjercicios, loadingEjercicios.principal, "mainExerciseIds", true)}
-                     <FormMessage />
-                  </FormItem>
-                )}
-              />
+               {renderExerciseList(filteredPrincipalEjercicios, loadingEjercicios.principal, "mainExerciseIds", true, "mainExerciseIds")}
             </CardContent>
           </Card>
 
@@ -372,16 +360,7 @@ function CrearSesionManualContent() {
               <CardDescription>Selecciona 1 ejercicio para la fase final.</CardDescription>
             </CardHeader>
             <CardContent>
-              <FormField
-                control={form.control}
-                name="coolDownExerciseId"
-                render={() => (
-                  <FormItem>
-                    {renderExerciseList(vueltaCalmaEjercicios, loadingEjercicios.vueltaCalma, "coolDownExerciseId")}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               {renderExerciseList(vueltaCalmaEjercicios, loadingEjercicios.vueltaCalma, "coolDownExerciseId", false, "coolDownExerciseId")}
             </CardContent>
           </Card>
 
