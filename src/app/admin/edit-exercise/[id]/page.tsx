@@ -270,7 +270,7 @@ function EditExercisePageContent() {
                 )} />
                 <FormField control={form.control} name="categoria" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Categoría Temática</FormLabel>
+                    <FormLabel>Categoría</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona una categoría" /></SelectTrigger></FormControl>
                       <SelectContent>
