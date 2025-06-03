@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, AlertTriangle, PlusCircle, Edit, Trash2, ListChecks, UploadCloud } from "lucide-react";
+import { ShieldCheck, AlertTriangle, PlusCircle, ListChecks, UploadCloud } from "lucide-react";
 import Link from "next/link";
 
 function AdminPageContent() {
@@ -52,16 +52,16 @@ function AdminPageContent() {
                 Añadir Nuevo Ejercicio
               </Link>
             </Button>
-             <Button variant="outline" asChild className="w-full sm:w-auto">
-              <Link href="/admin/manage-exercises">
-                <ListChecks className="mr-2 h-5 w-5" />
-                Ver/Gestionar Ejercicios
-              </Link>
-            </Button>
             <Button variant="outline" asChild className="w-full sm:w-auto">
               <Link href="/admin/batch-add-exercises">
                 <UploadCloud className="mr-2 h-5 w-5" />
                 Añadir Ejercicios por Lote
+              </Link>
+            </Button>
+             <Button variant="outline" asChild className="w-full sm:w-auto">
+              <Link href="/admin/manage-exercises">
+                <ListChecks className="mr-2 h-5 w-5" />
+                Ver/Gestionar Ejercicios
               </Link>
             </Button>
           </div>
@@ -72,11 +72,11 @@ function AdminPageContent() {
               <li>
                 **Añadir Nuevo Ejercicio:** Un formulario permitirá ingresar todos los detalles de un nuevo ejercicio.
               </li>
-              <li>
-                **Ver/Gestionar Ejercicios:** Listado de ejercicios con opciones para modificar y eliminar.
-              </li>
                <li>
                 **Añadir Ejercicios por Lote:** Subir un archivo Excel para importar múltiples ejercicios a la vez.
+              </li>
+              <li>
+                **Ver/Gestionar Ejercicios:** Listado de ejercicios con opciones para modificar y eliminar.
               </li>
               <li>
                 Se incluirán filtros y paginación para facilitar la búsqueda y gestión.
@@ -111,3 +111,4 @@ export default function AdminPage() {
     </AuthGuard>
   );
 }
+
