@@ -36,8 +36,8 @@ interface Ejercicio {
   duracion: string;
   variantes: string;
   fase: string;
-  categoria_tematica: string; // Campo para la categoría temática (columna J de la imagen)
-  categoria_edad: string; // Campo para la categoría de edad (columna K de la imagen)
+  categoria: string; // Anteriormente categoria_tematica
+  edad: string; // Anteriormente categoria_edad
   imagen: string;
   consejos_entrenador?: string;
 }
@@ -114,15 +114,12 @@ export default function EjerciciosPage() {
         constraints.push(where('fase', '==', phase));
       }
       if (ages.length > 0) {
-        constraints.push(where('categoria_edad', 'in', ages));
+        constraints.push(where('edad', 'in', ages)); // Cambiado de 'categoria_edad'
       }
-      // Thematic category filter will be applied in Firestore if a specific category is selected
-      // If "ALL_THEMATIC_CATEGORIES_VALUE" is selected, no thematic category constraint is added
-      // Note: This requires 'categoria_tematica' field to exist in your Firestore documents.
-      // if (thematicCategoryFilter && thematicCategoryFilter !== ALL_THEMATIC_CATEGORIES_VALUE) {
-      //   constraints.push(where('categoria_tematica', '==', thematicCategoryFilter));
-      // }
-      // Client-side filtering for thematic category will be applied later on the fetched results for now.
+      // Thematic category filter (now 'categoria') will be applied in Firestore if a specific category is selected
+      if (thematicCategoryFilter && thematicCategoryFilter !== ALL_THEMATIC_CATEGORIES_VALUE) {
+        constraints.push(where('categoria', '==', thematicCategoryFilter)); // Cambiado de 'categoria_tematica'
+      }
 
       constraints.push(firestoreOrderBy('ejercicio'));
 
@@ -162,7 +159,7 @@ export default function EjerciciosPage() {
     setLastVisible(null);
     fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, searchTerm, phaseFilter, selectedAgeFilters, thematicCategoryFilter]); // thematicCategoryFilter added to re-fetch if it changes, though filtering is client side
+  }, [isRegisteredUser, searchTerm, phaseFilter, selectedAgeFilters, thematicCategoryFilter]);
 
 
   const handleAgeCategoryChange = (ageCategory: string) => {
@@ -186,15 +183,10 @@ export default function EjerciciosPage() {
   };
 
 
+  // No client-side filtering needed for thematic category as it's handled by Firestore query now.
   const displayedEjercicios = useMemo(() => {
-    let filtered = [...ejercicios]; 
-
-    // Client-side filtering for thematic category
-    if (thematicCategoryFilter !== ALL_THEMATIC_CATEGORIES_VALUE) {
-      filtered = filtered.filter(exercise => exercise.categoria_tematica === thematicCategoryFilter);
-    }
-    return filtered;
-  }, [ejercicios, thematicCategoryFilter]);
+    return ejercicios;
+  }, [ejercicios]);
 
 
   const handlePageChange = (newPage: number) => {
@@ -380,7 +372,7 @@ export default function EjerciciosPage() {
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
                   <CardDescription className="text-xs">
-                    {ej.fase} - {ej.categoria_edad} - {ej.duracion}
+                    {ej.fase} - {ej.edad} - {ej.duracion} 
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
@@ -397,7 +389,7 @@ export default function EjerciciosPage() {
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
-                        <DialogDescription>{ej.fase} - {ej.categoria_edad} - {ej.duracion}</DialogDescription>
+                        <DialogDescription>{ej.fase} - {ej.edad} - {ej.duracion}</DialogDescription>
                       </DialogHeader>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         <div className="relative aspect-video">
@@ -415,6 +407,7 @@ export default function EjerciciosPage() {
                         <p><strong>Nº Jugadores:</strong> {ej.jugadores}</p>
                         <p><strong>Variantes:</strong> {ej.variantes}</p>
                         <p><strong>Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
+                         <p><strong>Categoría:</strong> {THEMATIC_CATEGORIES.find(cat => cat.id === ej.categoria)?.label || ej.categoria}</p>
                       </div>
                     </DialogContent>
                   </Dialog>

@@ -33,10 +33,10 @@ import Link from "next/link";
 interface Ejercicio {
   id: string;
   ejercicio: string;
-  descripcion: string; // Asegúrate de que este campo se obtiene si es necesario para la heurística
-  objetivos: string;   // Asegúrate de que este campo se obtiene si es necesario para la heurística
+  descripcion: string; 
+  objetivos: string;   
   fase: string;
-  categoria_tematica: string; // Campo para la categoría temática
+  categoria: string; // Anteriormente categoria_tematica
   // Otros campos de Ejercicio si los hay y son relevantes
 }
 
@@ -101,13 +101,12 @@ function CrearSesionManualContent() {
       const snapshot = await getDocs(q);
       const ejerciciosData = snapshot.docs.map(doc => ({
         id: doc.id,
-        // Mapear todos los campos necesarios para la interfaz Ejercicio
         ejercicio: doc.data().ejercicio || "",
-        descripcion: doc.data().descripcion || "", // Necesario para el filtrado antiguo si se mantiene, o por completitud
-        objetivos: doc.data().objetivos || "",   // Necesario para el filtrado antiguo si se mantiene, o por completitud
+        descripcion: doc.data().descripcion || "", 
+        objetivos: doc.data().objetivos || "",  
         fase: doc.data().fase || "",
-        categoria_tematica: doc.data().categoria_tematica || "", // Asegurar que este campo se obtiene
-        ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria_tematica'>)
+        categoria: doc.data().categoria || "", // Cambiado de categoria_tematica
+        ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria'>)
       } as Ejercicio));
       setter(ejerciciosData);
     } catch (error) {
@@ -146,8 +145,8 @@ function CrearSesionManualContent() {
       return principalEjercicios;
     }
     return principalEjercicios.filter(exercise => {
-      // Filtrar por el campo 'categoria_tematica' del ejercicio
-      return selectedCategorias.includes(exercise.categoria_tematica);
+      // Filtrar por el campo 'categoria' del ejercicio
+      return selectedCategorias.includes(exercise.categoria); // Cambiado de categoria_tematica
     });
   }, [principalEjercicios, selectedCategorias]);
 
@@ -376,7 +375,7 @@ function CrearSesionManualContent() {
                   ))}
                 </div>
                  <p className="text-xs text-muted-foreground mt-2">
-                  Nota: El filtrado por categorías ahora usa el campo 'categoria_tematica' del ejercicio.
+                  Nota: El filtrado por categorías ahora usa el campo 'categoria' del ejercicio.
                 </p>
               </div>
                <FormField

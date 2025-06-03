@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 export const loginSchema = z.object({
@@ -16,7 +17,7 @@ export const registerSchema = z.object({
 
 export const exerciseFilterSchema = z.object({
   nombre: z.string().optional(),
-  categoria_edad: z.string().optional(), // Assuming this is the field for age category
+  edad: z.string().optional(), // Anteriormente categoria_edad
   // Add other filter fields as needed, e.g. 'fase'
 });
 
@@ -43,3 +44,4 @@ export const manualSessionSchema = z.object({
   equipo: z.string().optional(),
   sessionTitle: z.string().min(3, "El título de la sesión es requerido.").optional(),
 });
+
