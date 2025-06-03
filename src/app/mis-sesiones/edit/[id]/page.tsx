@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth, AuthGuard } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/auth-context";
+import { AuthGuard } from "@/components/auth-guard"; // Corrected import path
 import { manualSessionSchema, type ManualSessionFormValues } from "@/lib/schemas";
 import { useState, useEffect, useMemo, useCallback }
 from "react";
@@ -25,7 +26,7 @@ import { Loader2, Save, Info, Filter, ArrowLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
+import { CATEGORIAS_TEMATICAS_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -415,3 +416,4 @@ export default function EditManualSessionPage() {
         </AuthGuard>
     );
 }
+
