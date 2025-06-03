@@ -121,8 +121,7 @@ function BatchAddExercisesPageContent() {
                 exerciseData.imagen = `https://placehold.co/400x300.png?text=${encodeURIComponent(exerciseData.ejercicio || 'Ejercicio')}`;
             }
             
-            // Manejar campos opcionales que podrían ser null en la BD si están vacíos
-            exerciseData.numero = exerciseData.numero || ""; // schema espera string, no null directamente
+            exerciseData.numero = exerciseData.numero || ""; 
             exerciseData.variantes = exerciseData.variantes || "";
             exerciseData.consejos_entrenador = exerciseData.consejos_entrenador || "";
 
@@ -141,11 +140,27 @@ function BatchAddExercisesPageContent() {
 
           if (validationErrors.length > 0) {
             console.error("Errores de validación detallados:\n" + validationErrors.join('\n'));
+            
+            const errorGuidance = (
+              <div className="text-sm">
+                <p className="font-semibold mb-1">Se encontraron {failureCount} fila(s) con errores de validación.</p>
+                <p className="mb-1">Por favor, revisa tu archivo Excel y asegúrate de que:</p>
+                <ul className="list-disc list-inside pl-4 space-y-0.5 text-xs">
+                  <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo".</li>
+                  <li>Todos los campos requeridos (ej. Ejercicio, Descripcion, Objetivos, Fase, Categoria, Edad, etc.) están completos.</li>
+                  <li>El contenido de los campos cumple los requisitos de longitud mínima.</li>
+                  <li>El campo 'Edad' no está vacío y las categorías de edad son válidas.</li>
+                  <li>El campo 'Categoria' tiene un ID de categoría válido.</li>
+                </ul>
+                <p className="mt-2">Consulta la consola del navegador (presiona F12) para ver los errores detallados por cada fila.</p>
+              </div>
+            );
+
              toast({
                 title: `Errores de Validación (${failureCount})`,
-                description: `Algunos ejercicios no pasaron la validación. Revisa la consola para detalles. Primer error: ${validationErrors[0].substring(0,100)}...`,
+                description: errorGuidance,
                 variant: "destructive",
-                duration: 7000,
+                duration: 20000, // Increased duration for more complex message
              });
           }
           
@@ -159,9 +174,6 @@ function BatchAddExercisesPageContent() {
                     batch.set(newExerciseRef, {
                         ...exData,
                         createdAt: serverTimestamp(),
-                        // Asegurarse de que los campos opcionales se guardan como null si están vacíos en el schema.
-                        // Esto se maneja con la lógica de '|| ""' y el schema que permite string.
-                        // Si el schema exigiera `z.string().nullable()` el tratamiento sería diferente.
                         numero: exData.numero || null,
                         variantes: exData.variantes || null,
                         consejos_entrenador: exData.consejos_entrenador || null,
@@ -174,17 +186,24 @@ function BatchAddExercisesPageContent() {
           
           setProcessedStats({ success: successCount, failed: failureCount, total: jsonExercises.length });
 
-          if (successCount > 0) {
+          if (successCount > 0 && failureCount === 0) {
             toast({
               title: "Procesamiento Completado",
-              description: `${successCount} de ${jsonExercises.length} ejercicios importados correctamente. ${failureCount > 0 ? `${failureCount} fallaron.` : ''}`,
+              description: `${successCount} ejercicios importados correctamente.`,
             });
-          } else if (failureCount > 0 && successCount === 0) {
+          } else if (successCount > 0 && failureCount > 0) {
              toast({
-              title: "Procesamiento Fallido",
-              description: `No se pudo importar ningún ejercicio. ${failureCount} ejercicios tuvieron errores.`,
-              variant: "destructive",
+              title: "Procesamiento Parcial",
+              description: `${successCount} de ${jsonExercises.length} ejercicios importados. ${failureCount} fallaron. Revisa los errores.`,
+              variant: "default", // Use default or a warning color if you have one
+              duration: 10000,
             });
+          } else if (failureCount > 0 && successCount === 0 && jsonExercises.length > 0) {
+             // This case is already handled by the detailed validation error toast.
+             // We might not need another toast here, or a very short one.
+             // For now, let the detailed validation error toast be the main feedback.
+          } else if (jsonExercises.length === 0 && successCount === 0 && failureCount === 0){
+            // Already handled by "Archivo Vacío" toast
           }
 
 
@@ -192,15 +211,15 @@ function BatchAddExercisesPageContent() {
           console.error("Error processing file content:", procError);
           toast({
             title: "Error al Procesar Archivo",
-            description: procError.message || "Hubo un problema al leer o procesar el contenido del archivo.",
+            description: procError.message || "Hubo un problema al leer o procesar el contenido del archivo. Verifica que el formato sea correcto.",
             variant: "destructive",
           });
-          setProcessedStats({ success: 0, failed: 0, total: 0}); // Reset stats on error
+          setProcessedStats({ success: 0, failed: jsonExercises ? jsonExercises.length : 0, total: jsonExercises ? jsonExercises.length : 0});
         } finally {
           setIsProcessing(false);
-          setSelectedFile(null); 
-          const fileInput = document.getElementById('excel-file-input') as HTMLInputElement | null;
-          if (fileInput) fileInput.value = "";
+          // setSelectedFile(null); // Keep file selected to allow user to re-attempt after fixing, or clear manually
+          // const fileInput = document.getElementById('excel-file-input') as HTMLInputElement | null;
+          // if (fileInput) fileInput.value = ""; // Clearing file input is tricky and sometimes not desired UX
         }
       };
       reader.readAsArrayBuffer(selectedFile);
@@ -283,14 +302,15 @@ function BatchAddExercisesPageContent() {
           </div>
           
           {processedStats && (
-            <Alert variant={processedStats.failed > 0 ? "destructive" : "default"} className={processedStats.failed > 0 ? "border-destructive/50" : "border-green-500/50"}>
-              {processedStats.failed > 0 ? <XCircle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5 text-green-600"/>}
-              <AlertTitle className={processedStats.failed > 0 ? "" : "text-green-700"}>Resultados del Procesamiento</AlertTitle>
-              <AlertDescription className={processedStats.failed > 0 ? "" : "text-green-600"}>
+            <Alert variant={processedStats.failed > 0 && processedStats.success === 0 ? "destructive" : (processedStats.failed > 0 ? "default" : "default")} 
+                   className={processedStats.failed > 0 && processedStats.success === 0 ? "border-destructive/50" : (processedStats.failed > 0 ? "border-yellow-500/50" : "border-green-500/50")}>
+              {processedStats.failed > 0 && processedStats.success === 0 ? <XCircle className="h-5 w-5 text-destructive" /> : (processedStats.failed > 0 ? <AlertTriangle className="h-5 w-5 text-yellow-600" /> : <CheckCircle className="h-5 w-5 text-green-600"/>)}
+              <AlertTitle className={processedStats.failed > 0 && processedStats.success === 0 ? "text-destructive" : (processedStats.failed > 0 ? "text-yellow-700" : "text-green-700")}>Resultados del Procesamiento</AlertTitle>
+              <AlertDescription className={processedStats.failed > 0 && processedStats.success === 0 ? "text-destructive-foreground/90" : (processedStats.failed > 0 ? "text-yellow-600" : "text-green-600")}>
                 Total de filas procesadas: {processedStats.total}. <br/>
                 Ejercicios importados con éxito: {processedStats.success}. <br/>
                 Ejercicios con errores: {processedStats.failed}.
-                {processedStats.failed > 0 && " Revisa la consola del navegador para más detalles sobre los errores."}
+                {processedStats.failed > 0 && " Revisa la consola del navegador (F12) y las notificaciones para más detalles sobre los errores."}
               </AlertDescription>
             </Alert>
           )}
@@ -300,7 +320,7 @@ function BatchAddExercisesPageContent() {
             <Info className="h-4 w-4" />
             <AlertTitle>Formato del Archivo (Encabezados de Columna)</AlertTitle>
             <AlertDescription>
-              <p>Asegúrate de que tu archivo tenga las siguientes columnas en la primera hoja (los nombres deben coincidir exactamente):</p>
+              <p>Asegúrate de que tu archivo tenga las siguientes columnas en la primera hoja (los nombres deben coincidir <strong>EXACTAMENTE</strong>, incluyendo mayúsculas/minúsculas y guiones bajos):</p>
               <ul className="list-disc list-inside text-xs mt-2 space-y-1">
                 <li><strong>{EXPECTED_HEADERS.numero}</strong> (Opcional, ej: 001)</li>
                 <li><strong>{EXPECTED_HEADERS.ejercicio}</strong> (Texto, ej: Pase y movimiento)</li>
@@ -316,7 +336,7 @@ function BatchAddExercisesPageContent() {
                 <li><strong>{EXPECTED_HEADERS.consejos_entrenador}</strong> (Opcional, texto largo)</li>
                 <li><strong>{EXPECTED_HEADERS.imagen}</strong> (Opcional, URL completa a una imagen. Si se deja vacío, se usará una imagen genérica)</li>
               </ul>
-               <p className="mt-2 text-xs">Consulta la lista de IDs de categoría en la sección de añadir ejercicio individual. Para '{EXPECTED_HEADERS.edad}', si son varias, sepáralas por comas (ej: "Alevín (10-11 años),Infantil (12-13 años)").</p>
+               <p className="mt-2 text-xs">Consulta la lista de IDs de categoría en la sección de añadir ejercicio individual. Para '{EXPECTED_HEADERS.edad}', si son varias, sepáralas por comas (ej: "Alevín (10-11 años),Infantil (12-13 años)"). Todos los campos, excepto los marcados como "Opcional", son requeridos y deben tener contenido válido.</p>
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -340,3 +360,5 @@ export default function BatchAddExercisesPage() {
 }
 
     
+
+      
