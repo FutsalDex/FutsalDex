@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon } from "lucide-react";
+import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
@@ -22,11 +22,11 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle as AlertDialogHeading, // Renamed to avoid conflict with DialogTitle
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
-import { Sparkles } from 'lucide-react';
+
 
 interface EjercicioInfo {
   id: string;
@@ -122,7 +122,7 @@ function MisSesionesContent() {
         where("fecha", ">=", startDateString),
         where("fecha", "<", startOfNextMonthString),
         firestoreOrderBy("fecha", "asc"), 
-        firestoreOrderBy("createdAt", "asc")
+        firestoreOrderBy("createdAt", "asc") 
     ];
 
     try {
@@ -409,7 +409,6 @@ function MisSesionesContent() {
                 )}
               </CardContent>
               <CardFooter className="flex flex-col items-center gap-2 px-4 py-2 -mb-3 relative z-10 mt-auto">
-                {/* Row 1: Ver Ficha Detallada */}
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg">
@@ -417,6 +416,9 @@ function MisSesionesContent() {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
+                     <DialogHeader>
+                        <DialogTitle className="sr-only">Detalles de la Sesión: {getSessionTema(sesion)}</DialogTitle>
+                    </DialogHeader>
                     <div className="border border-gray-700 bg-gray-50 text-gray-800 shadow-lg rounded-md m-0">
                       <div className="bg-gray-800 text-white p-4 rounded-t-md">
                         <div className="flex justify-between items-center mb-2">
@@ -507,7 +509,6 @@ function MisSesionesContent() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                {/* Row 2: Editar y Borrar */}
                 <div className="flex flex-row justify-center gap-2 w-full">
                   <Button
                     variant="outline"
@@ -535,7 +536,7 @@ function MisSesionesContent() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-gray-800">Confirmar Eliminación</AlertDialogTitle>
+            <AlertDialogHeading className="text-gray-800">Confirmar Eliminación</AlertDialogHeading>
             <AlertDialogDescription className="text-gray-600">
               ¿Estás seguro de que quieres eliminar esta sesión permanentemente? Esta acción no se puede deshacer.
             </AlertDialogDescription>
