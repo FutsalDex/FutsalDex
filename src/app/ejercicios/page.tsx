@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
-import { CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, FASES_SESION } from '@/lib/constants';
+import { CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, FASES_SESION, CATEGORIAS_TEMATICAS_MAP } from '@/lib/constants';
 
 
 interface Ejercicio {
@@ -77,13 +77,11 @@ export default function EjerciciosPage() {
       let constraints: QueryConstraint[] = [];
 
       if (search) {
-        // Firestore text search is limited. This is a basic prefix match.
-        // For more advanced search, consider a third-party service like Algolia.
-        constraints.push(firestoreOrderBy('ejercicio')); // Must order by the field used in inequalities
+        constraints.push(firestoreOrderBy('ejercicio')); 
         constraints.push(where('ejercicio', '>=', search));
         constraints.push(where('ejercicio', '<=', search + '\uf8ff'));
       } else {
-        constraints.push(firestoreOrderBy('ejercicio')); // Default sort
+        constraints.push(firestoreOrderBy('ejercicio')); 
       }
 
       if (phase && phase !== ALL_PHASES_VALUE) {
@@ -91,8 +89,6 @@ export default function EjerciciosPage() {
       }
       
       if (ages.length > 0) {
-        // If 'edad' is an array in Firestore, use 'array-contains-any'
-        // This requires 'ages' to be an array of strings.
         constraints.push(where('edad', 'array-contains-any', ages));
       }
       
@@ -108,9 +104,6 @@ export default function EjerciciosPage() {
         if (direction === 'next' && lastVisible && page > 1) {
           constraints.push(startAfter(lastVisible));
         }
-        // Note: 'prev' pagination with startAfter is tricky without cursors for 'prev'.
-        // A simpler approach for 'prev' is to refetch from the beginning up to the current page count,
-        // or just reset to page 1 as currently implemented.
       }
       
       const q = query(ejerciciosCollection, ...constraints);
@@ -124,7 +117,6 @@ export default function EjerciciosPage() {
 
       if (isRegisteredUser) {
         setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
-        // This totalEjercicios logic isn't accurate for true total, but helps control pagination 'Next' button
         setTotalEjercicios(fetchedEjercicios.length < ITEMS_PER_PAGE ? (page-1)*ITEMS_PER_PAGE + fetchedEjercicios.length : page * ITEMS_PER_PAGE + 1);
       } else {
         setTotalEjercicios(fetchedEjercicios.length);
@@ -132,7 +124,6 @@ export default function EjerciciosPage() {
 
     } catch (error) {
       console.error("Error fetching exercises: ", error);
-      // Consider adding a user-facing error message, e.g., via toast
     }
     setIsLoading(false);
   };
@@ -162,7 +153,6 @@ export default function EjerciciosPage() {
       ...prev,
       [exerciseId]: !prev[exerciseId]
     }));
-    // TODO: Add Firestore logic to save/remove favorite for the user
   };
 
   const displayedEjercicios = useMemo(() => ejercicios, [ejercicios]);
@@ -170,12 +160,12 @@ export default function EjerciciosPage() {
   const handlePageChange = (newPage: number) => {
     if (!isRegisteredUser) return;
 
-    if (newPage > currentPage) { // Next page
+    if (newPage > currentPage) { 
       fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilters, thematicCategoryFilter, 'next');
-    } else if (newPage < currentPage && newPage > 0) { // Previous page (simplified to reset to first)
+    } else if (newPage < currentPage && newPage > 0) { 
       fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, thematicCategoryFilter, 'first');
-      newPage = 1; // Reset page to 1 for UI
-    } else if (newPage === 1 && currentPage !==1 ) { // Go to page 1 explicitly
+      newPage = 1; 
+    } else if (newPage === 1 && currentPage !==1 ) { 
        fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, thematicCategoryFilter, 'first');
     }
     setCurrentPage(newPage);
@@ -185,7 +175,6 @@ export default function EjerciciosPage() {
     const file = event.target.files?.[0];
     if (file) {
       console.log("File selected:", file.name);
-      // Placeholder for actual upload logic
     }
   };
 
@@ -365,7 +354,11 @@ export default function EjerciciosPage() {
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
-                        <DialogDescription>{ej.fase} - {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad} - {ej.duracion}</DialogDescription>
+                        <div className="text-sm text-muted-foreground pt-1">
+                          <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
+                          <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
+                          <p><strong className="font-semibold text-foreground/90">Duración:</strong> {ej.duracion}</p>
+                        </div>
                       </DialogHeader>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         <div className="relative aspect-video">
@@ -374,16 +367,31 @@ export default function EjerciciosPage() {
                         <div>
                           <h3 className="font-semibold text-lg mb-1">Descripción</h3>
                           <p className="text-sm mb-3">{ej.descripcion}</p>
-                          <h3 className="font-semibold text-lg mb-1">Objetivos</h3>
-                          <p className="text-sm mb-3">{ej.objetivos}</p>
+                          
+                          <div>
+                            <h3 className="font-semibold text-lg mb-1">Objetivos</h3>
+                            {ej.objetivos && ej.objetivos.length > 0 ? (
+                              <ul className="list-disc pl-5 space-y-1 text-sm mb-3">
+                                {ej.objetivos.split('.')
+                                  .map(obj => obj.trim())
+                                  .filter(obj => obj.length > 0)
+                                  .map((obj, index) => (
+                                    <li key={index}>{obj}.</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm mb-3 text-muted-foreground">No especificados.</p>
+                            )}
+                          </div>
+
                         </div>
                       </div>
-                      <div className="mt-4 space-y-3">
-                        <p><strong>Materiales y Espacio:</strong> {ej.espacio_materiales}</p>
-                        <p><strong>Nº Jugadores:</strong> {ej.jugadores}</p>
-                        <p><strong>Variantes:</strong> {ej.variantes || 'No especificadas.'}</p>
-                        <p><strong>Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
-                        <p><strong>Categoría:</strong> {CATEGORIAS_TEMATICAS_EJERCICIOS.find(cat => cat.id === ej.categoria)?.label || ej.categoria}</p>
+                      <div className="mt-4 space-y-3 text-sm">
+                        <p><strong className="font-semibold">Materiales y Espacio:</strong> {ej.espacio_materiales}</p>
+                        <p><strong className="font-semibold">Nº Jugadores:</strong> {ej.jugadores}</p>
+                        <p><strong className="font-semibold">Variantes:</strong> {ej.variantes || 'No especificadas.'}</p>
+                        <p><strong className="font-semibold">Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
+                        <p><strong className="font-semibold">Categoría:</strong> {CATEGORIAS_TEMATICAS_MAP[ej.categoria] || ej.categoria}</p>
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -421,3 +429,5 @@ export default function EjerciciosPage() {
     </div>
   );
 }
+
+    
