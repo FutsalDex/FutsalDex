@@ -29,26 +29,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface EjercicioInfo {
   id: string;
   ejercicio: string;
-  duracion?: string; 
+  duracion?: string;
 }
 
 interface Sesion {
   id: string;
   userId: string;
   type: "AI" | "Manual";
-  sessionTitle: string; 
-  warmUp: string | EjercicioInfo; 
-  mainExercises: (string | EjercicioInfo)[]; 
-  coolDown: string | EjercicioInfo; 
+  sessionTitle: string;
+  warmUp: string | EjercicioInfo;
+  mainExercises: (string | EjercicioInfo)[];
+  coolDown: string | EjercicioInfo;
   coachNotes?: string;
   numero_sesion?: string;
   fecha?: string; // Guardado como YYYY-MM-DD
   temporada?: string;
   club?: string;
   equipo?: string;
-  preferredSessionLengthMinutes?: number; 
-  duracionTotalManualEstimada?: number; 
-  createdAt: Timestamp; // Todavía útil para una ordenación secundaria o si fecha no existe
+  preferredSessionLengthMinutes?: number;
+  duracionTotalManualEstimada?: number;
+  createdAt: Timestamp;
 }
 
 const MESES = [
@@ -98,12 +98,12 @@ function MisSesionesContent() {
     if (filter) {
         targetYear = filter.year;
         targetMonth = filter.month; // 1-indexed
-    } else { 
+    } else {
         const now = new Date();
         targetYear = now.getFullYear();
         targetMonth = now.getMonth() + 1; // 1-indexed
     }
-    
+
     // Formatear mes para el string YYYY-MM-DD
     const monthString = targetMonth < 10 ? `0${targetMonth}` : `${targetMonth}`;
     const startDateString = `${targetYear}-${monthString}-01`;
@@ -113,12 +113,12 @@ function MisSesionesContent() {
     let nextYear = targetMonth === 12 ? targetYear + 1 : targetYear;
     const nextMonthString = nextMonth < 10 ? `0${nextMonth}` : `${nextMonth}`;
     const startOfNextMonthString = `${nextYear}-${nextMonthString}-01`;
-    
+
     let q_constraints = [
         where("userId", "==", user.uid),
         where("fecha", ">=", startDateString),
         where("fecha", "<", startOfNextMonthString),
-        orderBy("fecha", "asc"), 
+        orderBy("fecha", "asc"),
         orderBy("createdAt", "asc") // Orden secundario por si hay varias sesiones en la misma fecha
     ];
 
@@ -161,7 +161,7 @@ function MisSesionesContent() {
     setSelectedYear(initialFilter.year.toString());
     setSelectedMonth((initialFilter.month).toString());
     fetchSesiones(initialFilter);
-  }, [fetchSesiones]); 
+  }, [fetchSesiones]);
 
   const handleApplyFilter = () => {
     if (selectedYear && selectedMonth) {
@@ -180,7 +180,13 @@ function MisSesionesContent() {
     if (typeof dateValue === 'string') {
       if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) { // Formato YYYY-MM-DD
          const [year, month, day] = dateValue.split('-').map(Number);
-         date = new Date(year, month - 1, day, 12,0,0); // Set to midday to avoid timezone issues affecting day
+         // Para evitar problemas de zona horaria que cambian el día, crea la fecha en UTC
+         // y luego formatea. O simplemente asume que el string es la fecha correcta.
+         // Aquí usamos el constructor Date que puede ser sensible a la zona horaria local.
+         // Una forma más robusta sería parsear y formatear directamente, o usar UTC.
+         // Dado que el input es YYYY-MM-DD, podemos confiar en el parseo simple si las fechas
+         // se guardan consistentemente y no se manipulan con zonas horarias.
+         date = new Date(year, month - 1, day, 12,0,0); // Set to midday
       } else {
          date = new Date(dateValue); // Try parsing other string formats
       }
@@ -191,14 +197,14 @@ function MisSesionesContent() {
     }
 
     if (isNaN(date.getTime())) return (typeof dateValue === 'string' ? dateValue : 'Fecha inválida'); // If still invalid
-    
+
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
   };
-  
+
   const formatExerciseName = (exercise: string | EjercicioInfo | null | undefined): string => {
     if (!exercise) return "Ejercicio no especificado";
-    if (typeof exercise === 'string') return exercise; 
-    return exercise.ejercicio; 
+    if (typeof exercise === 'string') return exercise;
+    return exercise.ejercicio;
   };
 
   const handleDeleteSessionClick = (sessionId: string) => {
@@ -249,7 +255,7 @@ function MisSesionesContent() {
   const years = getYearsRange();
 
 
-  if (isLoading && sesiones.length === 0) { 
+  if (isLoading && sesiones.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -309,7 +315,7 @@ function MisSesionesContent() {
           </CardHeader>
           <CardContent>
             <CardDescription className="mb-6">
-              {activeFilter 
+              {activeFilter
                 ? `No se encontraron sesiones para ${MESES.find(m=>m.value === activeFilter.month)?.label} de ${activeFilter.year}.`
                 : "Parece que aún no has creado ninguna sesión de entrenamiento este mes."}
               <br/>
@@ -334,19 +340,19 @@ function MisSesionesContent() {
           {sesiones.map((sesion) => (
             <Card key={sesion.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
               <CardHeader className="pb-3">
-                 <p className="text-lg font-semibold text-primary">
+                 <p className="text-xl font-semibold text-primary">
                   {formatDate(sesion.fecha)}
                   {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
                 </p>
                  <p className="text-sm text-foreground/80"><strong>Club:</strong> {sesion.club || 'N/A'}</p>
                  <p className="text-sm text-foreground/80"><strong>Equipo:</strong> {sesion.equipo || 'N/A'}</p>
                  <p className="text-sm text-foreground/80"><strong>Temporada:</strong> {sesion.temporada || 'N/A'}</p>
-                 
+
                 <div className="flex items-center text-sm text-foreground/80 mt-1">
                     <Clock className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
                     <strong>Tiempo Total:&nbsp;</strong>
-                    {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` : 
-                     sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined ? `${sesion.duracionTotalManualEstimada} min` : 
+                    {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` :
+                     sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined ? `${sesion.duracionTotalManualEstimada} min` :
                      'No especificada'}
                  </div>
               </CardHeader>
@@ -393,8 +399,8 @@ function MisSesionesContent() {
                       <DialogDescription>
                          Club: {sesion.club || 'N/A'} | Equipo: {sesion.equipo || 'N/A'} | Temporada: {sesion.temporada || 'N/A'}
                         <br/>
-                        Tiempo Total (aprox.): {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` : 
-                        sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined ? `${sesion.duracionTotalManualEstimada} min` : 
+                        Tiempo Total (aprox.): {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` :
+                        sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined ? `${sesion.duracionTotalManualEstimada} min` :
                         'No especificada'}
                       </DialogDescription>
                     </DialogHeader>
@@ -423,8 +429,8 @@ function MisSesionesContent() {
                   </DialogContent>
                 </Dialog>
                 <div className="flex gap-2 w-full">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="flex-1"
                     onClick={() => handleEditSessionClick(sesion.type, sesion.id)}
                     disabled={sesion.type === "AI"}
@@ -432,8 +438,8 @@ function MisSesionesContent() {
                   >
                     <Edit2 className="mr-2 h-4 w-4" /> Editar
                   </Button>
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     className="flex-1"
                     onClick={() => handleDeleteSessionClick(sesion.id)}
                   >
@@ -466,3 +472,5 @@ function MisSesionesContent() {
     </div>
   );
 }
+
+    
