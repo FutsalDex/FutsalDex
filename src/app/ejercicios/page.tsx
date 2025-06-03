@@ -11,12 +11,9 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint } from 'firebase/firestore';
 import Image from 'next/image';
-import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart } from 'lucide-react';
+import { Upload, Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
-// Checkbox no se usa más para categorías temáticas, Label podría no ser necesario tampoco en la parte de filtros temáticos.
-// import { Checkbox } from "@/components/ui/checkbox";
-// import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -39,7 +36,8 @@ interface Ejercicio {
   duracion: string;
   variantes: string;
   fase: string;
-  categoria_edad: string;
+  categoria_tematica: string; // Campo para la categoría temática (columna J de la imagen)
+  categoria_edad: string; // Campo para la categoría de edad (columna K de la imagen)
   imagen: string;
   consejos_entrenador?: string;
 }
@@ -109,9 +107,6 @@ export default function EjerciciosPage() {
       const constraints: QueryConstraint[] = [];
 
       if (search) {
-        // Firestore text search is limited. For more complex search, consider Algolia/Elasticsearch.
-        // This basic filter checks if 'ejercicio' field starts with the search term.
-        // For a "contains" search, you'd typically need a more advanced setup or client-side filtering on a larger dataset.
         constraints.push(where('ejercicio', '>=', search));
         constraints.push(where('ejercicio', '<=', search + '\uf8ff'));
       }
@@ -121,7 +116,13 @@ export default function EjerciciosPage() {
       if (ages.length > 0) {
         constraints.push(where('categoria_edad', 'in', ages));
       }
-      // Thematic category filtering will be done client-side for now
+      // Thematic category filter will be applied in Firestore if a specific category is selected
+      // If "ALL_THEMATIC_CATEGORIES_VALUE" is selected, no thematic category constraint is added
+      // Note: This requires 'categoria_tematica' field to exist in your Firestore documents.
+      // if (thematicCategoryFilter && thematicCategoryFilter !== ALL_THEMATIC_CATEGORIES_VALUE) {
+      //   constraints.push(where('categoria_tematica', '==', thematicCategoryFilter));
+      // }
+      // Client-side filtering for thematic category will be applied later on the fetched results for now.
 
       constraints.push(firestoreOrderBy('ejercicio'));
 
@@ -137,7 +138,10 @@ export default function EjerciciosPage() {
       const q = query(ejerciciosCollection, ...constraints);
       const documentSnapshots = await getDocs(q);
 
-      const fetchedEjercicios = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ejercicio));
+      const fetchedEjercicios = documentSnapshots.docs.map(doc => ({ 
+        id: doc.id, 
+        ...(doc.data() as Omit<Ejercicio, 'id'>) 
+      } as Ejercicio));
       setEjercicios(fetchedEjercicios);
 
       if (isRegisteredUser) {
@@ -158,7 +162,7 @@ export default function EjerciciosPage() {
     setLastVisible(null);
     fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, searchTerm, phaseFilter, selectedAgeFilters]);
+  }, [isRegisteredUser, searchTerm, phaseFilter, selectedAgeFilters, thematicCategoryFilter]); // thematicCategoryFilter added to re-fetch if it changes, though filtering is client side
 
 
   const handleAgeCategoryChange = (ageCategory: string) => {
@@ -185,15 +189,9 @@ export default function EjerciciosPage() {
   const displayedEjercicios = useMemo(() => {
     let filtered = [...ejercicios]; 
 
+    // Client-side filtering for thematic category
     if (thematicCategoryFilter !== ALL_THEMATIC_CATEGORIES_VALUE) {
-      const categoryObj = THEMATIC_CATEGORIES.find(c => c.id === thematicCategoryFilter);
-      if (categoryObj) {
-        const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0];
-        filtered = filtered.filter(exercise => {
-          const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
-          return exerciseText.includes(searchKeyword);
-        });
-      }
+      filtered = filtered.filter(exercise => exercise.categoria_tematica === thematicCategoryFilter);
     }
     return filtered;
   }, [ejercicios, thematicCategoryFilter]);
@@ -204,10 +202,11 @@ export default function EjerciciosPage() {
       setCurrentPage(newPage);
       fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilters, 'next');
     } else if (newPage < currentPage && newPage > 0) {
-      setCurrentPage(1);
+      // Reset to first page and fetch from beginning for previous page navigation
+      setCurrentPage(1); 
       setLastVisible(null);
       fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
-    } else if (newPage === 1) { 
+    } else if (newPage === 1) { // Explicitly handle going to page 1
       setCurrentPage(1);
       setLastVisible(null);
       fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilters, 'first');
@@ -218,6 +217,7 @@ export default function EjerciciosPage() {
     const file = event.target.files?.[0];
     if (file) {
       console.log("File selected:", file.name);
+      // Placeholder for actual upload logic
     }
   };
 
@@ -283,7 +283,7 @@ export default function EjerciciosPage() {
             </Select>
             
             <Select value={thematicCategoryFilter} onValueChange={setThematicCategoryFilter}>
-              <SelectTrigger className="w-full sm:w-[220px]"> {/* Adjusted width */}
+              <SelectTrigger className="w-full sm:w-[220px]">
                 <ListFilter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Categoría" />
               </SelectTrigger>
@@ -344,7 +344,6 @@ export default function EjerciciosPage() {
             </Dialog>
           )}
         </div>
-        {/* Removed old thematic category checkbox grid */}
       </div>
 
       {isLoading ? (
@@ -381,7 +380,7 @@ export default function EjerciciosPage() {
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
                   <CardDescription className="text-xs">
-                    {ej.fase} - {ej.categoria_edad} - {ej.duracion} min
+                    {ej.fase} - {ej.categoria_edad} - {ej.duracion}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
@@ -398,7 +397,7 @@ export default function EjerciciosPage() {
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
-                        <DialogDescription>{ej.fase} - {ej.categoria_edad} - {ej.duracion} min</DialogDescription>
+                        <DialogDescription>{ej.fase} - {ej.categoria_edad} - {ej.duracion}</DialogDescription>
                       </DialogHeader>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         <div className="relative aspect-video">
@@ -430,7 +429,7 @@ export default function EjerciciosPage() {
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
-                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} 
+                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} // Always go to page 1 on previous from >1
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
                   />
                 </PaginationItem>
@@ -440,7 +439,7 @@ export default function EjerciciosPage() {
                   </PaginationLink>
                 </PaginationItem>
 
-                {ejercicios.length === ITEMS_PER_PAGE && (
+                {ejercicios.length === ITEMS_PER_PAGE && ( // Only show next if there are more items potentially
                   <PaginationItem>
                     <PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1);}} />
                   </PaginationItem>
@@ -453,3 +452,5 @@ export default function EjerciciosPage() {
     </div>
   );
 }
+
+    

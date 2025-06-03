@@ -33,10 +33,11 @@ import Link from "next/link";
 interface Ejercicio {
   id: string;
   ejercicio: string;
-  descripcion: string;
-  objetivos: string;
+  descripcion: string; // Asegúrate de que este campo se obtiene si es necesario para la heurística
+  objetivos: string;   // Asegúrate de que este campo se obtiene si es necesario para la heurística
   fase: string;
-  // Otros campos de Ejercicio si los hay y son relevantes para el filtrado
+  categoria_tematica: string; // Campo para la categoría temática
+  // Otros campos de Ejercicio si los hay y son relevantes
 }
 
 const THEMATIC_CATEGORIES = [
@@ -72,11 +73,11 @@ function CrearSesionManualContent() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [calentamientoEjercicios, setCalentamientoEjercicios] = useState<Ejercicio[]>([]);
-  const [principalEjercicios, setPrincipalEjercicios] = useState<Ejercicio[]>([]); // Todos los de fase principal
+  const [principalEjercicios, setPrincipalEjercicios] = useState<Ejercicio[]>([]); 
   const [vueltaCalmaEjercicios, setVueltaCalmaEjercicios] = useState<Ejercicio[]>([]);
 
   const [loadingEjercicios, setLoadingEjercicios] = useState({ calentamiento: true, principal: true, vueltaCalma: true });
-  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]);
+  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]); // Array de IDs de categorías temáticas
 
   const form = useForm<z.infer<typeof manualSessionSchema>>({
     resolver: zodResolver(manualSessionSchema),
@@ -96,15 +97,17 @@ function CrearSesionManualContent() {
   const fetchEjerciciosPorFase = async (fase: string, setter: React.Dispatch<React.SetStateAction<Ejercicio[]>>, loadingKey: keyof typeof loadingEjercicios) => {
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: true }));
     try {
-      const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(150)); // Aumentado límite para filtrado en cliente
+      const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(150));
       const snapshot = await getDocs(q);
       const ejerciciosData = snapshot.docs.map(doc => ({
         id: doc.id,
+        // Mapear todos los campos necesarios para la interfaz Ejercicio
         ejercicio: doc.data().ejercicio || "",
-        descripcion: doc.data().descripcion || "",
-        objetivos: doc.data().objetivos || "",
+        descripcion: doc.data().descripcion || "", // Necesario para el filtrado antiguo si se mantiene, o por completitud
+        objetivos: doc.data().objetivos || "",   // Necesario para el filtrado antiguo si se mantiene, o por completitud
         fase: doc.data().fase || "",
-        ...doc.data()
+        categoria_tematica: doc.data().categoria_tematica || "", // Asegurar que este campo se obtiene
+        ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria_tematica'>)
       } as Ejercicio));
       setter(ejerciciosData);
     } catch (error) {
@@ -135,7 +138,6 @@ function CrearSesionManualContent() {
         }
       }
     });
-     // Al cambiar categorías, deseleccionar ejercicios principales para evitar confusión si ya no están en la lista filtrada
     form.setValue('mainExerciseIds', []);
   };
 
@@ -144,14 +146,8 @@ function CrearSesionManualContent() {
       return principalEjercicios;
     }
     return principalEjercicios.filter(exercise => {
-      return selectedCategorias.some(catId => {
-        const categoryObj = THEMATIC_CATEGORIES.find(c => c.id === catId);
-        if (!categoryObj) return false;
-        // Heurística simple: buscar la etiqueta de la categoría (o parte de ella) en campos relevantes.
-        const searchKeyword = categoryObj.label.toLowerCase().split(" ")[0];
-        const exerciseText = `${exercise.ejercicio} ${exercise.descripcion} ${exercise.objetivos}`.toLowerCase();
-        return exerciseText.includes(searchKeyword);
-      });
+      // Filtrar por el campo 'categoria_tematica' del ejercicio
+      return selectedCategorias.includes(exercise.categoria_tematica);
     });
   }, [principalEjercicios, selectedCategorias]);
 
@@ -168,8 +164,6 @@ function CrearSesionManualContent() {
     setIsSaving(true);
 
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
-    // Usar principalEjercicios (la lista completa) para encontrar los documentos, no filteredPrincipalEjercicios,
-    // ya que los IDs guardados deben referenciar a cualquier ejercicio principal válido.
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
 
@@ -180,7 +174,7 @@ function CrearSesionManualContent() {
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio } : null,
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio })),
       coolDown: coolDownDoc ? { id: coolDownDoc.id, ejercicio: coolDownDoc.ejercicio } : null,
-      coachNotes: "",
+      coachNotes: "", // Manual sessions might not have AI coach notes
       numero_sesion: values.numero_sesion,
       fecha: values.fecha,
       temporada: values.temporada,
@@ -206,7 +200,7 @@ function CrearSesionManualContent() {
         club: "",
         equipo: "",
       });
-      setSelectedCategorias([]); // Resetear categorías seleccionadas
+      setSelectedCategorias([]);
     } catch (error) {
       console.error("Error saving manual session:", error);
       toast({
@@ -258,7 +252,8 @@ function CrearSesionManualContent() {
                                   field.onChange([...currentValues, item.id]);
                                 } else {
                                   toast({ title: "Límite alcanzado", description: "Puedes seleccionar hasta 4 ejercicios principales.", variant: "default" });
-                                  return;
+                                  // Do not change field.value if limit is reached
+                                  return; 
                                 }
                               } else {
                                 field.onChange(
@@ -380,8 +375,8 @@ function CrearSesionManualContent() {
                     </FormItem>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Nota: El filtrado por categorías busca palabras clave en los detalles del ejercicio.
+                 <p className="text-xs text-muted-foreground mt-2">
+                  Nota: El filtrado por categorías ahora usa el campo 'categoria_tematica' del ejercicio.
                 </p>
               </div>
                <FormField
@@ -459,3 +454,4 @@ function CrearSesionManualContent() {
   );
 }
 
+    
