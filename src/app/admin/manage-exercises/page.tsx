@@ -37,7 +37,7 @@ interface EjercicioAdmin {
   numero?: string;
   ejercicio: string;
   fase: string;
-  categoria: string; // Expecting category label
+  categoria: string;
   edad: string[] | string;
 }
 
@@ -60,8 +60,7 @@ function ManageExercisesPageContent() {
   const [pageDocSnapshots, setPageDocSnapshots] = useState<{
     first: (QueryDocumentSnapshot<DocumentData> | null)[];
     last: (QueryDocumentSnapshot<DocumentData> | null)[];
-  }>({ first: [null], last: [] });
-  const [hasMore, setHasMore] = useState(false);
+  }>({ first: [null], last: [] }); // last is 0-indexed for page N-1
 
   const [sortField, setSortField] = useState<SortableField>('ejercicio');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -86,10 +85,16 @@ function ManageExercisesPageContent() {
         firestoreOrderBy(currentSortField, currentSortDirection),
         limit(ITEMS_PER_PAGE)
       ];
-
+      
+      // For 'next' page, use the last doc of the *previous* page
+      // pageDocSnapshots.last is 0-indexed, so for page 2 (newPage=2), we need last[0]
       if (newPage > 1 && pageDocSnapshots.last[newPage - 2]) {
-        qConstraints.push(startAfter(pageDocSnapshots.last[newPage - 2]!));
+         qConstraints.push(startAfter(pageDocSnapshots.last[newPage - 2]!));
       }
+      // For 'previous' page, if going back to page 1, no startAfter.
+      // If going to page N (where N > 1) from N+1, we need the first doc of page N-1.
+      // This logic is a bit complex with 'previous'. Simpler approach: re-fetch from beginning up to page N-1.
+      // Current simplified 'previous' re-fetches target page using last of page N-2.
 
       const q = query(ejerciciosCollection, ...qConstraints);
       const querySnapshot = await getDocs(q);
@@ -98,6 +103,7 @@ function ManageExercisesPageContent() {
         ...doc.data()
       } as EjercicioAdmin));
 
+      // Aplicar ordenación natural en el cliente SI se está ordenando por 'numero'
       if (currentSortField === 'numero' && fetchedEjercicios.length > 0) {
         fetchedEjercicios.sort((a, b) => {
           const numA = (a.numero || "").trim(); 
@@ -114,18 +120,20 @@ function ManageExercisesPageContent() {
       if (querySnapshot.docs.length > 0) {
         const firstDoc = querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>;
         const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1] as QueryDocumentSnapshot<DocumentData>;
-
+        
         setPageDocSnapshots(prev => {
-          const newFirst = [...prev.first];
-          const newLast = [...prev.last];
-          newFirst[newPage - 1] = firstDoc;
-          newLast[newPage - 1] = lastDoc;
-          return { first: newFirst, last: newLast };
+            const newFirst = [...prev.first];
+            const newLast = [...prev.last];
+            newFirst[newPage -1] = firstDoc; // Store first doc of current page (newPage is 1-indexed)
+            newLast[newPage -1] = lastDoc;   // Store last doc of current page
+            return { first: newFirst, last: newLast };
         });
+
+      } else if (newPage > 1 && querySnapshot.docs.length === 0) {
+        // If we asked for a page beyond the first and got nothing, means previous page was the last
+        // No new last doc to set for this (non-existent) page.
       }
 
-      setHasMore(fetchedEjercicios.length === ITEMS_PER_PAGE);
-      setCurrentPage(newPage);
 
     } catch (error: any) {
       console.error("Error fetching exercises: ", error);
@@ -147,13 +155,14 @@ function ManageExercisesPageContent() {
       }
     }
     setIsLoading(false);
-  }, [toast, pageDocSnapshots.last]);
+  }, [toast, pageDocSnapshots.last]); // Include pageDocSnapshots.last
 
   useEffect(() => {
     if (isAdmin) {
       fetchTotalCount();
-      setPageDocSnapshots({ first: [null], last: [] });
-      setCurrentPage(1);
+      // Reset pagination state when sort/filters change or on initial load
+      setPageDocSnapshots({ first: [null], last: [] }); // Ensure last is empty for page 1
+      setCurrentPage(1); // Explicitly set to 1
       fetchEjercicios(1, sortField, sortDirection);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -164,6 +173,7 @@ function ManageExercisesPageContent() {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(newDirection);
+    // Fetching will be triggered by useEffect due to sortField/sortDirection change
   };
 
   const renderSortIcon = (field: SortableField) => {
@@ -173,16 +183,23 @@ function ManageExercisesPageContent() {
     return <ArrowDownUp className="ml-1 h-3 w-3 opacity-30" />;
   };
 
-  const handleNextPage = () => {
-    if (hasMore && !isLoading) {
-      fetchEjercicios(currentPage + 1, sortField, sortDirection);
-    }
+ const handleNextPage = () => {
+    if (ejercicios.length < ITEMS_PER_PAGE || isLoading) return; // No more pages or already loading
+    const nextPage = currentPage + 1;
+    fetchEjercicios(nextPage, sortField, sortDirection);
   };
 
   const handlePreviousPage = () => {
-    if (currentPage > 1 && !isLoading) {
-      fetchEjercicios(currentPage - 1, sortField, sortDirection);
-    }
+    if (currentPage === 1 || isLoading) return; // Already on first page or loading
+    const prevPage = currentPage - 1;
+    // To go to prevPage (e.g., page 1 from page 2), we need to start *after* the last doc of page (prevPage - 1)
+    // If prevPage is 1, no startAfter needed.
+    // This reset ensures we build up to the previous page correctly.
+    setPageDocSnapshots(prev => ({
+        first: prev.first.slice(0, prevPage -1), // Keep history up to the page before target
+        last: prev.last.slice(0, prevPage -1)
+    }));
+    fetchEjercicios(prevPage, sortField, sortDirection);
   };
 
   const handleDeleteClick = (id: string) => {
@@ -196,11 +213,24 @@ function ManageExercisesPageContent() {
     try {
       await deleteDoc(doc(db, "ejercicios_futsal", exerciseToDeleteId));
       toast({ title: "Ejercicio Eliminado", description: "El ejercicio ha sido eliminado correctamente." });
-      fetchTotalCount();
-      const newCurrentPage = (ejercicios.length === 1 && currentPage > 1) ? currentPage - 1 : currentPage;
+      
+      await fetchTotalCount(); // Recalculate total
 
-      setPageDocSnapshots({ first: [null], last: [] });
-      fetchEjercicios(newCurrentPage, sortField, sortDirection);
+      // Determine new current page after deletion
+      const newEjerciciosCountOnPage = ejercicios.length - 1;
+      let pageToFetchAfterDelete = currentPage;
+
+      if (newEjerciciosCountOnPage === 0 && currentPage > 1) {
+        pageToFetchAfterDelete = currentPage - 1;
+      }
+      
+      // Reset pagination history up to the page *before* the one we are about to fetch
+      setPageDocSnapshots(prev => ({
+          first: prev.first.slice(0, pageToFetchAfterDelete -1), 
+          last: prev.last.slice(0, pageToFetchAfterDelete -1)
+      }));
+      setCurrentPage(pageToFetchAfterDelete); // Update current page state *before* fetching
+      fetchEjercicios(pageToFetchAfterDelete, sortField, sortDirection);
 
     } catch (error) {
       console.error("Error deleting exercise: ", error);
@@ -223,7 +253,7 @@ function ManageExercisesPageContent() {
     return edad;
   };
 
-  if (!isAdmin && !isLoading) {
+  if (!isAdmin && !isLoading) { // Only render if not admin AND not initial loading
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
         <Card className="w-full max-w-md text-center shadow-lg">
@@ -247,7 +277,8 @@ function ManageExercisesPageContent() {
     );
   }
 
-  if (isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1) {
+  // Initial loading state for the entire page (when isAdmin is true)
+  if (isLoading && ejercicios.length === 0 && currentPage === 1) {
      return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -300,13 +331,13 @@ function ManageExercisesPageContent() {
            {isLoading && <CardDescription>Actualizando ejercicios...</CardDescription>}
         </CardHeader>
         <CardContent>
-          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 && currentPage > 1 ? (
+          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 && currentPage > 1 ? ( // Loading subsequent pages
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1 ? (
+          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1 ? ( // No exercises at all
             <p className="text-muted-foreground text-center py-10">No hay ejercicios en la biblioteca. <Link href="/admin/add-exercise" className="text-primary hover:underline">Añade el primero</Link>.</p>
-          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 ? (
+          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 ? ( // No exercises for current page/filters, but some exist
              <p className="text-muted-foreground text-center py-10">No hay ejercicios que coincidan con la página actual o filtros.</p>
           ): (
             <>
@@ -333,21 +364,7 @@ function ManageExercisesPageContent() {
               </TableHeader>
               <TableBody>
                 {ejercicios.map((ej) => (
-                  <TableRow key={ej.id}>
-                    <TableCell className="font-medium">{ej.numero || "N/A"}</TableCell>
-                    <TableCell>{ej.ejercicio}</TableCell>
-                    <TableCell>{ej.fase}</TableCell>
-                    <TableCell>{ej.categoria}</TableCell> {/* Displaying label directly */}
-                    <TableCell>{formatEdad(ej.edad)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleModifyClick(ej.id)} className="hover:text-blue-600" title="Modificar">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ej.id)} className="hover:text-destructive" title="Eliminar">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                <TableRow key={ej.id}><TableCell className="font-medium">{ej.numero || "N/A"}</TableCell><TableCell>{ej.ejercicio}</TableCell><TableCell>{ej.fase}</TableCell><TableCell>{ej.categoria}</TableCell><TableCell>{formatEdad(ej.edad)}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => handleModifyClick(ej.id)} className="hover:text-blue-600" title="Modificar"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ej.id)} className="hover:text-destructive" title="Eliminar"><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -373,7 +390,7 @@ function ManageExercisesPageContent() {
                         variant="outline"
                         size="sm"
                         onClick={handleNextPage}
-                        disabled={!hasMore || isLoading}
+                        disabled={ejercicios.length < ITEMS_PER_PAGE || isLoading}
                         aria-label="Página siguiente"
                     >
                         Siguiente
@@ -415,3 +432,4 @@ export default function ManageExercisesPage() {
     </AuthGuard>
   );
 }
+
