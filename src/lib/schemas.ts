@@ -1,5 +1,6 @@
 
 import { z } from 'zod';
+import { DURACION_EJERCICIO_OPCIONES_VALUES } from './constants';
 
 export const loginSchema = z.object({
   email: z.string().email({ message: "Correo electrónico inválido." }),
@@ -37,11 +38,11 @@ export const manualSessionSchema = z.object({
   warmUpExerciseId: z.string().min(1, "Debes seleccionar un ejercicio de calentamiento."),
   mainExerciseIds: z.array(z.string()).min(1, "Debes seleccionar al menos un ejercicio principal.").max(4, "Puedes seleccionar hasta 4 ejercicios principales."),
   coolDownExerciseId: z.string().min(1, "Debes seleccionar un ejercicio de vuelta a la calma."),
-  numero_sesion: z.string().optional(),
-  fecha: z.string().optional(),
-  temporada: z.string().optional(),
-  club: z.string().optional(),
-  equipo: z.string().optional(),
+  numero_sesion: z.string().optional().or(z.literal("")),
+  fecha: z.string().optional().or(z.literal("")),
+  temporada: z.string().optional().or(z.literal("")),
+  club: z.string().optional().or(z.literal("")),
+  equipo: z.string().optional().or(z.literal("")),
 });
 
 export const addExerciseSchema = z.object({
@@ -51,14 +52,17 @@ export const addExerciseSchema = z.object({
   objetivos: z.string().min(1, "Los objetivos son requeridos."),
   espacio_materiales: z.string().min(1, "Espacio y materiales son requeridos."),
   jugadores: z.string().min(1, "El número de jugadores es requerido."),
-  duracion: z.string().min(1, "La duración estimada es requerida."),
+  duracion: z.enum(DURACION_EJERCICIO_OPCIONES_VALUES, {
+    required_error: "La duración es requerida.",
+    invalid_type_error: "Selecciona una duración válida.",
+  }),
   variantes: z.string().optional(),
   fase: z.string().min(1, "La fase es requerida."),
-  categoria: z.string().min(1, "La categoría es requerida."), // Espera la etiqueta completa
+  categoria: z.string().min(1, "La categoría es requerida."), 
   edad: z.array(z.string()).min(1, "Debes seleccionar al menos una categoría de edad."),
   consejos_entrenador: z.string().optional(),
   imagen: z.string().url({ message: "Debe ser una URL válida para la imagen." }).optional().or(z.literal('')),
 });
 
 export type AddExerciseFormValues = z.infer<typeof addExerciseSchema>;
-
+export type ManualSessionFormValues = z.infer<typeof manualSessionSchema>;

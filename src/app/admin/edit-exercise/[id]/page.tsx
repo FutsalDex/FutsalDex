@@ -21,7 +21,7 @@ import { useState, useEffect, useCallback } from "react";
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS } from "@/lib/constants";
+import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
 
 function EditExercisePageContent() {
   const { isAdmin } = useAuth();
@@ -43,10 +43,10 @@ function EditExercisePageContent() {
       objetivos: "",
       espacio_materiales: "",
       jugadores: "",
-      duracion: "",
+      duracion: "", // Default to empty, will be populated from fetched data
       variantes: "",
       fase: "",
-      categoria: "", // Will store category label
+      categoria: "", 
       edad: [],
       consejos_entrenador: "",
       imagen: "",
@@ -66,13 +66,13 @@ function EditExercisePageContent() {
 
       if (docSnap.exists()) {
         const data = docSnap.data() as AddExerciseFormValues;
-        // Ensure 'edad' is an array and 'imagen' is a string
         const currentEdad = Array.isArray(data.edad) ? data.edad : (data.edad ? [String(data.edad)] : []);
         const currentImagen = typeof data.imagen === 'string' ? data.imagen : '';
         const currentNumero = typeof data.numero === 'string' ? data.numero : '';
         const currentVariantes = typeof data.variantes === 'string' ? data.variantes : '';
         const currentConsejos = typeof data.consejos_entrenador === 'string' ? data.consejos_entrenador : '';
-        const currentCategoria = typeof data.categoria === 'string' ? data.categoria : ''; // Expecting label
+        const currentCategoria = typeof data.categoria === 'string' ? data.categoria : '';
+        const currentDuracion = typeof data.duracion === 'string' ? data.duracion : '';
 
         form.reset({
           ...data,
@@ -82,6 +82,7 @@ function EditExercisePageContent() {
           variantes: currentVariantes,
           consejos_entrenador: currentConsejos,
           categoria: currentCategoria,
+          duracion: currentDuracion,
         });
         setExerciseNotFound(false);
       } else {
@@ -112,7 +113,7 @@ function EditExercisePageContent() {
     try {
       const docRef = doc(db, "ejercicios_futsal", exerciseId);
       await updateDoc(docRef, {
-        ...data, // categoria field will now contain the label
+        ...data, 
         numero: data.numero || null, 
         variantes: data.variantes || null, 
         consejos_entrenador: data.consejos_entrenador || null, 
@@ -341,11 +342,16 @@ function EditExercisePageContent() {
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="duracion" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duración Estimada</FormLabel>
-                    <FormControl><Input placeholder="Ej: 15-20 minutos" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
+                    <FormItem>
+                        <FormLabel>Duración (minutos)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona una duración" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                            {DURACION_EJERCICIO_OPCIONES.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
                 )} />
               </div>
 
@@ -401,4 +407,3 @@ export default function EditExercisePage() {
     </AuthGuard>
   );
 }
-    

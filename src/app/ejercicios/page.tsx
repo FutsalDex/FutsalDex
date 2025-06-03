@@ -37,7 +37,7 @@ interface Ejercicio {
   objetivos: string;
   espacio_materiales: string;
   jugadores: string;
-  duracion: string;
+  duracion: string; // Será "5", "10", "15", "20"
   variantes?: string;
   fase: string;
   categoria: string; 
@@ -81,7 +81,6 @@ export default function EjerciciosPage() {
       const ejerciciosCollection = collection(db, 'ejercicios_futsal');
       let constraintsList: QueryConstraint[] = [];
 
-      // Apply filters first
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
         constraintsList.push(where('fase', '==', currentPhase));
       }
@@ -92,7 +91,6 @@ export default function EjerciciosPage() {
         constraintsList.push(where('categoria', '==', currentThematicCat));
       }
 
-      // Then apply search term based ordering or default ordering
       if (currentSearch) {
         constraintsList.push(where('ejercicio', '>=', currentSearch));
         constraintsList.push(where('ejercicio', '<=', currentSearch + '\uf8ff'));
@@ -101,7 +99,6 @@ export default function EjerciciosPage() {
         constraintsList.push(firestoreOrderBy('ejercicio'));
       }
       
-      // Then apply pagination
       if (isRegisteredUser && pageToFetch > 1 && isNextPage && lastVisible) {
           constraintsList.push(startAfter(lastVisible));
       }
@@ -184,6 +181,10 @@ export default function EjerciciosPage() {
     if (selectedAgeFilter === ALL_FILTER_VALUE) return "Todas las Edades";
     return selectedAgeFilter;
   };
+
+  const formatDuracion = (duracion: string) => {
+    return `${duracion} min`;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -317,7 +318,7 @@ export default function EjerciciosPage() {
                   <CardDescription className="text-xs pt-2 space-y-0.5">
                     <div><strong>Fase:</strong> {ej.fase}</div>
                     <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
-                    <div><strong>Duración:</strong> {ej.duracion}</div>
+                    <div><strong>Duración:</strong> {formatDuracion(ej.duracion)}</div>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
@@ -339,7 +340,7 @@ export default function EjerciciosPage() {
                          <div className="text-sm text-muted-foreground pt-1">
                           <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
                           <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
-                          <p><strong className="font-semibold text-foreground/90">Duración:</strong> {ej.duracion}</p>
+                          <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ej.duracion)}</p>
                         </div>
                       </DialogHeader>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
@@ -411,5 +412,3 @@ export default function EjerciciosPage() {
     </div>
   );
 }
-    
-

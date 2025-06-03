@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, ListChecks, Bot, Edit, Clock, Edit2, Trash2 } from "lucide-react";
@@ -27,7 +28,7 @@ import {
 interface EjercicioInfo {
   id: string;
   ejercicio: string;
-  duracion?: string; 
+  duracion?: string; // "5", "10", "15", "20" or original text for AI sessions
 }
 
 interface Sesion {
@@ -60,6 +61,7 @@ export default function MisSesionesPage() {
 function MisSesionesContent() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -154,12 +156,7 @@ function MisSesionesContent() {
       });
       return;
     }
-    // Placeholder para la lógica de edición de sesiones manuales
-    // router.push(`/mis-sesiones/edit/${sessionId}`);
-    toast({
-      title: "En Desarrollo",
-      description: "La funcionalidad para editar sesiones manuales está en desarrollo.",
-    });
+    router.push(`/mis-sesiones/edit/${sessionId}`);
   };
 
 
@@ -217,47 +214,36 @@ function MisSesionesContent() {
                  <p className="text-sm text-foreground/80"><strong>Equipo:</strong> {sesion.equipo || 'N/A'}</p>
                  <p className="text-sm text-foreground/80"><strong>Temporada:</strong> {sesion.temporada || 'N/A'}</p>
                  
-                 {(sesion.type === "AI" && sesion.preferredSessionLengthMinutes) && (
-                    <p className="text-sm text-foreground/80 flex items-center">
-                        <Clock className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                        <strong>Duración IA:</strong> {sesion.preferredSessionLengthMinutes} min
-                    </p>
-                 )}
-                 {(sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined) && (
-                    <p className="text-sm text-foreground/80 flex items-center">
-                        <Clock className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                        <strong>Duración Total (aprox.):</strong> {sesion.duracionTotalManualEstimada} min
-                    </p>
-                 )}
-                 {(sesion.type === "Manual" && sesion.duracionTotalManualEstimada === undefined) && (
-                    <p className="text-sm text-muted-foreground flex items-center">
-                        <Clock className="mr-1.5 h-3.5 w-3.5" />
-                        Duración no especificada
-                    </p>
-                 )}
+                <div className="flex items-center text-sm text-foreground/80 mt-1">
+                    <Clock className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <strong>Duración Total (aprox.):&nbsp;</strong>
+                    {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` : 
+                     sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined ? `${sesion.duracionTotalManualEstimada} min` : 
+                     'No especificada'}
+                 </div>
               </CardHeader>
               <CardContent className="flex-grow space-y-3 pt-2">
                 <div>
-                  <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">1. Inicial:</h4>
+                  <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">1. Fase Inicial:</h4>
                   <p className="text-sm ml-2">{formatExerciseName(sesion.warmUp)}</p>
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">2. Principal:</h4>
+                  <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">2. Fase Principal:</h4>
                   <ul className="list-none pl-2 space-y-0.5 text-sm">
                     {sesion.mainExercises.map((ex, index) => (
                         <li key={index} className="flex">
-                            <span className="mr-1.5">{`•`}</span>
+                            <span className="mr-1.5">{`${index + 1}.`}</span>
                             <span>{formatExerciseName(ex)}</span>
                         </li>
                     ))}
                   </ul>
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">3. Final:</h4>
+                  <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider">3. Fase Final:</h4>
                   <p className="text-sm ml-2">{formatExerciseName(sesion.coolDown)}</p>
                 </div>
               </CardContent>
-              <CardFooter className="flex-col space-y-2 items-stretch">
+              <CardFooter className="flex-col space-y-2 items-stretch pt-4">
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full">
@@ -277,8 +263,10 @@ function MisSesionesContent() {
                         Fecha: {formatDate(sesion.fecha || sesion.createdAt)}
                         {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
                         <br/>Club: {sesion.club || 'N/A'} | Equipo: {sesion.equipo || 'N/A'} | Temporada: {sesion.temporada || 'N/A'}
-                        {sesion.type === "AI" && sesion.preferredSessionLengthMinutes && ` | Duración IA: ${sesion.preferredSessionLengthMinutes} min`}
-                        {sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined && ` | Duración Total (aprox.): ${sesion.duracionTotalManualEstimada} min`}
+                        <br/>
+                        Duración Total (aprox.): {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` : 
+                        sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined ? `${sesion.duracionTotalManualEstimada} min` : 
+                        'No especificada'}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="mt-4 space-y-4">
@@ -349,4 +337,3 @@ function MisSesionesContent() {
     </div>
   );
 }
-

@@ -2,7 +2,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +38,7 @@ interface Ejercicio {
   objetivos: string;   
   fase: string;
   categoria: string; 
-  duracion: string; // Añadido para calcular la duración total
+  duracion: string; // Será "5", "10", "15", "20"
 }
 
 
@@ -86,7 +86,7 @@ function CrearSesionManualContent() {
         objetivos: doc.data().objetivos || "",  
         fase: doc.data().fase || "",
         categoria: doc.data().categoria || "", 
-        duracion: doc.data().duracion || "0", // Asegurar que 'duracion' existe
+        duracion: doc.data().duracion || "0", 
         ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria' | 'duracion'>)
       } as Ejercicio));
       setter(ejerciciosData);
@@ -108,7 +108,6 @@ function CrearSesionManualContent() {
     let newSelectedCategorias: string[];
     const currentSelected = selectedCategorias;
     const isSelected = currentSelected.includes(categoryLabel);
-
     let showToast = false;
 
     if (isSelected) {
@@ -117,16 +116,16 @@ function CrearSesionManualContent() {
       if (currentSelected.length < 4) {
         newSelectedCategorias = [...currentSelected, categoryLabel];
       } else {
-        newSelectedCategorias = currentSelected; // No cambiar si se excede el límite
+        newSelectedCategorias = currentSelected;
         showToast = true; 
       }
     }
     
-    setSelectedCategorias(newSelectedCategorias);
-    form.setValue('mainExerciseIds', []); 
-
     if (showToast) {
        toast({ title: "Límite de categorías", description: "Puedes seleccionar hasta 4 categorías para filtrar." });
+    } else {
+        setSelectedCategorias(newSelectedCategorias);
+        form.setValue('mainExerciseIds', []); 
     }
   };
 
@@ -179,7 +178,7 @@ function CrearSesionManualContent() {
 
     const sessionDataToSave = {
       userId: user.uid,
-      type: "Manual",
+      type: "Manual" as "Manual" | "AI",
       sessionTitle: titleToSave,
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio, duracion: warmUpDoc.duracion } : null,
       mainExercises: mainDocs.map(e => ({ id: e.id, ejercicio: e.ejercicio, duracion: e.duracion })),
@@ -275,7 +274,7 @@ function CrearSesionManualContent() {
                             />
                           </FormControl>
                           <FormLabel className="text-sm font-normal">
-                            {item.ejercicio} ({item.duracion || 'N/A'})
+                            {item.ejercicio} ({item.duracion ? `${item.duracion} min` : 'N/A'})
                           </FormLabel>
                         </FormItem>
                       );
@@ -303,7 +302,7 @@ function CrearSesionManualContent() {
                   <SelectContent>
                     {exercises.map((ej) => (
                       <SelectItem key={ej.id} value={ej.id}>
-                        {ej.ejercicio} ({ej.duracion || 'N/A'})
+                        {ej.ejercicio} ({ej.duracion ? `${ej.duracion} min` : 'N/A'})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -387,7 +386,7 @@ function CrearSesionManualContent() {
                 name="mainExerciseIds"
                 render={() => (
                   <FormItem className="mt-2">
-                    <FormMessage /> {/* Asegura que el mensaje de error para mainExerciseIds se muestre aquí */}
+                    <FormMessage /> 
                   </FormItem>
                 )}
               />

@@ -19,7 +19,7 @@ import { useState } from "react";
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS } from "@/lib/constants";
+import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
 
 
 function AddExercisePageContent() {
@@ -36,7 +36,7 @@ function AddExercisePageContent() {
       objetivos: "",
       espacio_materiales: "",
       jugadores: "",
-      duracion: "",
+      duracion: "", // Default to empty, user must select
       variantes: "",
       fase: "",
       categoria: "", 
@@ -249,11 +249,16 @@ function AddExercisePageContent() {
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="duracion" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duración Estimada</FormLabel>
-                    <FormControl><Input placeholder="Ej: 15-20 minutos" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
+                    <FormItem>
+                        <FormLabel>Duración (minutos)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona una duración" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                            {DURACION_EJERCICIO_OPCIONES.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
                 )} />
               </div>
 
