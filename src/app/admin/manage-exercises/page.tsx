@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, ArrowLeft, ListChecks, Edit, Trash2, Loader2, PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { db } from "@/lib/firebase";
 import { collection, getDocs, deleteDoc, doc, query, orderBy as firestoreOrderBy, DocumentData } from 'firebase/firestore';
 import {
@@ -27,7 +28,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // No longer needed directly here for the button
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORIAS_TEMATICAS_MAP } from "@/lib/constants";
@@ -39,12 +39,12 @@ interface EjercicioAdmin {
   fase: string;
   categoria: string; 
   edad: string[] | string; 
-  // Add other fields if they need to be displayed or used for actions
 }
 
 function ManageExercisesPageContent() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+  const router = useRouter(); // Initialize useRouter
   const [ejercicios, setEjercicios] = useState<EjercicioAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -97,12 +97,7 @@ function ManageExercisesPageContent() {
   };
 
   const handleModifyClick = (id: string) => {
-    // For now, just a toast. Later, this could link to an edit page.
-    // router.push(`/admin/edit-exercise/${id}`);
-    toast({
-      title: "Modificar Ejercicio",
-      description: "La funcionalidad para modificar ejercicios está en desarrollo.",
-    });
+    router.push(`/admin/edit-exercise/${id}`); // Correct navigation
   };
   
   const formatEdad = (edad: string[] | string) => {
@@ -240,4 +235,3 @@ export default function ManageExercisesPage() {
     </AuthGuard>
   );
 }
-
