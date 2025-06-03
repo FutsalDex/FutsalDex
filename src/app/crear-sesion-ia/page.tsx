@@ -57,6 +57,8 @@ function CrearSesionIAContent() {
     },
   });
 
+  const watchedTeamDescription = form.watch("teamDescription");
+
   async function onSubmit(values: z.infer<typeof aiSessionSchema>) {
     setIsLoading(true);
     setGeneratedSession(null);
@@ -160,7 +162,7 @@ function CrearSesionIAContent() {
                       <FormControl>
                         <Textarea placeholder="Ej: Equipo amateur, jugadores con 2 años de experiencia, buena condición física pero necesitan mejorar táctica." {...field} />
                       </FormControl>
-                      <FormDescription>Nivel, experiencia, fortalezas, debilidades.</FormDescription>
+                      {!(watchedTeamDescription && watchedTeamDescription.length > 0) && <FormDescription>Nivel, experiencia, fortalezas, debilidades.</FormDescription>}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -285,4 +287,3 @@ function CrearSesionIAContent() {
     </div>
   );
 }
-

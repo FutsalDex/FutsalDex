@@ -39,18 +39,21 @@ function AddExercisePageContent() {
       duracion: "",
       variantes: "",
       fase: "",
-      categoria: "", // Will store category label
+      categoria: "", 
       edad: [], 
       consejos_entrenador: "",
       imagen: "",
     },
   });
 
+  const watchedNumero = form.watch("numero");
+  const watchedImagen = form.watch("imagen");
+
   async function onSubmit(data: AddExerciseFormValues) {
     setIsLoading(true);
     try {
       await addDoc(collection(db, "ejercicios_futsal"), {
-        ...data, // categoria field will now contain the label
+        ...data, 
         numero: data.numero || null, 
         variantes: data.variantes || null,
         consejos_entrenador: data.consejos_entrenador || null,
@@ -139,7 +142,7 @@ function AddExercisePageContent() {
                   <FormItem>
                     <FormLabel>Número (Opcional)</FormLabel>
                     <FormControl><Input placeholder="Ej: 001, A-10" {...field} /></FormControl>
-                    <FormDescription>Identificador numérico o alfanumérico.</FormDescription>
+                    {!watchedNumero && <FormDescription>Identificador numérico o alfanumérico.</FormDescription>}
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -282,7 +285,7 @@ function AddExercisePageContent() {
                 <FormItem>
                   <FormLabel>URL de la Imagen (Opcional)</FormLabel>
                   <FormControl><Input type="url" placeholder="https://ejemplo.com/imagen.png" {...field} /></FormControl>
-                  <FormDescription>Si se deja vacío, se usará una imagen genérica.</FormDescription>
+                  {!(watchedImagen && watchedImagen.length > 0) && <FormDescription>Si se deja vacío, se usará una imagen genérica.</FormDescription>}
                   <FormMessage />
                 </FormItem>
               )} />
