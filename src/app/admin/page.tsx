@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, AlertTriangle, PlusCircle, Edit, Trash2, ListChecks } from "lucide-react";
+import Link from "next/link";
 
 function AdminPageContent() {
   const { isAdmin, user } = useAuth();
@@ -45,13 +46,17 @@ function AdminPageContent() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Añadir Nuevo Ejercicio
+            <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Link href="/admin/add-exercise">
+                <PlusCircle className="mr-2 h-5 w-5" />
+                Añadir Nuevo Ejercicio
+              </Link>
             </Button>
-             <Button variant="outline" className="w-full sm:w-auto">
-              <ListChecks className="mr-2 h-5 w-5" />
-              Ver/Gestionar Ejercicios Existentes
+             <Button variant="outline" asChild className="w-full sm:w-auto">
+              <Link href="/admin/manage-exercises">
+                <ListChecks className="mr-2 h-5 w-5" />
+                Ver/Gestionar Ejercicios Existentes
+              </Link>
             </Button>
           </div>
           
