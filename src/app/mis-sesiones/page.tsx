@@ -5,11 +5,11 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, ListChecks, Bot, Edit, Clock, Edit2, Trash2 } from "lucide-react";
+import { Loader2, Eye, ListChecks, Bot, Edit, Clock, Edit2, Trash2, Filter as FilterIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
@@ -24,11 +24,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface EjercicioInfo {
   id: string;
   ejercicio: string;
-  duracion?: string; // "5", "10", "15", "20" or original text for AI sessions
+  duracion?: string; 
 }
 
 interface Sesion {
@@ -41,7 +42,7 @@ interface Sesion {
   coolDown: string | EjercicioInfo; 
   coachNotes?: string;
   numero_sesion?: string;
-  fecha?: string | Timestamp;
+  fecha?: string | Timestamp; // Puede ser string 'YYYY-MM-DD' o Timestamp de Firestore
   temporada?: string;
   club?: string;
   equipo?: string;
@@ -49,6 +50,22 @@ interface Sesion {
   duracionTotalManualEstimada?: number; 
   createdAt: Timestamp;
 }
+
+const MESES = [
+  { value: 1, label: "Enero" }, { value: 2, label: "Febrero" }, { value: 3, label: "Marzo" },
+  { value: 4, label: "Abril" }, { value: 5, label: "Mayo" }, { value: 6, label: "Junio" },
+  { value: 7, label: "Julio" }, { value: 8, label: "Agosto" }, { value: 9, label: "Septiembre" },
+  { value: 10, label: "Octubre" }, { value: 11, label: "Noviembre" }, { value: 12, label: "Diciembre" }
+];
+
+const getYearsRange = () => {
+  const currentYear = new Date().getFullYear();
+  const years = [];
+  for (let i = currentYear + 1; i >= currentYear - 5; i--) {
+    years.push(i);
+  }
+  return years;
+};
 
 export default function MisSesionesPage() {
   return (
@@ -68,49 +85,109 @@ function MisSesionesContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [sessionToDeleteId, setSessionToDeleteId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
+  const [activeFilter, setActiveFilter] = useState<{ year: number; month: number } | null>(null);
 
-    const fetchSesiones = async () => {
-      setIsLoading(true);
-      try {
-        const q = query(
-          collection(db, "mis_sesiones"),
-          where("userId", "==", user.uid),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const fetchedSesiones = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sesion));
-        setSesiones(fetchedSesiones);
-      } catch (error) {
-        console.error("Error fetching sessions:", error);
+  const fetchSesiones = useCallback(async (filter?: { year: number; month: number } | null) => {
+    if (!user) return;
+    setIsLoading(true);
+
+    let q_constraints = [
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc")
+    ];
+
+    let targetYear: number, targetMonth: number;
+
+    if (filter) {
+        targetYear = filter.year;
+        targetMonth = filter.month; // 1-indexed
+    } else { // Default to current month
+        const now = new Date();
+        targetYear = now.getFullYear();
+        targetMonth = now.getMonth() + 1; // 1-indexed
+    }
+    
+    const startDate = new Date(targetYear, targetMonth - 1, 1); // First day of target month
+    const endDate = new Date(targetYear, targetMonth, 1); // First day of next month
+
+    q_constraints.unshift(where("createdAt", "<", endDate)); // Using unshift to keep orderBy last if possible, or let firestore decide best index
+    q_constraints.unshift(where("createdAt", ">=", startDate));
+
+
+    try {
+      const finalQuery = query(collection(db, "mis_sesiones"), ...q_constraints);
+      const querySnapshot = await getDocs(finalQuery);
+      const fetchedSesiones = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sesion));
+      setSesiones(fetchedSesiones);
+    } catch (error: any) {
+      console.error("Error fetching sessions:", error);
+      if (error.code === 'failed-precondition') {
         toast({
-          title: "Error al Cargar Sesiones",
-          description: "No se pudieron cargar tus sesiones.",
+          title: "Índice Requerido por Firestore",
+          description: (
+            <div className="text-sm">
+              <p>La combinación actual de filtros y/o ordenación necesita un índice compuesto en Firestore que no existe.</p>
+              <p className="mt-1">Por favor, abre la consola de desarrollador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p>
+              <p className="mt-2 text-xs">Ejemplo: "The query requires an index. You can create it here: [enlace]"</p>
+            </div>
+          ),
           variant: "destructive",
+          duration: 30000,
+        });
+      } else {
+        toast({
+            title: "Error al Cargar Sesiones",
+            description: "No se pudieron cargar tus sesiones.",
+            variant: "destructive",
         });
       }
-      setIsLoading(false);
-    };
-
-    fetchSesiones();
+    }
+    setIsLoading(false);
   }, [user, toast]);
+
+  useEffect(() => {
+    const now = new Date();
+    fetchSesiones({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  }, [fetchSesiones]); // Initial fetch for current month
+
+  const handleApplyFilter = () => {
+    if (selectedYear && selectedMonth) {
+      const yearNum = parseInt(selectedYear, 10);
+      const monthNum = parseInt(selectedMonth, 10);
+      setActiveFilter({ year: yearNum, month: monthNum });
+      fetchSesiones({ year: yearNum, month: monthNum });
+    }
+  };
+
+  const handleShowCurrentMonth = () => {
+    const now = new Date();
+    setSelectedYear(now.getFullYear().toString());
+    setSelectedMonth((now.getMonth() + 1).toString());
+    setActiveFilter(null);
+    fetchSesiones({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  };
 
   const formatDate = (dateValue: string | Timestamp | undefined) => {
     if (!dateValue) return 'N/A';
+    let date: Date;
     if (typeof dateValue === 'string') {
-      try {
-        const date = new Date(dateValue);
-         if (isNaN(date.getTime())) return dateValue; 
-        return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
-      } catch (e) {
-        return dateValue; 
+      // Handles 'YYYY-MM-DD' or other parsable string formats
+      date = new Date(dateValue);
+      // Adjust for potential timezone issues if dateValue is 'YYYY-MM-DD'
+      // by setting time to midday to avoid day shifts.
+      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+         const [year, month, day] = dateValue.split('-').map(Number);
+         date = new Date(year, month - 1, day, 12,0,0);
       }
+    } else if (dateValue.toDate) { 
+      date = dateValue.toDate();
+    } else {
+      return 'Fecha inválida';
     }
-    if (dateValue.toDate) { 
-      return dateValue.toDate().toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
-    }
-    return 'Fecha inválida';
+    if (isNaN(date.getTime())) return (typeof dateValue === 'string' ? dateValue : 'Fecha inválida');
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
   };
   
   const formatExerciseName = (exercise: string | EjercicioInfo | null | undefined): string => {
@@ -129,7 +206,13 @@ function MisSesionesContent() {
     setIsDeleting(true);
     try {
       await deleteDoc(doc(db, "mis_sesiones", sessionToDeleteId));
-      setSesiones(prev => prev.filter(s => s.id !== sessionToDeleteId));
+      // Refetch sessions based on current filter after deletion
+      if (activeFilter) {
+        fetchSesiones(activeFilter);
+      } else {
+        const now = new Date();
+        fetchSesiones({ year: now.getFullYear(), month: now.getMonth() + 1 });
+      }
       toast({
         title: "Sesión Eliminada",
         description: "La sesión ha sido eliminada correctamente.",
@@ -159,8 +242,10 @@ function MisSesionesContent() {
     router.push(`/mis-sesiones/edit/${sessionId}`);
   };
 
+  const years = getYearsRange();
 
-  if (isLoading) {
+
+  if (isLoading && sesiones.length === 0) { // Show main loader only on initial full load
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -177,15 +262,55 @@ function MisSesionesContent() {
         </p>
       </header>
 
-      {sesiones.length === 0 ? (
+      <Card className="mb-8 shadow-md">
+        <CardHeader>
+          <CardTitle className="text-xl font-headline flex items-center">
+            <FilterIcon className="mr-2 h-5 w-5 text-primary" />
+            Filtrar Sesiones por Mes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row gap-4 items-center">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Año" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map(year => <SelectItem key={year} value={year.toString()}>{year}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Mes" />
+            </SelectTrigger>
+            <SelectContent>
+              {MESES.map(mes => <SelectItem key={mes.value} value={mes.value.toString()}>{mes.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button onClick={handleApplyFilter} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">Aplicar Filtro</Button>
+          <Button onClick={handleShowCurrentMonth} variant="outline" className="w-full sm:w-auto">Mes Actual</Button>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+         <div className="flex justify-center items-center py-10">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="ml-3 text-muted-foreground">Cargando sesiones...</p>
+         </div>
+      ) : sesiones.length === 0 ? (
         <Card className="text-center py-12">
           <CardHeader>
             <ListChecks className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-            <CardTitle className="text-2xl font-headline">No Tienes Sesiones Guardadas</CardTitle>
+            <CardTitle className="text-2xl font-headline">
+              {activeFilter ? "No Hay Sesiones para este Mes" : "No Tienes Sesiones este Mes"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <CardDescription className="mb-6">
-              Parece que aún no has creado ninguna sesión de entrenamiento. ¡Empieza ahora!
+              {activeFilter 
+                ? `No se encontraron sesiones para ${MESES.find(m=>m.value === activeFilter.month)?.label} de ${activeFilter.year}.`
+                : "Parece que aún no has creado ninguna sesión de entrenamiento este mes."}
+              <br/>
+              ¡Empieza ahora o ajusta los filtros!
             </CardDescription>
             <div className="flex justify-center gap-4">
               <Button asChild>
@@ -207,7 +332,7 @@ function MisSesionesContent() {
             <Card key={sesion.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
               <CardHeader className="pb-3">
                  <p className="text-xl font-semibold text-primary">
-                  Fecha: {formatDate(sesion.fecha || sesion.createdAt)}
+                  {formatDate(sesion.fecha || sesion.createdAt)}
                   {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
                 </p>
                  <p className="text-sm text-foreground/80"><strong>Club:</strong> {sesion.club || 'N/A'}</p>
@@ -216,7 +341,7 @@ function MisSesionesContent() {
                  
                 <div className="flex items-center text-sm text-foreground/80 mt-1">
                     <Clock className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <strong>Duración Total (aprox.):&nbsp;</strong>
+                    <strong>Tiempo Total:&nbsp;</strong>
                     {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` : 
                      sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined ? `${sesion.duracionTotalManualEstimada} min` : 
                      'No especificada'}
@@ -253,35 +378,36 @@ function MisSesionesContent() {
                   <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <div className="flex justify-between items-center">
-                        <DialogTitle className="text-2xl text-primary font-headline">{sesion.sessionTitle}</DialogTitle>
+                        <DialogTitle className="text-2xl text-primary font-headline">
+                           {formatDate(sesion.fecha || sesion.createdAt)}
+                           {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
+                        </DialogTitle>
                         <Badge variant={sesion.type === "AI" ? "default" : "secondary"}>
                            {sesion.type === "AI" ? <Bot className="mr-1 h-3 w-3"/> : <Edit className="mr-1 h-3 w-3"/>}
                           {sesion.type}
                         </Badge>
                       </div>
                       <DialogDescription>
-                        Fecha: {formatDate(sesion.fecha || sesion.createdAt)}
-                        {sesion.numero_sesion && ` | Sesión #${sesion.numero_sesion}`}
-                        <br/>Club: {sesion.club || 'N/A'} | Equipo: {sesion.equipo || 'N/A'} | Temporada: {sesion.temporada || 'N/A'}
+                         Club: {sesion.club || 'N/A'} | Equipo: {sesion.equipo || 'N/A'} | Temporada: {sesion.temporada || 'N/A'}
                         <br/>
-                        Duración Total (aprox.): {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` : 
+                        Tiempo Total (aprox.): {sesion.type === "AI" && sesion.preferredSessionLengthMinutes ? `${sesion.preferredSessionLengthMinutes} min (IA)` : 
                         sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined ? `${sesion.duracionTotalManualEstimada} min` : 
                         'No especificada'}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="mt-4 space-y-4">
                       <div>
-                        <h3 className="font-semibold text-lg mb-1">Calentamiento:</h3>
+                        <h3 className="font-semibold text-lg mb-1">1. Calentamiento:</h3>
                         <p className="text-sm">{formatExerciseName(sesion.warmUp)}</p>
                       </div>
                        <div>
-                        <h3 className="font-semibold text-lg mb-1">Ejercicios Principales:</h3>
+                        <h3 className="font-semibold text-lg mb-1">2. Ejercicios Principales:</h3>
                         <ul className="list-disc pl-5 space-y-1 text-sm">
                           {sesion.mainExercises.map((ex, index) => <li key={index}>{formatExerciseName(ex)}</li>)}
                         </ul>
                       </div>
                       <div>
-                        <h3 className="font-semibold text-lg mb-1">Vuelta a la Calma:</h3>
+                        <h3 className="font-semibold text-lg mb-1">3. Vuelta a la Calma:</h3>
                         <p className="text-sm">{formatExerciseName(sesion.coolDown)}</p>
                       </div>
                       {sesion.coachNotes && (
@@ -337,3 +463,4 @@ function MisSesionesContent() {
     </div>
   );
 }
+
