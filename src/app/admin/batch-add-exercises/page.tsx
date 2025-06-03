@@ -277,7 +277,7 @@ function BatchAddExercisesPageContent() {
               type="file"
               accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv"
               onChange={handleFileChange}
-              className="h-12 py-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              className="h-14 py-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
             />
             {selectedFile && <p className="text-sm text-muted-foreground">Archivo seleccionado: {selectedFile.name}</p>}
           </div>
@@ -338,3 +338,5 @@ export default function BatchAddExercisesPage() {
     </AuthGuard>
   );
 }
+
+    
