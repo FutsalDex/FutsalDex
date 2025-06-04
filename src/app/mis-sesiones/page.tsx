@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles, Info } from "lucide-react";
+import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles, Info, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader as ShadcnDialogHeader, DialogTitle as ShadcnDialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
+import { parseDurationToMinutes } from "@/lib/utils";
 
 
 interface EjercicioInfo {
@@ -376,14 +377,14 @@ function MisSesionesContent() {
 
 
   const getTotalDuration = (sesion: Sesion | SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return 'No especificada';
+    if (!sesion) return 'N/A';
     if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
         return `${sesion.preferredSessionLengthMinutes} min`;
     }
     if (sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined) {
         return `${sesion.duracionTotalManualEstimada} min`;
     }
-    return 'No especificada';
+    return 'N/A';
   }
 
   const getDialogCategorias = (sesion: SesionConDetallesEjercicio | null): string => {
@@ -414,24 +415,37 @@ function MisSesionesContent() {
     return objetivos.length > 0 ? Array.from(new Set(objetivos.map(o => o.trim()))).join('; ') : "No especificados";
   };
   
-  const getDialogTotalDuration = (sesion: SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return 'No especificada';
-    if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
-        return `${sesion.preferredSessionLengthMinutes} min`;
-    }
-    if (sesion.type === "Manual") {
-        let totalMinutes = 0;
-        const parse = (val: string | undefined) => val ? parseInt(val, 10) : 0;
+ const getDialogTotalDuration = (sesion: SesionConDetallesEjercicio | null): string => {
+    if (!sesion) return 'N/A';
+    let totalMinutes = 0;
 
-        if (typeof sesion.warmUp === 'object' && sesion.warmUp?.duracion) totalMinutes += parse(sesion.warmUp.duracion);
+    if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
+        totalMinutes = sesion.preferredSessionLengthMinutes;
+    } else if (sesion.type === "Manual") {
+        if (typeof sesion.warmUp === 'object' && sesion.warmUp?.duracion) {
+            totalMinutes += parseDurationToMinutes(sesion.warmUp.duracion);
+        }
         sesion.mainExercises.forEach(ex => {
-            if (typeof ex === 'object' && ex?.duracion) totalMinutes += parse(ex.duracion);
+            if (typeof ex === 'object' && ex?.duracion) {
+                totalMinutes += parseDurationToMinutes(ex.duracion);
+            }
         });
-        if (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion) totalMinutes += parse(sesion.coolDown.duracion);
-        
-        return totalMinutes > 0 ? `${totalMinutes} min` : 'No especificada';
+        if (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion) {
+            totalMinutes += parseDurationToMinutes(sesion.coolDown.duracion);
+        }
     }
-    return 'No especificada';
+    return totalMinutes > 0 ? `${totalMinutes} min` : 'N/A';
+};
+
+const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[]): string => {
+  if (!exercises || exercises.length === 0) return '0 min';
+  let totalMinutes = 0;
+  exercises.forEach(ex => {
+    if (typeof ex === 'object' && ex?.duracion) {
+      totalMinutes += parseDurationToMinutes(ex.duracion);
+    }
+  });
+  return totalMinutes > 0 ? `${totalMinutes} min` : '0 min';
 };
 
 
@@ -530,7 +544,7 @@ function MisSesionesContent() {
               </CardHeader>
               <CardContent className="space-y-2 flex-grow pb-6"> 
                 <div>
-                  <p className="text-xs"> {/* Changed from text-sm to text-xs */}
+                  <p className="text-xs"> 
                     <span className="font-semibold text-muted-foreground">Tiempo total: </span>
                     <span className="font-medium">{getTotalDuration(sesion)}</span>
                   </p>
@@ -543,13 +557,12 @@ function MisSesionesContent() {
                 <div className="space-y-0.5">
                   <p className="text-xs font-semibold text-muted-foreground">Ejercicios Principales:</p>
                   {sesion.mainExercises.length > 0 ? (
-                    sesion.mainExercises.slice(0,4).map((ex, index) => ( // Changed slice from 2 to 4
+                    sesion.mainExercises.slice(0,4).map((ex, index) => ( 
                       <p key={index} className="text-xs pl-2 line-clamp-1">- {formatExerciseName(ex)}</p>
                     ))
                   ) : (
                     <p className="text-xs pl-2 text-muted-foreground">- No especificados</p>
                   )}
-                  {/* Removed the "... y más" logic */}
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs font-semibold text-muted-foreground">Vuelta a la Calma:</p>
@@ -570,8 +583,23 @@ function MisSesionesContent() {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
-                    <ShadcnDialogHeader>
-                        <ShadcnDialogTitle className="sr-only">Ficha Detallada de la Sesión: {detailedSessionData ? getSessionTema(detailedSessionData) : ''}</ShadcnDialogTitle>
+                    <ShadcnDialogHeader className="p-4 border-b bg-gray-800 text-white rounded-t-md">
+                        <ShadcnDialogTitle className="text-xl font-bold uppercase sr-only">SESIÓN DE ENTRENAMIENTO</ShadcnDialogTitle>
+                         {detailedSessionData && (
+                             <div className="flex justify-between items-start">
+                                <h2 className="text-xl font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
+                                <div className="text-right">
+                                <p className="text-md text-gray-300">FECHA: {formatDate(detailedSessionData.fecha)}</p>
+                                <p className="text-md text-gray-300">Nº SESIÓN: {detailedSessionData.numero_sesion || 'N/A'}</p>
+                                </div>
+                            </div>
+                         )}
+                         {detailedSessionData && (
+                            <div className="flex justify-between text-md text-gray-300">
+                                <p>EQUIPO: {detailedSessionData.equipo || 'No especificado'}</p>
+                                <p>CLUB: {detailedSessionData.club || 'No especificado'}</p>
+                            </div>
+                         )}
                     </ShadcnDialogHeader>
                     {isLoadingDialogDetails && !detailedSessionData && (
                         <div className="flex flex-col items-center justify-center p-10 min-h-[300px]">
@@ -580,27 +608,13 @@ function MisSesionesContent() {
                         </div>
                     )}
                     {detailedSessionData && (
-                      <div className="border border-gray-700 bg-gray-50 text-gray-800 shadow-lg rounded-md m-0">
-                        <div className="bg-gray-800 text-white p-4 rounded-t-md">
-                          <div className="flex justify-between items-start mb-2">
-                            <h2 className="text-xl font-bold uppercase">SESIÓN DE ENTRENAMIENTO</h2>
-                            <div className="text-right">
-                              <p className="text-md">FECHA: {formatDate(detailedSessionData.fecha)}</p>
-                              <p className="text-md">Nº SESIÓN: {detailedSessionData.numero_sesion || 'N/A'}</p>
-                            </div>
-                          </div>
-                          <div className="flex justify-between text-md">
-                            <p>EQUIPO: {detailedSessionData.equipo || 'No especificado'}</p>
-                            <p>CLUB: {detailedSessionData.club || 'No especificado'}</p>
-                          </div>
-                        </div>
+                      <div className="border border-gray-700 bg-gray-50 text-gray-800 shadow-lg m-0 rounded-b-md">
                         
                         <div className="p-4 border-b border-gray-300">
                             <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
                                 <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
                             </div>
                             <div className="text-sm space-y-1">
-                                
                                 <p><strong className="font-medium">CATEGORÍA(S):</strong> {getDialogCategorias(detailedSessionData)}</p>
                                 <p><strong className="font-medium">OBJETIVOS GENERALES:</strong> {getDialogObjetivos(detailedSessionData)}</p>
                             </div>
@@ -612,22 +626,20 @@ function MisSesionesContent() {
                             <span className="text-sm">{getExerciseDuration(detailedSessionData.warmUp)}</span>
                           </div>
                           <div className="flex flex-col md:flex-row gap-4 items-start">
-                            <Image src={getExerciseImage(detailedSessionData.warmUp, "Calentamiento")} alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal warmup"/>
+                            <div className="md:w-1/3 flex-shrink-0">
+                                <Image src={getExerciseImage(detailedSessionData.warmUp, "Calentamiento")} alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal warmup"/>
+                            </div>
                             <div className="flex-1">
                                 <p className="text-md font-semibold">{formatExerciseName(detailedSessionData.warmUp)}</p>
                                 <p className="text-sm mt-1">{formatExerciseDescription(detailedSessionData.warmUp)}</p>
                             </div>
                           </div>
-                          {typeof detailedSessionData.warmUp === 'object' && detailedSessionData.warmUp.id && (
-                              <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
-                                  <Link href={`/ejercicios#${detailedSessionData.warmUp.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
-                              </Button>
-                          )}
                         </div>
 
                         <div className="p-4 border-b border-gray-300">
-                          <div className="bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                            <h3 className="font-semibold text-lg text-center">PARTE PRINCIPAL</h3>
+                          <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+                            <h3 className="font-semibold text-lg">PARTE PRINCIPAL</h3>
+                            <span className="text-sm">{getMainExercisesTotalDuration(detailedSessionData.mainExercises)}</span>
                           </div>
                           <div className="space-y-4">
                             {detailedSessionData.mainExercises.map((ex, index) => (
@@ -636,17 +648,14 @@ function MisSesionesContent() {
                                   <span className="font-medium">TIEMPO: {getExerciseDuration(ex)}</span>
                                 </div>
                                 <div className="flex flex-col md:flex-row gap-4 items-start">
-                                  <Image src={getExerciseImage(ex, `Principal ${index + 1}`)} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal exercise"/>
+                                  <div className="md:w-1/3 flex-shrink-0">
+                                      <Image src={getExerciseImage(ex, `Principal ${index + 1}`)} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal exercise"/>
+                                  </div>
                                   <div className="flex-1">
                                     <p className="text-md font-semibold">{formatExerciseName(ex)}</p>
                                     <p className="text-sm mt-1">{formatExerciseDescription(ex)}</p>
                                   </div>
                                 </div>
-                                {typeof ex === 'object' && ex.id && (
-                                    <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
-                                        <Link href={`/ejercicios#${ex.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
-                                    </Button>
-                                )}
                               </div>
                             ))}
                           </div>
@@ -658,17 +667,14 @@ function MisSesionesContent() {
                             <span className="text-sm">{getExerciseDuration(detailedSessionData.coolDown)}</span>
                           </div>
                            <div className="flex flex-col md:flex-row gap-4 items-start">
-                             <Image src={getExerciseImage(detailedSessionData.coolDown, "Vuelta a la Calma")} alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal cooldown"/>
+                             <div className="md:w-1/3 flex-shrink-0">
+                                 <Image src={getExerciseImage(detailedSessionData.coolDown, "Vuelta a la Calma")} alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal cooldown"/>
+                             </div>
                              <div className="flex-1">
                                 <p className="text-md font-semibold">{formatExerciseName(detailedSessionData.coolDown)}</p>
                                 <p className="text-sm mt-1">{formatExerciseDescription(detailedSessionData.coolDown)}</p>
                              </div>
                            </div>
-                          {typeof detailedSessionData.coolDown === 'object' && detailedSessionData.coolDown.id && (
-                              <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
-                                  <Link href={`/ejercicios#${detailedSessionData.coolDown.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
-                              </Button>
-                          )}
                         </div>
                         
                          <div className="p-4 mt-3 border-b border-gray-300 text-center">
@@ -690,6 +696,12 @@ function MisSesionesContent() {
                             {detailedSessionData.trainingGoals && detailedSessionData.type === "AI" && (!detailedSessionData.coachNotes?.includes(detailedSessionData.trainingGoals)) && <div><h4 className="font-semibold text-md">Objetivos (Input IA):</h4><p className="text-sm whitespace-pre-wrap">{detailedSessionData.trainingGoals}</p></div>}
                           </div>
                         )}
+                        <div className="p-4 mt-4 text-center border-t border-gray-300">
+                            <Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                <Printer className="mr-2 h-4 w-4" />
+                                Imprimir / Guardar PDF
+                            </Button>
+                        </div>
                       </div>
                     )}
                   </DialogContent>
