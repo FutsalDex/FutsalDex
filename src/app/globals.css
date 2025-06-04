@@ -162,7 +162,7 @@
     padding: 0 !important; /* Reset DialogContent padding */
     box-shadow: none !important;
     border: none !important;
-    overflow: visible !important;
+    overflow: visible !important; /* Crucial for printing full content */
     max-height: none !important; /* Allow full height */
     animation: none !important; /* Disable entry/exit animations */
     left: auto !important;
@@ -202,6 +202,4 @@
     font-family: 'Poppins', sans-serif; /* Match your headline font */
   }
 }
-
-
     
