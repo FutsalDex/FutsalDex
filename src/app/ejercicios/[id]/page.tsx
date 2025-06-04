@@ -139,17 +139,19 @@ export default function EjercicioDetallePage() {
     }
 
     setIsGeneratingPdf(true);
+    console.log("handlePrint called on exercise detail page.");
 
     const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
     const originalDisplay = printButtonContainer ? printButtonContainer.style.display : '';
     if (printButtonContainer) printButtonContainer.style.display = 'none';
     
-    const headerElement = printArea.querySelector('header'); // Assuming your header is a <header> tag
+    const headerElement = printArea.querySelector('header');
     const originalHeaderBg = headerElement ? headerElement.style.backgroundColor : '';
     if (headerElement) headerElement.style.backgroundColor = 'white';
 
 
     try {
+      console.log("Attempting to capture with html2canvas for exercise detail page.");
       const canvas = await html2canvas(printArea, { 
         scale: 2, 
         useCORS: true,
@@ -158,7 +160,7 @@ export default function EjercicioDetallePage() {
          onclone: (document) => {
             const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
             if (clonedPrintArea) {
-                const textElements = clonedPrintArea.querySelectorAll('p, h1, h3, li, strong, span, div:not(img):not(svg), td, th, a, button'); // Added more selectors
+                const textElements = clonedPrintArea.querySelectorAll('p, h1, h3, li, strong, span, div:not(img):not(svg), td, th, a, button');
                 textElements.forEach(el => {
                     (el as HTMLElement).style.color = '#000000'; 
                 });
@@ -166,16 +168,15 @@ export default function EjercicioDetallePage() {
                  primaryElements.forEach(el => {
                     (el as HTMLElement).style.color = '#000000';
                  });
-                 // Ensure specific elements like badge backgrounds are also handled if needed
-                 const badges = clonedPrintArea.querySelectorAll('.bg-primary'); // Example for primary badge
+                 const badges = clonedPrintArea.querySelectorAll('.bg-primary');
                  badges.forEach(el => {
-                    (el as HTMLElement).style.backgroundColor = '#dddddd'; // A light gray for badges
+                    (el as HTMLElement).style.backgroundColor = '#dddddd';
                     (el as HTMLElement).style.color = '#000000'; 
                  });
-
             }
         }
       });
+      console.log("html2canvas capture successful for exercise detail page.");
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
@@ -195,58 +196,36 @@ export default function EjercicioDetallePage() {
           const originalImgWidth = img.width;
           const originalImgHeight = img.height;
 
-          const scaleFactor = pdfPrintableWidth / originalImgWidth;
+          const scaleFactorWidth = pdfPrintableWidth / originalImgWidth;
+          const scaleFactorHeight = pdfPrintableHeight / originalImgHeight;
+          const finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight);
+
+          const pdfImageWidth = originalImgWidth * finalScaleFactor;
+          const pdfImageHeight = originalImgHeight * finalScaleFactor;
           
-          let yPositionOnImage = 0; 
-          let pageCount = 0;
-
-          while (yPositionOnImage < originalImgHeight) {
-              pageCount++;
-              if (pageCount > 1) {
-                  pdf.addPage();
-              }
-
-              let sourceSliceHeight = pdfPrintableHeight / scaleFactor;
-              
-              if (yPositionOnImage + sourceSliceHeight > originalImgHeight) {
-                  sourceSliceHeight = originalImgHeight - yPositionOnImage;
-              }
-
-              const tempCanvas = document.createElement('canvas');
-              tempCanvas.width = originalImgWidth;
-              tempCanvas.height = sourceSliceHeight;
-              const tempCtx = tempCanvas.getContext('2d');
-
-              tempCtx?.drawImage(img, 0, yPositionOnImage, originalImgWidth, sourceSliceHeight, 0, 0, originalImgWidth, sourceSliceHeight);
-              
-              const sliceDataUrl = tempCanvas.toDataURL('image/png');
-              const sliceHeightOnPdf = sourceSliceHeight * scaleFactor;
-              
-              pdf.addImage(sliceDataUrl, 'PNG', margin, margin, pdfPrintableWidth, sliceHeightOnPdf);
-              yPositionOnImage += sourceSliceHeight;
-
-              if (pageCount > 20) { 
-                  console.warn("PDF generation stopped after 20 pages.");
-                  break;
-              }
-          }
-
+          // Center image on page if it's smaller than printable area (optional)
+          const xOffset = (pdfPageWidth - pdfImageWidth) / 2;
+          const yOffset = (pdfPageHeight - pdfImageHeight) / 2;
+          
+          // Use margin for positioning if not centering, or adjust based on centering logic.
+          // Forcing it to top-left with margin for simplicity now.
+          pdf.addImage(imgData, 'PNG', margin, margin, pdfImageWidth, pdfImageHeight);
+          
+          console.log("PDF generated with single page scaling for exercise detail.");
           pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
           
-          // Restore elements
           if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
           if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
           setIsGeneratingPdf(false);
       };
 
       img.onerror = (err) => {
-          console.error("Error loading image for PDF generation:", err);
+          console.error("Error loading image for PDF generation (exercise detail):", err);
           toast({
               title: "Error al Cargar Imagen",
               description: "No se pudo cargar la imagen capturada para generar el PDF.",
               variant: "destructive",
           });
-          // Restore elements
           if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
           if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
           setIsGeneratingPdf(false);
@@ -255,13 +234,12 @@ export default function EjercicioDetallePage() {
       img.src = imgData;
 
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error("Error generating PDF (exercise detail):", error);
       toast({
         title: "Error al Generar PDF",
         description: "Hubo un problema al crear el archivo PDF. " + (error instanceof Error ? error.message : String(error)),
         variant: "destructive",
       });
-      // Restore elements in case of error during html2canvas or before img.onload
       if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
       if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
       setIsGeneratingPdf(false);
