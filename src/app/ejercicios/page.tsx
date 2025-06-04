@@ -435,7 +435,7 @@ export default function EjerciciosPage() {
                           <p><strong className="font-semibold">Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
                         </div>
                         <div className="print-button-container mt-6 text-center">
-                            <Button onClick={() => window.print()} variant="default">
+                            <Button onClick={() => setTimeout(() => window.print(), 0)} variant="default">
                                 <Printer className="mr-2 h-4 w-4" />
                                 Imprimir / Guardar PDF
                             </Button>
