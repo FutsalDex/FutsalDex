@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, serverTimestamp } from 'firebase/firestore'; // Removed collection import as it's not used directly
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { Loader2, ArrowLeft, Printer, Heart } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
+import { DialogDescription } from '@/components/ui/dialog'; // This import is not used on this page.
 
 interface Ejercicio {
   id: string;
@@ -124,21 +125,22 @@ export default function EjercicioDetallePage() {
   };
 
   const handlePrint = () => {
-    console.log("Print button clicked on detail page. Attempting to print.");
-    try {
-        console.log("Executing window.print() now on detail page.");
-        setTimeout(() => {
+    console.log("handlePrint called on exercise detail page.");
+    // setTimeout is a common workaround for print issues in some environments
+    setTimeout(() => {
+        console.log("Attempting to call window.print() for exercise detail page.");
+        try {
             window.print();
-            console.log("window.print() executed on detail page.");
-        }, 0);
-    } catch (e) {
-        console.error("Error executing window.print() on detail page:", e);
-        toast({
-            title: "Error de Impresión",
-            description: "No se pudo iniciar la impresión. Revisa la consola para más detalles.",
-            variant: "destructive"
-        });
-    }
+            console.log("window.print() for exercise detail page executed.");
+        } catch (error) {
+            console.error("Error during window.print() for exercise detail page:", error);
+            toast({
+                title: "Error de Impresión",
+                description: "Ocurrió un error al intentar imprimir.",
+                variant: "destructive",
+            });
+        }
+    }, 0);
   };
   
   const formatDuracion = (duracion: string | undefined) => duracion ? `${duracion} min` : 'N/A';
