@@ -378,7 +378,7 @@ function MisSesionesContent() {
   const getTotalDuration = (sesion: Sesion | SesionConDetallesEjercicio | null): string => {
     if (!sesion) return 'No especificada';
     if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
-        return `${sesion.preferredSessionLengthMinutes} min (IA)`;
+        return `${sesion.preferredSessionLengthMinutes} min`;
     }
     if (sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined) {
         return `${sesion.duracionTotalManualEstimada} min`;
@@ -530,9 +530,9 @@ function MisSesionesContent() {
               </CardHeader>
               <CardContent className="space-y-2 flex-grow pb-6"> 
                 <div>
-                  <p>
-                    <span className="text-xs font-semibold text-muted-foreground">Tiempo total: </span>
-                    <span className="font-medium text-sm">{getTotalDuration(sesion)}</span>
+                  <p className="text-xs"> {/* Changed from text-sm to text-xs */}
+                    <span className="font-semibold text-muted-foreground">Tiempo total: </span>
+                    <span className="font-medium">{getTotalDuration(sesion)}</span>
                   </p>
                 </div>
 
@@ -543,13 +543,13 @@ function MisSesionesContent() {
                 <div className="space-y-0.5">
                   <p className="text-xs font-semibold text-muted-foreground">Ejercicios Principales:</p>
                   {sesion.mainExercises.length > 0 ? (
-                    sesion.mainExercises.slice(0,2).map((ex, index) => (
+                    sesion.mainExercises.slice(0,4).map((ex, index) => ( // Changed slice from 2 to 4
                       <p key={index} className="text-xs pl-2 line-clamp-1">- {formatExerciseName(ex)}</p>
                     ))
                   ) : (
                     <p className="text-xs pl-2 text-muted-foreground">- No especificados</p>
                   )}
-                  {sesion.mainExercises.length > 2 && <p className="text-xs pl-2 text-muted-foreground">... y más</p>}
+                  {/* Removed the "... y más" logic */}
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs font-semibold text-muted-foreground">Vuelta a la Calma:</p>
@@ -600,7 +600,7 @@ function MisSesionesContent() {
                                 <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
                             </div>
                             <div className="text-sm space-y-1">
-                                <p className="font-medium text-md">{getSessionTema(detailedSessionData)}</p>
+                                
                                 <p><strong className="font-medium">CATEGORÍA(S):</strong> {getDialogCategorias(detailedSessionData)}</p>
                                 <p><strong className="font-medium">OBJETIVOS GENERALES:</strong> {getDialogObjetivos(detailedSessionData)}</p>
                             </div>
