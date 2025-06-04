@@ -356,8 +356,9 @@ export default function EjerciciosPage() {
                   <Image
                     src={ej.imagen || `https://placehold.co/400x300.png`}
                     alt={ej.ejercicio}
-                    layout="fill"
-                    objectFit="contain"
+                    fill
+                    style={{ objectFit: 'contain' }}
+                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     data-ai-hint="futsal drill"
                   />
                    {isRegisteredUser && (
@@ -395,11 +396,22 @@ export default function EjerciciosPage() {
                       <div className="exercise-print-area">
                         <DialogHeader>
                           <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
+                          <DialogDescription className="sr-only">
+                            Detalles del ejercicio: {ej.ejercicio}. Fase: {ej.fase}. Edad: {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}. Duración: {formatDuracion(ej.duracion)} min.
+                          </DialogDescription>
                           {ej.categoria && <Badge variant="default" className="mt-1 self-start text-sm py-1 px-2">{ej.categoria}</Badge>}
                         </DialogHeader>
                         
                         <div className="mt-4 relative aspect-video w-full">
-                           <Image src={ej.imagen || `https://placehold.co/600x400.png`} alt={ej.ejercicio} layout="fill" objectFit="contain" className="rounded-md" data-ai-hint="futsal game"/>
+                           <Image
+                            src={ej.imagen || `https://placehold.co/600x400.png`}
+                            alt={ej.ejercicio}
+                            fill
+                            style={{ objectFit: 'contain' }}
+                            className="rounded-md"
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                            data-ai-hint="futsal game"
+                           />
                         </div>
                         
                         <div className="mt-4 space-y-4">
@@ -479,3 +491,4 @@ export default function EjerciciosPage() {
   );
 }
     
+
