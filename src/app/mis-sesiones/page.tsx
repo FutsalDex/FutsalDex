@@ -4,14 +4,14 @@
 import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp, deleteDoc, doc, getDoc, DocumentData } from "firebase/firestore";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles } from "lucide-react";
+import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle as ShadcnDialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -21,8 +21,8 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle as AlertDialogHeading, // Renamed to avoid conflict with DialogTitle
+  AlertDialogHeader as AlertDialogHead, // Renamed
+  AlertDialogTitle as AlertDialogHeading,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
@@ -31,30 +31,51 @@ import Image from "next/image";
 interface EjercicioInfo {
   id: string;
   ejercicio: string;
-  duracion?: string; 
+  duracion?: string;
+  // For manual sessions, these will be populated after fetching
+  descripcion?: string;
+  objetivos?: string;
+  categoria?: string;
 }
 
 interface Sesion {
   id: string;
   userId: string;
   type: "AI" | "Manual";
-  sessionTitle: string; 
+  sessionTitle: string;
   warmUp: string | EjercicioInfo;
   mainExercises: (string | EjercicioInfo)[];
   coolDown: string | EjercicioInfo;
-  coachNotes?: string; 
-  numero_sesion?: string; 
-  fecha?: string; 
+  coachNotes?: string;
+  numero_sesion?: string;
+  fecha?: string;
   temporada?: string;
-  club?: string; 
-  equipo?: string; 
-  preferredSessionLengthMinutes?: number; 
-  duracionTotalManualEstimada?: number; 
+  club?: string;
+  equipo?: string;
+  preferredSessionLengthMinutes?: number;
+  duracionTotalManualEstimada?: number;
   createdAt: Timestamp;
   teamDescription?: string;
   trainingGoals?: string;
   sessionFocus?: string;
 }
+
+// For storing full exercise details for Manual sessions in the dialog
+interface EjercicioDetallado {
+  id: string;
+  ejercicio: string;
+  descripcion: string;
+  objetivos: string;
+  categoria: string;
+  duracion?: string;
+}
+
+interface SesionConDetallesEjercicio extends Omit<Sesion, 'warmUp' | 'mainExercises' | 'coolDown'> {
+  warmUp: string | EjercicioDetallado;
+  mainExercises: (string | EjercicioDetallado)[];
+  coolDown: string | EjercicioDetallado;
+}
+
 
 const MESES = [
   { value: 1, label: "Enero" }, { value: 2, label: "Febrero" }, { value: 3, label: "Marzo" },
@@ -94,6 +115,11 @@ function MisSesionesContent() {
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
   const [activeFilter, setActiveFilter] = useState<{ year: number; month: number } | null>(null);
 
+  const [selectedSesionForDialog, setSelectedSesionForDialog] = useState<Sesion | null>(null);
+  const [detailedSessionData, setDetailedSessionData] = useState<SesionConDetallesEjercicio | null>(null);
+  const [isLoadingDialogDetails, setIsLoadingDialogDetails] = useState(false);
+
+
   const fetchSesiones = useCallback(async (filter?: { year: number; month: number } | null) => {
     if (!user) return;
     setIsLoading(true);
@@ -102,11 +128,11 @@ function MisSesionesContent() {
 
     if (filter) {
         targetYear = filter.year;
-        targetMonth = filter.month; 
+        targetMonth = filter.month;
     } else {
         const now = new Date();
         targetYear = now.getFullYear();
-        targetMonth = now.getMonth() + 1; 
+        targetMonth = now.getMonth() + 1;
     }
 
     const monthString = targetMonth < 10 ? `0${targetMonth}` : `${targetMonth}`;
@@ -121,8 +147,8 @@ function MisSesionesContent() {
         where("userId", "==", user.uid),
         where("fecha", ">=", startDateString),
         where("fecha", "<", startOfNextMonthString),
-        firestoreOrderBy("fecha", "asc"), 
-        firestoreOrderBy("createdAt", "asc") 
+        firestoreOrderBy("fecha", "asc"),
+        firestoreOrderBy("createdAt", "asc")
     ];
 
     try {
@@ -165,6 +191,60 @@ function MisSesionesContent() {
     fetchSesiones(initialFilter);
   }, [fetchSesiones]);
 
+
+  const fetchExerciseDetailsForDialog = useCallback(async (sesion: Sesion) => {
+    if (sesion.type === "AI") {
+      setDetailedSessionData(sesion as SesionConDetallesEjercicio); // AI sessions already have details as strings
+      return;
+    }
+    setIsLoadingDialogDetails(true);
+    try {
+      const exerciseIds: string[] = [];
+      if (typeof sesion.warmUp === 'object' && sesion.warmUp?.id) exerciseIds.push(sesion.warmUp.id);
+      sesion.mainExercises.forEach(ex => {
+        if (typeof ex === 'object' && ex?.id) exerciseIds.push(ex.id);
+      });
+      if (typeof sesion.coolDown === 'object' && sesion.coolDown?.id) exerciseIds.push(sesion.coolDown.id);
+
+      const uniqueExerciseIds = Array.from(new Set(exerciseIds));
+      const exerciseDocs: Record<string, EjercicioDetallado> = {};
+
+      if (uniqueExerciseIds.length > 0) {
+        // Firestore 'in' query limit is 30. If more, batching would be needed. Assuming fewer for now.
+        const exercisesQuery = query(collection(db, "ejercicios_futsal"), where("__name__", "in", uniqueExerciseIds));
+        const querySnapshot = await getDocs(exercisesQuery);
+        querySnapshot.forEach(docSnap => {
+          const data = docSnap.data() as Omit<EjercicioDetallado, 'id'>;
+          exerciseDocs[docSnap.id] = { id: docSnap.id, ...data };
+        });
+      }
+      
+      const enrichedWarmUp = (typeof sesion.warmUp === 'object' && sesion.warmUp?.id) ? exerciseDocs[sesion.warmUp.id] || sesion.warmUp : sesion.warmUp;
+      const enrichedMainExercises = sesion.mainExercises.map(ex => (typeof ex === 'object' && ex?.id) ? exerciseDocs[ex.id] || ex : ex);
+      const enrichedCoolDown = (typeof sesion.coolDown === 'object' && sesion.coolDown?.id) ? exerciseDocs[sesion.coolDown.id] || sesion.coolDown : sesion.coolDown;
+
+      setDetailedSessionData({
+        ...sesion,
+        warmUp: enrichedWarmUp as string | EjercicioDetallado,
+        mainExercises: enrichedMainExercises as (string | EjercicioDetallado)[],
+        coolDown: enrichedCoolDown as string | EjercicioDetallado,
+      });
+
+    } catch (error) {
+      console.error("Error fetching exercise details for dialog:", error);
+      toast({ title: "Error al cargar detalles", description: "No se pudieron cargar los detalles completos de los ejercicios.", variant: "destructive"});
+      setDetailedSessionData(sesion as SesionConDetallesEjercicio); // Fallback to basic info
+    }
+    setIsLoadingDialogDetails(false);
+  }, [toast]);
+
+
+  const handleOpenDialog = (sesion: Sesion) => {
+    setSelectedSesionForDialog(sesion);
+    fetchExerciseDetailsForDialog(sesion);
+  };
+
+
   const handleApplyFilter = () => {
     if (selectedYear && selectedMonth) {
       const yearNum = parseInt(selectedYear, 10);
@@ -180,19 +260,19 @@ function MisSesionesContent() {
     let date: Date;
 
     if (typeof dateValue === 'string') {
-      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) { 
+      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
          const [year, month, day] = dateValue.split('-').map(Number);
-         date = new Date(year, month - 1, day, 12,0,0); 
+         date = new Date(year, month - 1, day, 12,0,0);
       } else {
-         date = new Date(dateValue); 
+         date = new Date(dateValue);
       }
-    } else if (dateValue && typeof dateValue.toDate === 'function') { 
+    } else if (dateValue && typeof dateValue.toDate === 'function') {
       date = dateValue.toDate();
     } else {
       return 'Fecha inválida';
     }
 
-    if (isNaN(date.getTime())) return (typeof dateValue === 'string' ? dateValue : 'Fecha inválida'); 
+    if (isNaN(date.getTime())) return (typeof dateValue === 'string' ? dateValue : 'Fecha inválida');
 
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
   };
@@ -201,6 +281,11 @@ function MisSesionesContent() {
     if (!exercise) return "Ejercicio no especificado";
     if (typeof exercise === 'string') return exercise;
     return exercise.ejercicio || "Ejercicio sin nombre";
+  };
+
+  const formatExerciseDescription = (exercise: string | EjercicioInfo | null | undefined): string => {
+    if (!exercise || typeof exercise === 'string' || !exercise.descripcion) return "Descripción no disponible.";
+    return exercise.descripcion;
   };
   
   const getExerciseDuration = (exercise: string | EjercicioInfo | null | undefined): string => {
@@ -255,16 +340,18 @@ function MisSesionesContent() {
 
   const years = getYearsRange();
 
-  const getSessionTema = (sesion: Sesion): string => {
+  const getSessionTema = (sesion: Sesion | SesionConDetallesEjercicio | null): string => {
+    if (!sesion) return "Tema no especificado";
     if (sesion.type === "AI" && sesion.sessionFocus) return sesion.sessionFocus;
-    if (sesion.sessionTitle && !sesion.sessionTitle.startsWith("Sesión Manual -")) return sesion.sessionTitle; 
-    if (sesion.type === "AI" && sesion.sessionTitle && sesion.sessionTitle.startsWith("Sesión para equipo")) return sesion.sessionTitle; 
+    if (sesion.sessionTitle && !sesion.sessionTitle.startsWith("Sesión Manual -")) return sesion.sessionTitle;
+    if (sesion.type === "AI" && sesion.sessionTitle && sesion.sessionTitle.startsWith("Sesión para equipo")) return sesion.sessionTitle;
 
     if (sesion.equipo) return `Entrenamiento ${sesion.equipo}`;
     return "Tema no especificado";
   }
 
-  const getTotalDuration = (sesion: Sesion): string => {
+  const getTotalDuration = (sesion: Sesion | SesionConDetallesEjercicio | null): string => {
+    if (!sesion) return 'No especificada';
     if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
         return `${sesion.preferredSessionLengthMinutes} min (IA)`;
     }
@@ -273,6 +360,35 @@ function MisSesionesContent() {
     }
     return 'No especificada';
   }
+
+  const getDialogCategorias = (sesion: SesionConDetallesEjercicio | null): string => {
+    if (!sesion) return "No especificada";
+    if (sesion.type === "AI") return sesion.sessionFocus || "No especificado";
+    
+    const categorias: string[] = [];
+    if (typeof sesion.warmUp === 'object' && sesion.warmUp.categoria) categorias.push(sesion.warmUp.categoria);
+    sesion.mainExercises.forEach(ex => {
+        if (typeof ex === 'object' && ex.categoria) categorias.push(ex.categoria);
+    });
+    if (typeof sesion.coolDown === 'object' && sesion.coolDown.categoria) categorias.push(sesion.coolDown.categoria);
+    
+    return categorias.length > 0 ? Array.from(new Set(categorias)).join(', ') : "Varias / No especificadas";
+  };
+
+  const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string => {
+    if (!sesion) return "No especificados";
+    if (sesion.type === "AI") return sesion.trainingGoals || "No especificados";
+
+    const objetivos: string[] = [];
+    if (typeof sesion.warmUp === 'object' && sesion.warmUp.objetivos) objetivos.push(sesion.warmUp.objetivos);
+    sesion.mainExercises.forEach(ex => {
+        if (typeof ex === 'object' && ex.objetivos) objetivos.push(ex.objetivos);
+    });
+    if (typeof sesion.coolDown === 'object' && sesion.coolDown.objetivos) objetivos.push(sesion.coolDown.objetivos);
+    
+    return objetivos.length > 0 ? Array.from(new Set(objetivos.map(o => o.trim()))).join('; ') : "No especificados";
+  };
+
 
   if (isLoading && sesiones.length === 0) {
     return (
@@ -358,7 +474,7 @@ function MisSesionesContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {sesiones.map((sesion) => (
             <Card key={sesion.id} className="shadow-lg flex flex-col overflow-visible">
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <div className="flex-grow">
                     <p className="text-2xl font-bold text-primary font-headline">
@@ -371,14 +487,14 @@ function MisSesionesContent() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 flex-grow pb-8">
+              <CardContent className="space-y-2 flex-grow pb-8">
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Tema/Enfoque:</p>
+                  <p className="text-xs font-semibold text-muted-foreground">Tema/Enfoque:</p>
                   <p className="font-medium text-sm line-clamp-2">{getSessionTema(sesion)}</p>
                 </div>
                 
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Tiempo Total (aprox.):</p>
+                  <p className="text-xs font-semibold text-muted-foreground">Tiempo Total (aprox.):</p>
                   <p className="font-medium text-sm">{getTotalDuration(sesion)}</p>
                 </div>
 
@@ -389,7 +505,7 @@ function MisSesionesContent() {
                 <div className="space-y-0.5">
                   <p className="text-xs font-semibold text-muted-foreground">Ejercicios Principales:</p>
                   {sesion.mainExercises.length > 0 ? (
-                    sesion.mainExercises.slice(0,2).map((ex, index) => ( 
+                    sesion.mainExercises.slice(0,2).map((ex, index) => (
                       <p key={index} className="text-xs pl-2 line-clamp-1">- {formatExerciseName(ex)}</p>
                     ))
                   ) : (
@@ -409,104 +525,135 @@ function MisSesionesContent() {
                 )}
               </CardContent>
               <CardFooter className="flex flex-col items-center gap-2 px-4 py-2 -mb-3 relative z-10 mt-auto">
-                <Dialog>
+                <Dialog onOpenChange={(open) => { if (open) handleOpenDialog(sesion); else { setSelectedSesionForDialog(null); setDetailedSessionData(null);}}}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg">
                       <Eye className="mr-2 h-4 w-4" /> Ver Ficha Detallada
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
-                     <DialogHeader>
-                        <DialogTitle className="sr-only">Detalles de la Sesión: {getSessionTema(sesion)}</DialogTitle>
+                    <DialogHeader>
+                      <ShadcnDialogTitle className="sr-only">Ficha Detallada de la Sesión: {getSessionTema(detailedSessionData)}</ShadcnDialogTitle>
                     </DialogHeader>
-                    <div className="border border-gray-700 bg-gray-50 text-gray-800 shadow-lg rounded-md m-0">
-                      <div className="bg-gray-800 text-white p-4 rounded-t-md">
-                        <div className="flex justify-between items-center mb-2">
-                          <h2 className="text-xl font-bold uppercase">TEMA: {getSessionTema(sesion)}</h2>
-                          <div className="text-right">
-                            <p className="text-md">FECHA: {formatDate(sesion.fecha)}</p>
-                            <p className="text-md">Nº SESIÓN: {sesion.numero_sesion || 'N/A'}</p>
-                          </div>
+                    {isLoadingDialogDetails && !detailedSessionData && (
+                        <div className="flex flex-col items-center justify-center p-10 min-h-[300px]">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                            <p className="text-lg">Cargando detalles de la sesión...</p>
                         </div>
-                        <div className="flex justify-between text-md">
-                          <p>EQUIPO 1: {sesion.equipo || 'No especificado'}</p>
-                          <p>EQUIPO 2: {sesion.club || 'No especificado'}</p>
-                        </div>
-                      </div>
-
-                      <div className="p-4 border-b border-gray-300">
-                        <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                          <h3 className="font-semibold text-lg">PARTE INICIAL</h3>
-                          <span className="text-sm">{getExerciseDuration(sesion.warmUp) || (typeof sesion.warmUp === 'object' && sesion.warmUp?.duracion ? '' : 'Tiempo no esp.')}</span>
-                        </div>
-                        <div className="flex flex-col md:flex-row gap-4 items-start">
-                          <Image src="https://placehold.co/300x200.png?text=Calentamiento" alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal warmup drill" />
-                          <p className="text-md flex-1">{formatExerciseName(sesion.warmUp)}</p>
-                        </div>
-                         {typeof sesion.warmUp === 'object' && sesion.warmUp.id && (
-                            <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
-                                <Link href={`/ejercicios#${sesion.warmUp.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
-                            </Button>
-                        )}
-                      </div>
-
-                      <div className="p-4 border-b border-gray-300">
-                        <div className="bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                          <h3 className="font-semibold text-lg text-center">PARTE PRINCIPAL</h3>
-                        </div>
-                        <div className="space-y-4">
-                          {sesion.mainExercises.map((ex, index) => (
-                            <div key={index} className="p-3 border border-gray-400 rounded bg-white">
-                              <div className="flex justify-end items-center mb-1 text-sm">
-                                <span className="font-medium">TIEMPO: {getExerciseDuration(ex) || (typeof ex === 'object' && ex?.duracion ? '' : 'No esp.')}</span>
-                              </div>
-                              <div className="flex flex-col md:flex-row gap-4 items-start">
-                                <Image src={`https://placehold.co/300x200.png?text=Principal+${index + 1}`} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal main exercise" />
-                                <p className="text-md flex-1">{formatExerciseName(ex)}</p>
-                              </div>
-                              {typeof ex === 'object' && ex.id && (
-                                  <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
-                                      <Link href={`/ejercicios#${ex.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
-                                  </Button>
-                              )}
+                    )}
+                    {detailedSessionData && (
+                      <div className="border border-gray-700 bg-gray-50 text-gray-800 shadow-lg rounded-md m-0">
+                        <div className="bg-gray-800 text-white p-4 rounded-t-md">
+                          <div className="flex justify-between items-start mb-2">
+                            <h2 className="text-xl font-bold uppercase">SESIÓN DE ENTRENAMIENTO</h2>
+                            <div className="text-right">
+                              <p className="text-md">FECHA: {formatDate(detailedSessionData.fecha)}</p>
+                              <p className="text-md">Nº SESIÓN: {detailedSessionData.numero_sesion || 'N/A'}</p>
                             </div>
-                          ))}
+                          </div>
+                          <div className="flex justify-between text-md">
+                            <p>EQUIPO: {detailedSessionData.equipo || 'No especificado'}</p>
+                            <p>CLUB: {detailedSessionData.club || 'No especificado'}</p>
+                          </div>
                         </div>
-                      </div>
-                      
-                      <div className="p-4 border-b border-gray-300 text-center">
-                          <p className="font-semibold text-md">
-                              <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
-                              TIEMPO TOTAL ENTRENAMIENTO (APROX.): {getTotalDuration(sesion)}
-                          </p>
-                      </div>
+                        
+                        <div className="p-4 border-b border-gray-300">
+                            <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+                                <h3 className="font-semibold text-lg uppercase">Categorías y Objetivos</h3>
+                            </div>
+                            <div className="text-sm space-y-1">
+                                <p><strong className="font-medium">TEMA/ENFOQUE:</strong> {getSessionTema(detailedSessionData)}</p>
+                                <p><strong className="font-medium">CATEGORÍA(S):</strong> {getDialogCategorias(detailedSessionData)}</p>
+                                <p><strong className="font-medium">OBJETIVOS GENERALES:</strong> {getDialogObjetivos(detailedSessionData)}</p>
+                            </div>
+                        </div>
 
-                      <div className="p-4 border-b border-gray-300">
-                        <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                          <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
-                          <span className="text-sm">{getExerciseDuration(sesion.coolDown) || (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion ? '' : 'Tiempo no esp.')}</span>
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+                            <h3 className="font-semibold text-lg">PARTE INICIAL</h3>
+                            <span className="text-sm">{getExerciseDuration(detailedSessionData.warmUp)}</span>
+                          </div>
+                          <div className="flex flex-col md:flex-row gap-4 items-start">
+                            <Image src="https://placehold.co/300x200.png?text=Calentamiento" alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal warmup" />
+                            <div className="flex-1">
+                                <p className="text-md font-semibold">{formatExerciseName(detailedSessionData.warmUp)}</p>
+                                <p className="text-sm mt-1">{formatExerciseDescription(detailedSessionData.warmUp)}</p>
+                            </div>
+                          </div>
+                          {typeof detailedSessionData.warmUp === 'object' && detailedSessionData.warmUp.id && (
+                              <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
+                                  <Link href={`/ejercicios#${detailedSessionData.warmUp.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
+                              </Button>
+                          )}
                         </div>
-                        <p className="text-md">{formatExerciseName(sesion.coolDown)}</p>
-                         {typeof sesion.coolDown === 'object' && sesion.coolDown.id && (
-                            <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
-                                <Link href={`/ejercicios#${sesion.coolDown.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
-                            </Button>
-                        )}
-                      </div>
 
-                      {(sesion.coachNotes && sesion.coachNotes.trim() !== "") && (
-                        <div className="p-4">
-                          <h3 className="font-semibold mb-1 text-lg uppercase">OBSERVACIONES:</h3>
-                          <p className="text-md whitespace-pre-wrap">{sesion.coachNotes}</p>
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+                            <h3 className="font-semibold text-lg text-center">PARTE PRINCIPAL</h3>
+                          </div>
+                          <div className="space-y-4">
+                            {detailedSessionData.mainExercises.map((ex, index) => (
+                              <div key={typeof ex === 'string' ? `ai-main-${index}` : ex.id || `manual-main-${index}`} className="p-3 border border-gray-400 rounded bg-white">
+                                <div className="flex justify-end items-center mb-1 text-sm">
+                                  <span className="font-medium">TIEMPO: {getExerciseDuration(ex)}</span>
+                                </div>
+                                <div className="flex flex-col md:flex-row gap-4 items-start">
+                                  <Image src={`https://placehold.co/300x200.png?text=Principal+${index + 1}`} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal exercise" />
+                                  <div className="flex-1">
+                                    <p className="text-md font-semibold">{formatExerciseName(ex)}</p>
+                                    <p className="text-sm mt-1">{formatExerciseDescription(ex)}</p>
+                                  </div>
+                                </div>
+                                {typeof ex === 'object' && ex.id && (
+                                    <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
+                                        <Link href={`/ejercicios#${ex.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
+                                    </Button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      )}
-                       {sesion.type === "AI" && (
-                          <div className="p-4 space-y-2 border-t border-gray-300 mt-2">
-                            {sesion.teamDescription && <div><h4 className="font-semibold text-md">Descripción del Equipo (IA):</h4><p className="text-sm whitespace-pre-wrap">{sesion.teamDescription}</p></div>}
-                            {sesion.trainingGoals && <div><h4 className="font-semibold text-md">Objetivos (IA):</h4><p className="text-sm whitespace-pre-wrap">{sesion.trainingGoals}</p></div>}
+                        
+                        <div className="p-4 border-b border-gray-300 text-center">
+                            <p className="font-semibold text-md">
+                                <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
+                                TIEMPO TOTAL ENTRENAMIENTO (APROX.): {getTotalDuration(detailedSessionData)}
+                            </p>
+                        </div>
+
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+                            <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
+                            <span className="text-sm">{getExerciseDuration(detailedSessionData.coolDown)}</span>
+                          </div>
+                           <div className="flex flex-col md:flex-row gap-4 items-start">
+                             <Image src="https://placehold.co/300x200.png?text=Vuelta+Calma" alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal cooldown" />
+                             <div className="flex-1">
+                                <p className="text-md font-semibold">{formatExerciseName(detailedSessionData.coolDown)}</p>
+                                <p className="text-sm mt-1">{formatExerciseDescription(detailedSessionData.coolDown)}</p>
+                             </div>
+                           </div>
+                          {typeof detailedSessionData.coolDown === 'object' && detailedSessionData.coolDown.id && (
+                              <Button variant="link" size="sm" asChild className="text-xs p-0 h-auto mt-1 text-blue-600 hover:text-blue-800">
+                                  <Link href={`/ejercicios#${detailedSessionData.coolDown.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
+                              </Button>
+                          )}
+                        </div>
+
+                        {(detailedSessionData.coachNotes && detailedSessionData.coachNotes.trim() !== "") && (
+                          <div className="p-4">
+                            <h3 className="font-semibold mb-1 text-lg uppercase">OBSERVACIONES:</h3>
+                            <p className="text-md whitespace-pre-wrap">{detailedSessionData.coachNotes}</p>
                           </div>
                         )}
-                    </div>
+                        {detailedSessionData.type === "AI" && (
+                          <div className="p-4 space-y-2 border-t border-gray-300 mt-2">
+                            {detailedSessionData.teamDescription && <div><h4 className="font-semibold text-md">Descripción del Equipo (IA):</h4><p className="text-sm whitespace-pre-wrap">{detailedSessionData.teamDescription}</p></div>}
+                            {detailedSessionData.trainingGoals && detailedSessionData.type === "AI" && (!detailedSessionData.coachNotes?.includes(detailedSessionData.trainingGoals)) && <div><h4 className="font-semibold text-md">Objetivos (Input IA):</h4><p className="text-sm whitespace-pre-wrap">{detailedSessionData.trainingGoals}</p></div>}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </DialogContent>
                 </Dialog>
                 <div className="flex flex-row justify-center gap-2 w-full">
@@ -535,12 +682,12 @@ function MisSesionesContent() {
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-white">
-          <AlertDialogHeader>
+          <AlertDialogHead>
             <AlertDialogHeading className="text-gray-800">Confirmar Eliminación</AlertDialogHeading>
             <AlertDialogDescription className="text-gray-600">
               ¿Estás seguro de que quieres eliminar esta sesión permanentemente? Esta acción no se puede deshacer.
             </AlertDialogDescription>
-          </AlertDialogHeader>
+          </AlertDialogHead>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSessionToDeleteId(null)} className="border-gray-400 text-gray-700 hover:bg-gray-100">Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteSession} disabled={isDeleting} className="bg-red-600 hover:bg-red-700 text-white">
