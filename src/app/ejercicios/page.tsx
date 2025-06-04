@@ -396,8 +396,8 @@ export default function EjerciciosPage() {
                       <div className="exercise-print-area">
                         <DialogHeader>
                           <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
-                          <DialogDescription className="sr-only">
-                            Detalles del ejercicio: {ej.ejercicio}. Fase: {ej.fase}. Edad: {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}. Duración: {formatDuracion(ej.duracion)} min.
+                           <DialogDescription className="sr-only">
+                            Detalles del ejercicio: {ej.ejercicio}. Fase: {ej.fase}. Edad: {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}. Duración: {formatDuracion(ej.duracion)} min. Categoría: {ej.categoria}.
                           </DialogDescription>
                           {ej.categoria && <Badge variant="default" className="mt-1 self-start text-sm py-1 px-2">{ej.categoria}</Badge>}
                         </DialogHeader>
@@ -447,7 +447,21 @@ export default function EjerciciosPage() {
                           <p><strong className="font-semibold">Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
                         </div>
                         <div className="print-button-container mt-6 text-center">
-                            <Button onClick={() => setTimeout(() => window.print(), 0)} variant="default">
+                            <Button
+                              onClick={() => {
+                                console.log('Print button clicked. Attempting to print.');
+                                try {
+                                  setTimeout(() => {
+                                    console.log('Executing window.print() now.');
+                                    window.print();
+                                    console.log('window.print() executed.');
+                                  }, 0);
+                                } catch (e) {
+                                  console.error('Error during window.print():', e);
+                                }
+                              }}
+                              variant="default"
+                            >
                                 <Printer className="mr-2 h-4 w-4" />
                                 Imprimir / Guardar PDF
                             </Button>
