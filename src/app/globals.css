@@ -133,7 +133,8 @@
   
   /* Hide the dialog's close button (X) during printing */
   [role="dialog"] > button[aria-label="Close"], /* ShadCN Dialog Close */
-  [role="dialog"] > button[class*="DialogPrimitive.Close"] { /* Fallback for general close buttons in dialog */
+  [role="dialog"] > button[class*="DialogPrimitive.Close"], /* ShadCN Dialog Close based on internal class name part */
+  button[class*="DialogClose"] { /* General fallback if a specific class is used for close button */
     display: none !important;
   }
 
@@ -202,3 +203,5 @@
   }
 }
 
+
+    

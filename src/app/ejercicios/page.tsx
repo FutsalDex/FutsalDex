@@ -243,7 +243,7 @@ export default function EjerciciosPage() {
   };
 
   const formatDuracion = (duracion: string) => {
-    return duracion ? `${duracion} min` : 'N/A';
+    return duracion ? `${duracion}` : 'N/A';
   }
 
   return (
@@ -378,7 +378,7 @@ export default function EjerciciosPage() {
                   <CardDescription className="text-xs pt-2 space-y-0.5">
                     <div><strong>Fase:</strong> {ej.fase}</div>
                     <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
-                    <div><strong>Duración:</strong> {formatDuracion(ej.duracion)}</div>
+                    <div><strong>Duración:</strong> {formatDuracion(ej.duracion)} min</div>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
@@ -396,11 +396,6 @@ export default function EjerciciosPage() {
                         <DialogHeader>
                           <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
                           {ej.categoria && <Badge variant="default" className="mt-1 self-start text-sm py-1 px-2">{ej.categoria}</Badge>}
-                           <div className="text-sm text-muted-foreground pt-2">
-                            <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
-                            <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
-                            <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ej.duracion)}</p>
-                          </div>
                         </DialogHeader>
                         
                         <div className="mt-4 relative aspect-video w-full">
@@ -429,7 +424,11 @@ export default function EjerciciosPage() {
                             )}
                           </div>
                         </div>
+
                         <div className="mt-4 space-y-3 text-sm">
+                          <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
+                          <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
+                          <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ej.duracion)} min</p>
                           <p><strong className="font-semibold">Materiales y Espacio:</strong> {ej.espacio_materiales}</p>
                           <p><strong className="font-semibold">Nº Jugadores:</strong> {ej.jugadores}</p>
                           <p><strong className="font-semibold">Variantes:</strong> {ej.variantes || 'No especificadas.'}</p>
@@ -480,3 +479,5 @@ export default function EjerciciosPage() {
   );
 }
 
+
+    
