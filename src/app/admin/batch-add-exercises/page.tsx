@@ -24,7 +24,7 @@ const EXPECTED_HEADERS = {
   objetivos: "Objetivos",
   espacio_materiales: "Espacio y materiales necesarios",
   jugadores: "Número de jugadores",
-  duracion: "Duración (minutos)", // Updated Label
+  duracion: "Duración (min)", // Updated Label
   variantes: "Variantes",
   fase: "Fase",
   categoria: "Categoría",
@@ -151,7 +151,7 @@ function BatchAddExercisesPageContent() {
                 <ul className="list-disc list-inside pl-4 space-y-0.5 text-xs">
                   <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo".</li>
                   <li>Todos los campos marcados como <strong>requeridos</strong> están <strong>completos y no son cadenas vacías</strong>.</li>
-                  <li>El campo '{EXPECTED_HEADERS.duracion}' contiene uno de los valores permitidos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}.</li>
+                  <li>El campo '{EXPECTED_HEADERS.duracion}' contiene uno de los valores numéricos permitidos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}.</li>
                   <li>El campo '{EXPECTED_HEADERS.categoria}' usa el <strong>nombre completo de la categoría</strong>.</li>
                   <li>El campo '{EXPECTED_HEADERS.edad}' no está vacío y contiene categorías de edad válidas.</li>
                 </ul>
@@ -326,7 +326,7 @@ function BatchAddExercisesPageContent() {
                 <li><strong>{EXPECTED_HEADERS.objetivos}</strong> (Requerido)</li>
                 <li><strong>{EXPECTED_HEADERS.espacio_materiales}</strong> (Requerido. Ej: Media pista, 5 conos)</li>
                 <li><strong>{EXPECTED_HEADERS.jugadores}</strong> (Requerido. Ej: 10-12)</li>
-                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido. Debe ser uno de: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}. Ej: 10)</li>
+                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido. Debe ser uno de los valores numéricos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}. Ej: 10)</li>
                 <li><strong>{EXPECTED_HEADERS.variantes}</strong> (Opcional)</li>
                 <li><strong>{EXPECTED_HEADERS.fase}</strong> (Requerido. Debe ser uno de: Inicial, Principal, Final)</li>
                 <li><strong>{EXPECTED_HEADERS.categoria}</strong> (Requerido. Debe ser el <strong>nombre completo de la categoría</strong>)</li>

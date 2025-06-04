@@ -37,12 +37,12 @@ export const CATEGORIAS_TEMATICAS_MAP: { [key: string]: string } =
   }, {} as { [key: string]: string });
 
 export const DURACION_EJERCICIO_OPCIONES = [
-  { value: "5", label: "5 minutos" },
-  { value: "10", label: "10 minutos" },
-  { value: "15", label: "15 minutos" },
-  { value: "20", label: "20 minutos" },
-  { value: "25", label: "25 minutos" },
-  { value: "30", label: "30 minutos" },
+  { value: "5", label: "5" },
+  { value: "10", label: "10" },
+  { value: "15", label: "15" },
+  { value: "20", label: "20" },
+  { value: "25", label: "25" },
+  { value: "30", label: "30" },
 ];
 
 export const DURACION_EJERCICIO_OPCIONES_VALUES = DURACION_EJERCICIO_OPCIONES.map(opt => opt.value) as [string, ...string[]];
