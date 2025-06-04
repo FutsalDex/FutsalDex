@@ -449,16 +449,9 @@ export default function EjerciciosPage() {
                         <div className="print-button-container mt-6 text-center">
                             <Button
                               onClick={() => {
-                                console.log('Print button clicked. Attempting to print.');
-                                try {
-                                  setTimeout(() => {
-                                    console.log('Executing window.print() now.');
-                                    window.print();
-                                    console.log('window.print() executed.');
-                                  }, 0);
-                                } catch (e) {
-                                  console.error('Error during window.print():', e);
-                                }
+                                setTimeout(() => {
+                                  window.print();
+                                }, 0);
                               }}
                               variant="default"
                             >
