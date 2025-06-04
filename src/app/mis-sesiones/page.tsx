@@ -365,55 +365,6 @@ function MisSesionesContent() {
   };
 
   const years = getYearsRange();
-
-  const getSessionTema = (sesion: Sesion | SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return "Tema no especificado";
-    if (sesion.sessionTitle && sesion.sessionTitle !== `Sesión Manual - ${formatDate(sesion.fecha)}` && !sesion.sessionTitle.startsWith("Sesión Manual - ")) return sesion.sessionTitle;
-    if (sesion.type === "AI" && sesion.sessionFocus) return sesion.sessionFocus;
-    if (sesion.type === "AI" && sesion.sessionTitle && !sesion.sessionTitle.startsWith("Sesión Manual - ")) return sesion.sessionTitle; // Fallback for older AI sessions
-    if (sesion.equipo) return `Entrenamiento ${sesion.equipo}`;
-    return "Tema no especificado";
-  }
-
-
-  const getTotalDuration = (sesion: Sesion | SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return 'N/A';
-    if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
-        return `${sesion.preferredSessionLengthMinutes} min`;
-    }
-    if (sesion.type === "Manual" && sesion.duracionTotalManualEstimada !== undefined) {
-        return `${sesion.duracionTotalManualEstimada} min`;
-    }
-    return 'N/A';
-  }
-
-  const getDialogCategorias = (sesion: SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return "No especificada";
-    if (sesion.type === "AI") return sesion.sessionFocus || "No especificado";
-    
-    const categorias: string[] = [];
-    if (typeof sesion.warmUp === 'object' && sesion.warmUp.categoria) categorias.push(sesion.warmUp.categoria);
-    sesion.mainExercises.forEach(ex => {
-        if (typeof ex === 'object' && ex.categoria) categorias.push(ex.categoria);
-    });
-    if (typeof sesion.coolDown === 'object' && sesion.coolDown.categoria) categorias.push(sesion.coolDown.categoria);
-    
-    return categorias.length > 0 ? Array.from(new Set(categorias)).join(', ') : "Varias / No especificadas";
-  };
-
-  const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return "No especificados";
-    if (sesion.type === "AI") return sesion.trainingGoals || "No especificados";
-
-    const objetivos: string[] = [];
-    if (typeof sesion.warmUp === 'object' && sesion.warmUp.objetivos) objetivos.push(sesion.warmUp.objetivos);
-    sesion.mainExercises.forEach(ex => {
-        if (typeof ex === 'object' && ex.objetivos) objetivos.push(ex.objetivos);
-    });
-    if (typeof sesion.coolDown === 'object' && sesion.coolDown.objetivos) objetivos.push(sesion.coolDown.objetivos);
-    
-    return objetivos.length > 0 ? Array.from(new Set(objetivos.map(o => o.trim()))).join('; ') : "No especificados";
-  };
   
  const getDialogTotalDuration = (sesion: SesionConDetallesEjercicio | null): string => {
     if (!sesion) return 'N/A';
@@ -541,12 +492,15 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
                     </p>
                   </div>
                 </div>
+                 <p className="text-xs text-muted-foreground">
+                    Número sesión: {sesion.numero_sesion || "N/A"}
+                  </p>
               </CardHeader>
               <CardContent className="space-y-2 flex-grow pb-6"> 
                 <div>
                   <p className="text-xs"> 
                     <span className="font-semibold text-muted-foreground">Tiempo total: </span>
-                    <span className="font-medium">{getTotalDuration(sesion)}</span>
+                    <span className="font-medium">{getDialogTotalDuration(sesion as SesionConDetallesEjercicio)}</span>
                   </p>
                 </div>
 
@@ -608,7 +562,7 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
                         </div>
                     )}
                     {detailedSessionData && (
-                      <div className="border border-gray-700 bg-gray-50 text-gray-800 shadow-lg m-0 rounded-b-md">
+                      <div className="session-print-area border border-gray-700 bg-gray-50 text-gray-800 shadow-lg m-0 rounded-b-md">
                         
                         <div className="p-4 border-b border-gray-300">
                             <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
@@ -638,8 +592,8 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
 
                         <div className="p-4 border-b border-gray-300">
                           <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                            <h3 className="font-semibold text-lg">PARTE PRINCIPAL</h3>
-                            <span className="text-sm">{getMainExercisesTotalDuration(detailedSessionData.mainExercises)}</span>
+                            <h3 className="font-semibold text-lg text-left">PARTE PRINCIPAL</h3>
+                            <span className="text-sm text-right">{getMainExercisesTotalDuration(detailedSessionData.mainExercises)}</span>
                           </div>
                           <div className="space-y-4">
                             {detailedSessionData.mainExercises.map((ex, index) => (
@@ -696,7 +650,7 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
                             {detailedSessionData.trainingGoals && detailedSessionData.type === "AI" && (!detailedSessionData.coachNotes?.includes(detailedSessionData.trainingGoals)) && <div><h4 className="font-semibold text-md">Objetivos (Input IA):</h4><p className="text-sm whitespace-pre-wrap">{detailedSessionData.trainingGoals}</p></div>}
                           </div>
                         )}
-                        <div className="p-4 mt-4 text-center border-t border-gray-300">
+                        <div className="print-button-container p-4 mt-4 text-center border-t border-gray-300">
                             <Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white">
                                 <Printer className="mr-2 h-4 w-4" />
                                 Imprimir / Guardar PDF
