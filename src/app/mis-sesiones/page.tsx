@@ -399,6 +399,51 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
   return totalMinutes > 0 ? `${totalMinutes} min` : '0 min';
 };
 
+const getDialogCategorias = (sesion: SesionConDetallesEjercicio | null): string => {
+    if (!sesion) return "No especificadas";
+    if (sesion.type === "AI") {
+        return sesion.sessionFocus || "No especificadas";
+    }
+    // Manual session
+    const categorias = new Set<string>();
+    const exercises: (string | EjercicioDetallado | null | undefined)[] = [
+        sesion.warmUp,
+        ...(sesion.mainExercises || []),
+        sesion.coolDown,
+    ];
+    exercises.forEach(ex => {
+        if (typeof ex === 'object' && ex?.categoria) {
+            categorias.add(ex.categoria);
+        }
+    });
+    if (categorias.size === 0) return "No especificadas";
+    return Array.from(categorias).join(', ');
+};
+
+const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string => {
+    if (!sesion) return "No especificados";
+    if (sesion.type === "AI") {
+        return sesion.trainingGoals || "No especificados";
+    }
+    // Manual session
+    const objetivos = new Set<string>();
+     const exercises: (string | EjercicioDetallado | null | undefined)[] = [
+        sesion.warmUp,
+        ...(sesion.mainExercises || []),
+        sesion.coolDown,
+    ];
+    exercises.forEach(ex => {
+        if (typeof ex === 'object' && ex?.objetivos) {
+            ex.objetivos.split(/[.;]+/)
+                .map(obj => obj.trim())
+                .filter(obj => obj.length > 0)
+                .forEach(obj => objetivos.add(obj + (obj.endsWith('.') || obj.endsWith(';') ? '' : '.')));
+        }
+    });
+    if (objetivos.size === 0) return "No especificados";
+    return Array.from(objetivos).join(' ');
+};
+
 
   if (isLoading && sesiones.length === 0) {
     return (
@@ -500,7 +545,7 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
                 <div>
                   <p className="text-xs"> 
                     <span className="font-semibold text-muted-foreground">Tiempo total: </span>
-                    <span className="font-medium">{getDialogTotalDuration(sesion as SesionConDetallesEjercicio)}</span>
+                    <span className="font-medium text-xs">{getDialogTotalDuration(sesion as SesionConDetallesEjercicio)}</span>
                   </p>
                 </div>
 
