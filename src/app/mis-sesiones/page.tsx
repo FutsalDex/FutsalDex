@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader as ShadcnDialogHeader, DialogTitle as ShadcnDialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Renamed DialogHeader
+import { Dialog, DialogContent, DialogHeader as ShadcnDialogHeader, DialogTitle as ShadcnDialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -59,13 +59,11 @@ interface Sesion {
   sessionFocus?: string;
 }
 
-interface EjercicioDetallado {
-  id: string;
-  ejercicio: string;
-  descripcion: string;
-  objetivos: string;
-  categoria: string;
-  duracion?: string;
+interface EjercicioDetallado extends EjercicioInfo {
+  // Ensure all fields from EjercicioInfo are here, plus any specific detailed ones
+  descripcion: string; // Mark as non-optional if it's always expected
+  objetivos: string; // Mark as non-optional
+  categoria: string; // Mark as non-optional
 }
 
 interface SesionConDetallesEjercicio extends Omit<Sesion, 'warmUp' | 'mainExercises' | 'coolDown'> {
@@ -191,45 +189,68 @@ function MisSesionesContent() {
 
 
   const fetchExerciseDetailsForDialog = useCallback(async (sesion: Sesion) => {
-    if (sesion.type === "AI") {
-      setDetailedSessionData(sesion as SesionConDetallesEjercicio); 
-      return;
-    }
     setIsLoadingDialogDetails(true);
-    try {
-      const exerciseIds: string[] = [];
-      if (typeof sesion.warmUp === 'object' && sesion.warmUp?.id) exerciseIds.push(sesion.warmUp.id);
-      sesion.mainExercises.forEach(ex => {
-        if (typeof ex === 'object' && ex?.id) exerciseIds.push(ex.id);
-      });
-      if (typeof sesion.coolDown === 'object' && sesion.coolDown?.id) exerciseIds.push(sesion.coolDown.id);
+    setDetailedSessionData(null); // Clear previous data
 
-      const uniqueExerciseIds = Array.from(new Set(exerciseIds));
+    try {
+      const exerciseIdsToFetch: string[] = [];
+      if (sesion.type === "Manual") {
+        if (typeof sesion.warmUp === 'object' && sesion.warmUp?.id) exerciseIdsToFetch.push(sesion.warmUp.id);
+        sesion.mainExercises.forEach(ex => {
+          if (typeof ex === 'object' && ex?.id) exerciseIdsToFetch.push(ex.id);
+        });
+        if (typeof sesion.coolDown === 'object' && sesion.coolDown?.id) exerciseIdsToFetch.push(sesion.coolDown.id);
+      }
+
+      const uniqueExerciseIds = Array.from(new Set(exerciseIdsToFetch));
       const exerciseDocs: Record<string, EjercicioDetallado> = {};
 
       if (uniqueExerciseIds.length > 0) {
-        const exercisesQuery = query(collection(db, "ejercicios_futsal"), where("__name__", "in", uniqueExerciseIds));
-        const querySnapshot = await getDocs(exercisesQuery);
-        querySnapshot.forEach(docSnap => {
-          const data = docSnap.data() as Omit<EjercicioDetallado, 'id'>;
-          exerciseDocs[docSnap.id] = { id: docSnap.id, ...data };
-        });
+        // Firestore 'in' queries are limited to 30 elements. If more, split into chunks.
+        const MAX_IN_VALUES = 30;
+        for (let i = 0; i < uniqueExerciseIds.length; i += MAX_IN_VALUES) {
+            const chunk = uniqueExerciseIds.slice(i, i + MAX_IN_VALUES);
+            if (chunk.length > 0) {
+                const exercisesQuery = query(collection(db, "ejercicios_futsal"), where("__name__", "in", chunk));
+                const querySnapshot = await getDocs(exercisesQuery);
+                querySnapshot.forEach(docSnap => {
+                  const data = docSnap.data() as Omit<EjercicioDetallado, 'id'>;
+                  exerciseDocs[docSnap.id] = { 
+                    id: docSnap.id, 
+                    ejercicio: data.ejercicio || "Ejercicio sin nombre",
+                    descripcion: data.descripcion || "Descripción no disponible.",
+                    objetivos: data.objetivos || "Objetivos no especificados.",
+                    categoria: data.categoria || "Categoría no especificada.",
+                    duracion: data.duracion, // Duracion might be optional
+                    ...data 
+                  };
+                });
+            }
+        }
       }
       
-      const enrichedWarmUp = (typeof sesion.warmUp === 'object' && sesion.warmUp?.id) ? exerciseDocs[sesion.warmUp.id] || sesion.warmUp : sesion.warmUp;
-      const enrichedMainExercises = sesion.mainExercises.map(ex => (typeof ex === 'object' && ex?.id) ? exerciseDocs[ex.id] || ex : ex);
-      const enrichedCoolDown = (typeof sesion.coolDown === 'object' && sesion.coolDown?.id) ? exerciseDocs[sesion.coolDown.id] || sesion.coolDown : sesion.coolDown;
+      let enrichedWarmUp: string | EjercicioDetallado = sesion.warmUp as string | EjercicioDetallado;
+      let enrichedMainExercises: (string | EjercicioDetallado)[] = sesion.mainExercises as (string | EjercicioDetallado)[];
+      let enrichedCoolDown: string | EjercicioDetallado = sesion.coolDown as string | EjercicioDetallado;
+
+      if (sesion.type === "Manual") {
+          enrichedWarmUp = (typeof sesion.warmUp === 'object' && sesion.warmUp?.id && exerciseDocs[sesion.warmUp.id]) ? exerciseDocs[sesion.warmUp.id] : sesion.warmUp;
+          enrichedMainExercises = sesion.mainExercises.map(ex => (typeof ex === 'object' && ex?.id && exerciseDocs[ex.id]) ? exerciseDocs[ex.id] : ex);
+          enrichedCoolDown = (typeof sesion.coolDown === 'object' && sesion.coolDown?.id && exerciseDocs[sesion.coolDown.id]) ? exerciseDocs[sesion.coolDown.id] : sesion.coolDown;
+      }
+
 
       setDetailedSessionData({
         ...sesion,
-        warmUp: enrichedWarmUp as string | EjercicioDetallado,
-        mainExercises: enrichedMainExercises as (string | EjercicioDetallado)[],
-        coolDown: enrichedCoolDown as string | EjercicioDetallado,
+        warmUp: enrichedWarmUp,
+        mainExercises: enrichedMainExercises,
+        coolDown: enrichedCoolDown,
       });
 
     } catch (error) {
       console.error("Error fetching exercise details for dialog:", error);
       toast({ title: "Error al cargar detalles", description: "No se pudieron cargar los detalles completos de los ejercicios.", variant: "destructive"});
+      // Fallback to basic data if fetching details fails
       setDetailedSessionData(sesion as SesionConDetallesEjercicio); 
     }
     setIsLoadingDialogDetails(false);
@@ -271,10 +292,10 @@ function MisSesionesContent() {
 
     if (isNaN(date.getTime())) return (typeof dateValue === 'string' ? dateValue : 'Fecha inválida');
 
-    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const formatExerciseName = (exercise: string | EjercicioInfo | null | undefined): string => {
+  const formatExerciseName = (exercise: string | EjercicioInfo | EjercicioDetallado | null | undefined): string => {
     if (!exercise) return "Ejercicio no especificado";
     if (typeof exercise === 'string') return exercise;
     return exercise.ejercicio || "Ejercicio sin nombre";
@@ -285,7 +306,7 @@ function MisSesionesContent() {
     return exercise.descripcion;
   };
   
-  const getExerciseDuration = (exercise: string | EjercicioInfo | null | undefined): string => {
+  const getExerciseDuration = (exercise: string | EjercicioInfo | EjercicioDetallado | null | undefined): string => {
     if (!exercise || typeof exercise === 'string' || !exercise.duracion) return "";
     return `${exercise.duracion} min`;
   };
@@ -339,9 +360,9 @@ function MisSesionesContent() {
 
   const getSessionTema = (sesion: Sesion | SesionConDetallesEjercicio | null): string => {
     if (!sesion) return "Tema no especificado";
-    if (sesion.sessionTitle && sesion.sessionTitle !== `Sesión Manual - ${formatDate(sesion.fecha)}`) return sesion.sessionTitle;
+    if (sesion.sessionTitle && sesion.sessionTitle !== `Sesión Manual - ${formatDate(sesion.fecha)}` && !sesion.sessionTitle.startsWith("Sesión Manual - ")) return sesion.sessionTitle;
     if (sesion.type === "AI" && sesion.sessionFocus) return sesion.sessionFocus;
-    if (sesion.type === "AI" && sesion.sessionTitle) return sesion.sessionTitle; // Fallback for older AI sessions
+    if (sesion.type === "AI" && sesion.sessionTitle && !sesion.sessionTitle.startsWith("Sesión Manual - ")) return sesion.sessionTitle; // Fallback for older AI sessions
     if (sesion.equipo) return `Entrenamiento ${sesion.equipo}`;
     return "Tema no especificado";
   }
@@ -478,21 +499,20 @@ function MisSesionesContent() {
                       {formatDate(sesion.fecha)}
                     </p>
                   </div>
-                  <Badge variant={sesion.type === "AI" ? "default" : "secondary"} className="ml-2 shrink-0">
-                    {sesion.type === "AI" ? <Bot className="mr-1 h-3 w-3"/> : <Edit2 className="mr-1 h-3 w-3"/>}
-                    {sesion.type}
-                  </Badge>
+                  {/* Badge eliminado de aquí */}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 flex-grow pb-6"> 
+              <CardContent className="space-y-2 flex-grow pb-8"> 
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground">Tema/Enfoque:</p>
                   <p className="font-medium text-sm line-clamp-2">{getSessionTema(sesion)}</p>
                 </div>
                 
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Tiempo Total (aprox.):</p>
-                  <p className="font-medium text-sm">{getTotalDuration(sesion)}</p>
+                  <p>
+                    <span className="text-xs font-semibold text-muted-foreground">Tiempo total: </span>
+                    <span className="font-medium text-sm">{getTotalDuration(sesion)}</span>
+                  </p>
                 </div>
 
                 <div className="space-y-0.5">
@@ -521,7 +541,7 @@ function MisSesionesContent() {
                     </div>
                 )}
               </CardContent>
-              <CardFooter className="flex flex-col items-center gap-2 px-4 py-4 border-t mt-auto">
+              <CardFooter className="flex flex-col items-center gap-2 px-4 py-4 border-t">
                 <Dialog onOpenChange={(open) => { if (open) handleOpenDialog(sesion); else { setSelectedSesionForDialog(null); setDetailedSessionData(null);}}}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg">
@@ -529,8 +549,8 @@ function MisSesionesContent() {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
-                    <ShadcnDialogHeader className="sr-only">
-                        <ShadcnDialogTitle>Ficha Detallada de la Sesión: {getSessionTema(detailedSessionData)}</ShadcnDialogTitle>
+                    <ShadcnDialogHeader>
+                        <ShadcnDialogTitle className="sr-only">Ficha Detallada de la Sesión: {detailedSessionData ? getSessionTema(detailedSessionData) : ''}</ShadcnDialogTitle>
                     </ShadcnDialogHeader>
                     {isLoadingDialogDetails && !detailedSessionData && (
                         <div className="flex flex-col items-center justify-center p-10 min-h-[300px]">
@@ -556,10 +576,10 @@ function MisSesionesContent() {
                         
                         <div className="p-4 border-b border-gray-300">
                             <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                                <h3 className="font-semibold text-lg uppercase">Categorías y Objetivos</h3>
+                                <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
                             </div>
                             <div className="text-sm space-y-1">
-                                <p className="font-medium text-md">{getSessionTema(detailedSessionData)}</p>
+                                {/* Línea de Tema/Enfoque eliminada de aquí */}
                                 <p><strong className="font-medium">CATEGORÍA(S):</strong> {getDialogCategorias(detailedSessionData)}</p>
                                 <p><strong className="font-medium">OBJETIVOS GENERALES:</strong> {getDialogObjetivos(detailedSessionData)}</p>
                             </div>
@@ -609,15 +629,14 @@ function MisSesionesContent() {
                               </div>
                             ))}
                           </div>
+                           <div className="p-4 mt-3 border-t border-gray-300 text-center">
+                                <p className="font-semibold text-md">
+                                    <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
+                                    Tiempo total: {getTotalDuration(detailedSessionData)}
+                                </p>
+                            </div>
                         </div>
                         
-                        <div className="p-4 border-b border-gray-300 text-center">
-                            <p className="font-semibold text-md">
-                                <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
-                                Tiempo total: {getTotalDuration(detailedSessionData)}
-                            </p>
-                        </div>
-
                         <div className="p-4 border-b border-gray-300">
                           <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
                             <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
