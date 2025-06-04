@@ -83,18 +83,13 @@ function ManageExercisesPageContent() {
 
       const qConstraints: QueryConstraint[] = [
         firestoreOrderBy(currentSortField, currentSortDirection),
+        firestoreOrderBy("__name__", currentSortDirection), // Tie-breaker
         limit(ITEMS_PER_PAGE)
       ];
       
-      // For 'next' page, use the last doc of the *previous* page
-      // pageDocSnapshots.last is 0-indexed, so for page 2 (newPage=2), we need last[0]
       if (newPage > 1 && pageDocSnapshots.last[newPage - 2]) {
          qConstraints.push(startAfter(pageDocSnapshots.last[newPage - 2]!));
       }
-      // For 'previous' page, if going back to page 1, no startAfter.
-      // If going to page N (where N > 1) from N+1, we need the first doc of page N-1.
-      // This logic is a bit complex with 'previous'. Simpler approach: re-fetch from beginning up to page N-1.
-      // Current simplified 'previous' re-fetches target page using last of page N-2.
 
       const q = query(ejerciciosCollection, ...qConstraints);
       const querySnapshot = await getDocs(q);
@@ -103,7 +98,6 @@ function ManageExercisesPageContent() {
         ...doc.data()
       } as EjercicioAdmin));
 
-      // Aplicar ordenación natural en el cliente SI se está ordenando por 'numero'
       if (currentSortField === 'numero' && fetchedEjercicios.length > 0) {
         fetchedEjercicios.sort((a, b) => {
           const numA = (a.numero || "").trim(); 
@@ -116,6 +110,7 @@ function ManageExercisesPageContent() {
       }
 
       setEjercicios(fetchedEjercicios);
+      setCurrentPage(newPage); // Update current page state
 
       if (querySnapshot.docs.length > 0) {
         const firstDoc = querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>;
@@ -124,14 +119,11 @@ function ManageExercisesPageContent() {
         setPageDocSnapshots(prev => {
             const newFirst = [...prev.first];
             const newLast = [...prev.last];
-            newFirst[newPage -1] = firstDoc; // Store first doc of current page (newPage is 1-indexed)
-            newLast[newPage -1] = lastDoc;   // Store last doc of current page
+            newFirst[newPage -1] = firstDoc;
+            newLast[newPage -1] = lastDoc;
             return { first: newFirst, last: newLast };
         });
 
-      } else if (newPage > 1 && querySnapshot.docs.length === 0) {
-        // If we asked for a page beyond the first and got nothing, means previous page was the last
-        // No new last doc to set for this (non-existent) page.
       }
 
 
@@ -155,14 +147,13 @@ function ManageExercisesPageContent() {
       }
     }
     setIsLoading(false);
-  }, [toast, pageDocSnapshots.last]); // Include pageDocSnapshots.last
+  }, [toast, pageDocSnapshots.last]);
 
   useEffect(() => {
     if (isAdmin) {
       fetchTotalCount();
-      // Reset pagination state when sort/filters change or on initial load
-      setPageDocSnapshots({ first: [null], last: [] }); // Ensure last is empty for page 1
-      setCurrentPage(1); // Explicitly set to 1
+      setPageDocSnapshots({ first: [null], last: [] }); 
+      setCurrentPage(1);
       fetchEjercicios(1, sortField, sortDirection);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,7 +164,6 @@ function ManageExercisesPageContent() {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(newDirection);
-    // Fetching will be triggered by useEffect due to sortField/sortDirection change
   };
 
   const renderSortIcon = (field: SortableField) => {
@@ -184,19 +174,16 @@ function ManageExercisesPageContent() {
   };
 
  const handleNextPage = () => {
-    if (ejercicios.length < ITEMS_PER_PAGE || isLoading) return; // No more pages or already loading
+    if (ejercicios.length < ITEMS_PER_PAGE || isLoading) return; 
     const nextPage = currentPage + 1;
     fetchEjercicios(nextPage, sortField, sortDirection);
   };
 
   const handlePreviousPage = () => {
-    if (currentPage === 1 || isLoading) return; // Already on first page or loading
+    if (currentPage === 1 || isLoading) return;
     const prevPage = currentPage - 1;
-    // To go to prevPage (e.g., page 1 from page 2), we need to start *after* the last doc of page (prevPage - 1)
-    // If prevPage is 1, no startAfter needed.
-    // This reset ensures we build up to the previous page correctly.
     setPageDocSnapshots(prev => ({
-        first: prev.first.slice(0, prevPage -1), // Keep history up to the page before target
+        first: prev.first.slice(0, prevPage -1), 
         last: prev.last.slice(0, prevPage -1)
     }));
     fetchEjercicios(prevPage, sortField, sortDirection);
@@ -214,9 +201,8 @@ function ManageExercisesPageContent() {
       await deleteDoc(doc(db, "ejercicios_futsal", exerciseToDeleteId));
       toast({ title: "Ejercicio Eliminado", description: "El ejercicio ha sido eliminado correctamente." });
       
-      await fetchTotalCount(); // Recalculate total
+      await fetchTotalCount(); 
 
-      // Determine new current page after deletion
       const newEjerciciosCountOnPage = ejercicios.length - 1;
       let pageToFetchAfterDelete = currentPage;
 
@@ -224,12 +210,11 @@ function ManageExercisesPageContent() {
         pageToFetchAfterDelete = currentPage - 1;
       }
       
-      // Reset pagination history up to the page *before* the one we are about to fetch
       setPageDocSnapshots(prev => ({
           first: prev.first.slice(0, pageToFetchAfterDelete -1), 
           last: prev.last.slice(0, pageToFetchAfterDelete -1)
       }));
-      setCurrentPage(pageToFetchAfterDelete); // Update current page state *before* fetching
+      // No es necesario llamar a setCurrentPage aquí, fetchEjercicios lo hará.
       fetchEjercicios(pageToFetchAfterDelete, sortField, sortDirection);
 
     } catch (error) {
@@ -253,7 +238,7 @@ function ManageExercisesPageContent() {
     return edad;
   };
 
-  if (!isAdmin && !isLoading) { // Only render if not admin AND not initial loading
+  if (!isAdmin && !isLoading) { 
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
         <Card className="w-full max-w-md text-center shadow-lg">
@@ -277,7 +262,6 @@ function ManageExercisesPageContent() {
     );
   }
 
-  // Initial loading state for the entire page (when isAdmin is true)
   if (isLoading && ejercicios.length === 0 && currentPage === 1) {
      return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
@@ -331,13 +315,13 @@ function ManageExercisesPageContent() {
            {isLoading && <CardDescription>Actualizando ejercicios...</CardDescription>}
         </CardHeader>
         <CardContent>
-          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 && currentPage > 1 ? ( // Loading subsequent pages
+          {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 && currentPage > 1 ? ( 
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1 ? ( // No exercises at all
+          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB === 0 && currentPage === 1 ? ( 
             <p className="text-muted-foreground text-center py-10">No hay ejercicios en la biblioteca. <Link href="/admin/add-exercise" className="text-primary hover:underline">Añade el primero</Link>.</p>
-          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 ? ( // No exercises for current page/filters, but some exist
+          ) : !isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 ? ( 
              <p className="text-muted-foreground text-center py-10">No hay ejercicios que coincidan con la página actual o filtros.</p>
           ): (
             <>
@@ -390,7 +374,7 @@ function ManageExercisesPageContent() {
                         variant="outline"
                         size="sm"
                         onClick={handleNextPage}
-                        disabled={ejercicios.length < ITEMS_PER_PAGE || isLoading}
+                        disabled={ejercicios.length < ITEMS_PER_PAGE || isLoading || (totalExercisesInDB > 0 && endIndex >= totalExercisesInDB && ejercicios.length <= ITEMS_PER_PAGE) }
                         aria-label="Página siguiente"
                     >
                         Siguiente
@@ -432,4 +416,5 @@ export default function ManageExercisesPage() {
     </AuthGuard>
   );
 }
+
 
