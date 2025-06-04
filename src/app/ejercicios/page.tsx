@@ -11,8 +11,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection as firestoreCollection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
-import { Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart, Printer } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -386,82 +385,11 @@ export default function EjerciciosPage() {
                   <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
                 </CardContent>
                 <CardFooter>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">
-                        <Eye className="mr-2 h-4 w-4" /> Ver Detalles
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                      <div className="exercise-print-area">
-                        <DialogHeader>
-                          <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
-                           <DialogDescription className="sr-only">
-                            Detalles del ejercicio: {ej.ejercicio}. Fase: {ej.fase}. Edad: {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}. Duración: {formatDuracion(ej.duracion)} min. Categoría: {ej.categoria}.
-                          </DialogDescription>
-                          {ej.categoria && <Badge variant="default" className="mt-1 self-start text-sm py-1 px-2">{ej.categoria}</Badge>}
-                        </DialogHeader>
-                        
-                        <div className="mt-4 relative aspect-video w-full">
-                           <Image
-                            src={ej.imagen || `https://placehold.co/600x400.png`}
-                            alt={ej.ejercicio}
-                            fill
-                            style={{ objectFit: 'contain' }}
-                            className="rounded-md"
-                            sizes="(max-width: 768px) 100vw, 50vw"
-                            data-ai-hint="futsal game"
-                           />
-                        </div>
-                        
-                        <div className="mt-4 space-y-4">
-                          <div>
-                            <h3 className="font-semibold text-lg mb-1">Descripción</h3>
-                            <p className="text-sm mb-3">{ej.descripcion}</p>
-                          </div>
-                            
-                          <div>
-                            <h3 className="font-semibold text-lg mb-1">Objetivos</h3>
-                            {ej.objetivos && ej.objetivos.length > 0 ? (
-                                <ul className="list-disc pl-5 space-y-1 text-sm mb-3">
-                                {ej.objetivos.split(/[.;]+/) 
-                                  .map(obj => obj.trim())
-                                  .filter(obj => obj.length > 0)
-                                  .map((obj, index) => (
-                                    <li key={index}>{obj}{obj.endsWith('.') || obj.endsWith(';') ? '' : '.'}</li>
-                                  ))}
-                              </ul>
-                            ) : (
-                              <p className="text-sm mb-3 text-muted-foreground">No especificados.</p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mt-4 space-y-3 text-sm">
-                          <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
-                          <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
-                          <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ej.duracion)} min</p>
-                          <p><strong className="font-semibold">Materiales y Espacio:</strong> {ej.espacio_materiales}</p>
-                          <p><strong className="font-semibold">Nº Jugadores:</strong> {ej.jugadores}</p>
-                          <p><strong className="font-semibold">Variantes:</strong> {ej.variantes || 'No especificadas.'}</p>
-                          <p><strong className="font-semibold">Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
-                        </div>
-                        <div className="print-button-container mt-6 text-center">
-                            <Button
-                              onClick={() => {
-                                setTimeout(() => {
-                                  window.print();
-                                }, 0);
-                              }}
-                              variant="default"
-                            >
-                                <Printer className="mr-2 h-4 w-4" />
-                                Imprimir / Guardar PDF
-                            </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href={`/ejercicios/${ej.id}`}>
+                      <ArrowRight className="mr-2 h-4 w-4" /> Ver Detalles
+                    </Link>
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
