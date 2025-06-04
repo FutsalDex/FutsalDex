@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, serverTimestamp } from 'firebase/firestore'; // Removed collection import as it's not used directly
+import { doc, getDoc, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,10 @@ import { Loader2, ArrowLeft, Printer, Heart } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
-import { DialogDescription } from '@/components/ui/dialog'; // This import is not used on this page.
+import { DialogDescription } from '@/components/ui/dialog';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+
 
 interface Ejercicio {
   id: string;
@@ -48,6 +51,7 @@ export default function EjercicioDetallePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteState>({});
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const fetchExerciseData = useCallback(async () => {
     if (!exerciseId) {
@@ -124,23 +128,148 @@ export default function EjercicioDetallePage() {
     }
   };
 
-  const handlePrint = () => {
-    console.log("handlePrint called on exercise detail page.");
-    // setTimeout is a common workaround for print issues in some environments
-    setTimeout(() => {
-        console.log("Attempting to call window.print() for exercise detail page.");
-        try {
-            window.print();
-            console.log("window.print() for exercise detail page executed.");
-        } catch (error) {
-            console.error("Error during window.print() for exercise detail page:", error);
-            toast({
-                title: "Error de Impresión",
-                description: "Ocurrió un error al intentar imprimir.",
-                variant: "destructive",
-            });
+  const handlePrint = async () => {
+    const printArea = document.querySelector('.exercise-print-area') as HTMLElement;
+    if (!printArea || !ejercicio) {
+      toast({
+        title: "Error",
+        description: "No se pudo encontrar el contenido del ejercicio para generar el PDF.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+
+    const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
+    const originalDisplay = printButtonContainer ? printButtonContainer.style.display : '';
+    if (printButtonContainer) {
+      printButtonContainer.style.display = 'none';
+    }
+    // Ensure fonts and styles are applied, and background is explicitly white for capture
+    const headerElement = printArea.querySelector('header');
+    const originalHeaderBg = headerElement ? headerElement.style.backgroundColor : '';
+    if (headerElement) headerElement.style.backgroundColor = 'white';
+
+
+    try {
+      const canvas = await html2canvas(printArea, { 
+        scale: 2, // Higher scale for better PDF quality
+        useCORS: true, // Try to fetch images from other domains
+        logging: false, // Disable html2canvas logging to console if not needed
+        backgroundColor: '#ffffff', // Explicitly set background to white
+         onclone: (document) => {
+            // Access the cloned document
+            const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
+            if (clonedPrintArea) {
+                // You can try to re-apply styles or classes here if needed for specific elements
+                // For example, ensure text colors are dark for printing
+                const textElements = clonedPrintArea.querySelectorAll('p, h1, h3, li, strong, span, div:not(img):not(svg)');
+                textElements.forEach(el => {
+                    (el as HTMLElement).style.color = '#000000'; // Force black text
+                });
+                // Ensure primary color is also black or very dark
+                const primaryElements = clonedPrintArea.querySelectorAll('.text-primary');
+                 primaryElements.forEach(el => {
+                    (el as HTMLElement).style.color = '#000000';
+                 });
+            }
         }
-    }, 0);
+      });
+      
+      if (printButtonContainer) {
+        printButtonContainer.style.display = originalDisplay;
+      }
+      if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
+
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgProps= pdf.getImageProperties(imgData);
+      const imgWidth = imgProps.width;
+      const imgHeight = imgProps.height;
+      
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const newImgWidth = imgWidth * ratio;
+      const newImgHeight = imgHeight * ratio;
+      
+      // Add some margin
+      const margin = 20; // points
+      const finalWidth = newImgWidth - (margin * 2);
+      const finalHeight = newImgHeight - (margin * 2);
+
+      const x = (pdfWidth - finalWidth) / 2;
+      const y = (pdfHeight - finalHeight) / 2;
+
+
+      if (finalHeight > pdfHeight) { // Content is taller than one page
+        let position = margin;
+        let remainingHeight = imgHeight;
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = imgWidth;
+        sourceCanvas.height = imgHeight;
+        const ctx = sourceCanvas.getContext('2d');
+        const img = new window.Image(); // Use window.Image for browser environment
+        
+        await new Promise<void>((resolve, reject) => {
+            img.onload = () => {
+                ctx?.drawImage(img, 0, 0);
+                let pageNumber = 0;
+                while(remainingHeight > 0) {
+                    if (pageNumber > 0) {
+                        pdf.addPage();
+                    }
+                    const sliceHeight = Math.min(remainingHeight, pdfHeight * (imgWidth / pdfWidth) - (margin*2) ); // calculate height of the slice in original image pixels
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = imgWidth;
+                    tempCanvas.height = sliceHeight;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx?.drawImage(sourceCanvas, 0, pageHeight * pageNumber * (imgWidth/pdfWidth) , imgWidth, sliceHeight, 0,0, imgWidth, sliceHeight);
+                    
+                    const pageImgData = tempCanvas.toDataURL('image/png');
+                    pdf.addImage(pageImgData, 'PNG', margin, margin, pdfWidth - (margin*2), sliceHeight * (pdfWidth - (margin*2)) / imgWidth );
+                    
+                    remainingHeight -= sliceHeight;
+                    pageNumber++;
+                    if (pageNumber > 10) { // safety break for too many pages
+                         console.warn("PDF generation stopped after 10 pages.");
+                         break;
+                    }
+                }
+                resolve();
+            };
+            img.onerror = reject;
+            img.src = imgData;
+        });
+
+
+      } else {
+         pdf.addImage(imgData, 'PNG', x > margin ? x : margin , y > margin ? y : margin, finalWidth, finalHeight);
+      }
+      
+      pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Error al Generar PDF",
+        description: "Hubo un problema al crear el archivo PDF. " + (error instanceof Error ? error.message : String(error)),
+        variant: "destructive",
+      });
+       if (printButtonContainer) {
+        printButtonContainer.style.display = originalDisplay;
+      }
+      if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
   
   const formatDuracion = (duracion: string | undefined) => duracion ? `${duracion} min` : 'N/A';
@@ -251,9 +380,9 @@ export default function EjercicioDetallePage() {
         </div>
 
         <div className="print-button-container mt-8 text-center">
-            <Button onClick={handlePrint} variant="default" size="lg">
-                <Printer className="mr-2 h-5 w-5" />
-                Imprimir / Guardar PDF
+            <Button onClick={handlePrint} variant="default" size="lg" disabled={isGeneratingPdf}>
+                {isGeneratingPdf ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Printer className="mr-2 h-5 w-5" />}
+                {isGeneratingPdf ? 'Generando PDF...' : 'Imprimir / Guardar PDF'}
             </Button>
         </div>
       </div>
