@@ -64,6 +64,7 @@ interface EjercicioDetallado extends EjercicioInfo {
   descripcion: string; // Mark as non-optional if it's always expected
   objetivos: string; // Mark as non-optional
   categoria: string; // Mark as non-optional
+  imagen?: string; // Add imagen field
 }
 
 interface SesionConDetallesEjercicio extends Omit<Sesion, 'warmUp' | 'mainExercises' | 'coolDown'> {
@@ -190,7 +191,7 @@ function MisSesionesContent() {
 
   const fetchExerciseDetailsForDialog = useCallback(async (sesion: Sesion) => {
     setIsLoadingDialogDetails(true);
-    setDetailedSessionData(null); // Clear previous data
+    setDetailedSessionData(null); 
 
     try {
       const exerciseIdsToFetch: string[] = [];
@@ -206,7 +207,6 @@ function MisSesionesContent() {
       const exerciseDocs: Record<string, EjercicioDetallado> = {};
 
       if (uniqueExerciseIds.length > 0) {
-        // Firestore 'in' queries are limited to 30 elements. If more, split into chunks.
         const MAX_IN_VALUES = 30;
         for (let i = 0; i < uniqueExerciseIds.length; i += MAX_IN_VALUES) {
             const chunk = uniqueExerciseIds.slice(i, i + MAX_IN_VALUES);
@@ -221,7 +221,8 @@ function MisSesionesContent() {
                     descripcion: data.descripcion || "Descripción no disponible.",
                     objetivos: data.objetivos || "Objetivos no especificados.",
                     categoria: data.categoria || "Categoría no especificada.",
-                    duracion: data.duracion, // Duracion might be optional
+                    duracion: data.duracion, 
+                    imagen: data.imagen || `https://placehold.co/300x200.png?text=${encodeURIComponent(data.ejercicio || 'Ejercicio')}`,
                     ...data 
                   };
                 });
@@ -250,7 +251,6 @@ function MisSesionesContent() {
     } catch (error) {
       console.error("Error fetching exercise details for dialog:", error);
       toast({ title: "Error al cargar detalles", description: "No se pudieron cargar los detalles completos de los ejercicios.", variant: "destructive"});
-      // Fallback to basic data if fetching details fails
       setDetailedSessionData(sesion as SesionConDetallesEjercicio); 
     }
     setIsLoadingDialogDetails(false);
@@ -280,7 +280,7 @@ function MisSesionesContent() {
     if (typeof dateValue === 'string') {
       if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
          const [year, month, day] = dateValue.split('-').map(Number);
-         date = new Date(year, month - 1, day, 12,0,0);
+         date = new Date(year, month - 1, day, 12,0,0); 
       } else {
          date = new Date(dateValue);
       }
@@ -307,9 +307,16 @@ function MisSesionesContent() {
   };
   
   const getExerciseDuration = (exercise: string | EjercicioInfo | EjercicioDetallado | null | undefined): string => {
-    if (!exercise || typeof exercise === 'string' || !exercise.duracion) return "";
+    if (!exercise || typeof exercise === 'string' || !exercise.duracion || exercise.duracion === "0") return "N/A";
     return `${exercise.duracion} min`;
   };
+  
+  const getExerciseImage = (exercise: string | EjercicioInfo | EjercicioDetallado | null | undefined, defaultText: string): string => {
+    if (typeof exercise === 'object' && exercise?.imagen) return exercise.imagen;
+    const text = typeof exercise === 'object' && exercise?.ejercicio ? exercise.ejercicio : defaultText;
+    return `https://placehold.co/300x200.png?text=${encodeURIComponent(text)}`;
+  };
+
 
   const handleDeleteSessionClick = (sessionId: string) => {
     setSessionToDeleteId(sessionId);
@@ -406,6 +413,26 @@ function MisSesionesContent() {
     
     return objetivos.length > 0 ? Array.from(new Set(objetivos.map(o => o.trim()))).join('; ') : "No especificados";
   };
+  
+  const getDialogTotalDuration = (sesion: SesionConDetallesEjercicio | null): string => {
+    if (!sesion) return 'No especificada';
+    if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
+        return `${sesion.preferredSessionLengthMinutes} min`;
+    }
+    if (sesion.type === "Manual") {
+        let totalMinutes = 0;
+        const parse = (val: string | undefined) => val ? parseInt(val, 10) : 0;
+
+        if (typeof sesion.warmUp === 'object' && sesion.warmUp?.duracion) totalMinutes += parse(sesion.warmUp.duracion);
+        sesion.mainExercises.forEach(ex => {
+            if (typeof ex === 'object' && ex?.duracion) totalMinutes += parse(ex.duracion);
+        });
+        if (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion) totalMinutes += parse(sesion.coolDown.duracion);
+        
+        return totalMinutes > 0 ? `${totalMinutes} min` : 'No especificada';
+    }
+    return 'No especificada';
+};
 
 
   if (isLoading && sesiones.length === 0) {
@@ -499,15 +526,9 @@ function MisSesionesContent() {
                       {formatDate(sesion.fecha)}
                     </p>
                   </div>
-                  {/* Badge eliminado de aquí */}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 flex-grow pb-8"> 
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Tema/Enfoque:</p>
-                  <p className="font-medium text-sm line-clamp-2">{getSessionTema(sesion)}</p>
-                </div>
-                
+              <CardContent className="space-y-2 flex-grow pb-6"> 
                 <div>
                   <p>
                     <span className="text-xs font-semibold text-muted-foreground">Tiempo total: </span>
@@ -579,7 +600,7 @@ function MisSesionesContent() {
                                 <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
                             </div>
                             <div className="text-sm space-y-1">
-                                {/* Línea de Tema/Enfoque eliminada de aquí */}
+                                <p className="font-medium text-md">{getSessionTema(detailedSessionData)}</p>
                                 <p><strong className="font-medium">CATEGORÍA(S):</strong> {getDialogCategorias(detailedSessionData)}</p>
                                 <p><strong className="font-medium">OBJETIVOS GENERALES:</strong> {getDialogObjetivos(detailedSessionData)}</p>
                             </div>
@@ -591,7 +612,7 @@ function MisSesionesContent() {
                             <span className="text-sm">{getExerciseDuration(detailedSessionData.warmUp)}</span>
                           </div>
                           <div className="flex flex-col md:flex-row gap-4 items-start">
-                            <Image src="https://placehold.co/300x200.png?text=Calentamiento" alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal warmup"/>
+                            <Image src={getExerciseImage(detailedSessionData.warmUp, "Calentamiento")} alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal warmup"/>
                             <div className="flex-1">
                                 <p className="text-md font-semibold">{formatExerciseName(detailedSessionData.warmUp)}</p>
                                 <p className="text-sm mt-1">{formatExerciseDescription(detailedSessionData.warmUp)}</p>
@@ -615,7 +636,7 @@ function MisSesionesContent() {
                                   <span className="font-medium">TIEMPO: {getExerciseDuration(ex)}</span>
                                 </div>
                                 <div className="flex flex-col md:flex-row gap-4 items-start">
-                                  <Image src={`https://placehold.co/300x200.png?text=Principal+${index + 1}`} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal exercise"/>
+                                  <Image src={getExerciseImage(ex, `Principal ${index + 1}`)} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal exercise"/>
                                   <div className="flex-1">
                                     <p className="text-md font-semibold">{formatExerciseName(ex)}</p>
                                     <p className="text-sm mt-1">{formatExerciseDescription(ex)}</p>
@@ -629,12 +650,6 @@ function MisSesionesContent() {
                               </div>
                             ))}
                           </div>
-                           <div className="p-4 mt-3 border-t border-gray-300 text-center">
-                                <p className="font-semibold text-md">
-                                    <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
-                                    Tiempo total: {getTotalDuration(detailedSessionData)}
-                                </p>
-                            </div>
                         </div>
                         
                         <div className="p-4 border-b border-gray-300">
@@ -643,7 +658,7 @@ function MisSesionesContent() {
                             <span className="text-sm">{getExerciseDuration(detailedSessionData.coolDown)}</span>
                           </div>
                            <div className="flex flex-col md:flex-row gap-4 items-start">
-                             <Image src="https://placehold.co/300x200.png?text=Vuelta+Calma" alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal cooldown"/>
+                             <Image src={getExerciseImage(detailedSessionData.coolDown, "Vuelta a la Calma")} alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain md:w-1/3" data-ai-hint="futsal cooldown"/>
                              <div className="flex-1">
                                 <p className="text-md font-semibold">{formatExerciseName(detailedSessionData.coolDown)}</p>
                                 <p className="text-sm mt-1">{formatExerciseDescription(detailedSessionData.coolDown)}</p>
@@ -654,6 +669,13 @@ function MisSesionesContent() {
                                   <Link href={`/ejercicios#${detailedSessionData.coolDown.id}`} target="_blank" rel="noopener noreferrer">Ver detalles del ejercicio</Link>
                               </Button>
                           )}
+                        </div>
+                        
+                         <div className="p-4 mt-3 border-b border-gray-300 text-center">
+                            <p className="font-semibold text-md">
+                                <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
+                                Tiempo total: {getDialogTotalDuration(detailedSessionData)}
+                            </p>
                         </div>
 
                         {(detailedSessionData.coachNotes && detailedSessionData.coachNotes.trim() !== "") && (
