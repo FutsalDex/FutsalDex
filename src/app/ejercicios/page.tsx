@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection as firestoreCollection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
 import { Filter, Search, Loader2, Eye, Lock, ListFilter, ChevronDown, Heart } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -37,7 +37,7 @@ interface Ejercicio {
   objetivos: string;
   espacio_materiales: string;
   jugadores: string;
-  duracion: string; // Será "5", "10", "15", "20"
+  duracion: string; 
   variantes?: string;
   fase: string;
   categoria: string; 
@@ -75,10 +75,36 @@ export default function EjerciciosPage() {
   const uniqueAgeCategories = useMemo(() => CATEGORIAS_EDAD_EJERCICIOS, []);
   const uniqueFases = useMemo(() => FASES_SESION, []);
 
+  useEffect(() => {
+    if (user && isRegisteredUser) {
+      const loadFavorites = async () => {
+        try {
+          const favsRef = firestoreCollection(db, "users", user.uid, "user_favorites");
+          const querySnapshot = await getDocs(favsRef);
+          const userFavorites: FavoriteState = {};
+          querySnapshot.forEach((docSnap) => {
+            userFavorites[docSnap.id] = true; 
+          });
+          setFavorites(userFavorites);
+        } catch (error) {
+          console.error("Error loading favorites:", error);
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar tus favoritos.",
+            variant: "destructive",
+          });
+        }
+      };
+      loadFavorites();
+    } else {
+      setFavorites({}); 
+    }
+  }, [user, isRegisteredUser, toast]);
+
   const fetchEjercicios = useCallback(async (pageToFetch = 1, currentSearch = searchTerm, currentPhase = phaseFilter, currentAge = selectedAgeFilter, currentThematicCat = thematicCategoryFilter, isNextPage = false) => {
     setIsLoading(true);
     try {
-      const ejerciciosCollection = collection(db, 'ejercicios_futsal');
+      const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
       let constraintsList: QueryConstraint[] = [];
 
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
@@ -106,12 +132,12 @@ export default function EjerciciosPage() {
       const limitAmount = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
       constraintsList.push(limit(limitAmount));
       
-      const q = query(ejerciciosCollection, ...constraintsList);
+      const q = query(ejerciciosCollectionRef, ...constraintsList);
       const documentSnapshots = await getDocs(q);
 
-      const fetchedEjercicios = documentSnapshots.docs.map(doc => ({ 
-        id: doc.id, 
-        ...(doc.data() as Omit<Ejercicio, 'id'>) 
+      const fetchedEjercicios = documentSnapshots.docs.map(docSnap => ({ 
+        id: docSnap.id, 
+        ...(docSnap.data() as Omit<Ejercicio, 'id'>) 
       } as Ejercicio));
       setEjercicios(fetchedEjercicios);
       setCurrentPage(pageToFetch);
@@ -161,12 +187,46 @@ export default function EjerciciosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]);
 
-  const toggleFavorite = (exerciseId: string) => {
-    if (!isRegisteredUser) return; 
-    setFavorites(prev => ({
-      ...prev,
-      [exerciseId]: !prev[exerciseId]
-    }));
+  const toggleFavorite = async (exerciseId: string) => {
+    if (!user || !isRegisteredUser) {
+      toast({
+        title: "Acción Requerida",
+        description: "Inicia sesión para guardar tus ejercicios favoritos.",
+        variant: "default",
+        action: <Button asChild variant="outline"><Link href="/login">Iniciar Sesión</Link></Button>
+      });
+      return;
+    }
+  
+    const isCurrentlyFavorite = !!favorites[exerciseId];
+    const newFavoritesState = { ...favorites, [exerciseId]: !isCurrentlyFavorite };
+    
+    setFavorites(newFavoritesState);
+  
+    try {
+      const favDocRef = doc(db, "users", user.uid, "user_favorites", exerciseId);
+      if (!isCurrentlyFavorite) { 
+        await setDoc(favDocRef, { addedAt: serverTimestamp() });
+        toast({
+          title: "Favorito Añadido",
+          description: "El ejercicio se ha añadido a tus favoritos.",
+        });
+      } else { 
+        await deleteDoc(favDocRef);
+        toast({
+          title: "Favorito Eliminado",
+          description: "El ejercicio se ha eliminado de tus favoritos.",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating favorite status:", error);
+      setFavorites(favorites); 
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de favorito. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePageChange = (newPage: number) => {
@@ -183,7 +243,7 @@ export default function EjerciciosPage() {
   };
 
   const formatDuracion = (duracion: string) => {
-    return `${duracion} min`;
+    return duracion ? `${duracion} min` : 'N/A';
   }
 
   return (
@@ -412,3 +472,4 @@ export default function EjerciciosPage() {
     </div>
   );
 }
+
