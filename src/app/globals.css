@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -107,11 +108,12 @@
     print-color-adjust: exact !important;
   }
 
-  .session-print-area, .session-print-area * {
+  .session-print-area, .session-print-area *,
+  .exercise-print-area, .exercise-print-area * {
     visibility: visible;
   }
 
-  .session-print-area {
+  .session-print-area, .exercise-print-area {
     position: absolute;
     left: 0;
     top: 0;
@@ -128,6 +130,13 @@
   .print-button-container {
     display: none !important;
   }
+  
+  /* Hide the dialog's close button (X) during printing */
+  [role="dialog"] > button[aria-label="Close"], /* ShadCN Dialog Close */
+  [role="dialog"] > button[class*="DialogPrimitive.Close"] { /* Fallback for general close buttons in dialog */
+    display: none !important;
+  }
+
 
   /* Hide main site header/footer and other non-dialog elements */
   body > header, body > footer, body > nav,
@@ -163,7 +172,8 @@
   }
   
   /* Ensure text is black for printing and background is white */
-  .session-print-area, .session-print-area * {
+  .session-print-area, .session-print-area *,
+  .exercise-print-area, .exercise-print-area * {
     color: black !important;
     background-color: white !important; 
   }
@@ -191,3 +201,4 @@
     font-family: 'Poppins', sans-serif; /* Match your headline font */
   }
 }
+
