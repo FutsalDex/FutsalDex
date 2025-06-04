@@ -393,40 +393,38 @@ export default function EjerciciosPage() {
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <div className="flex justify-between items-start">
-                            <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
-                            {ej.categoria && <Badge variant="default" className="ml-2 shrink-0 text-sm py-1 px-2">{ej.categoria}</Badge>}
-                        </div>
-                         <div className="text-sm text-muted-foreground pt-1">
+                        <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
+                        {ej.categoria && <Badge variant="default" className="mt-1 self-start text-sm py-1 px-2">{ej.categoria}</Badge>}
+                         <div className="text-sm text-muted-foreground pt-2">
                           <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
                           <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
                           <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ej.duracion)}</p>
                         </div>
                       </DialogHeader>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                        <div className="relative aspect-video">
+                      <div className="mt-4 space-y-4">
+                        <div className="relative aspect-video w-full">
                            <Image src={ej.imagen || `https://placehold.co/600x400.png`} alt={ej.ejercicio} layout="fill" objectFit="contain" className="rounded-md" data-ai-hint="futsal game"/>
                         </div>
+                        
                         <div>
                           <h3 className="font-semibold text-lg mb-1">Descripción</h3>
                           <p className="text-sm mb-3">{ej.descripcion}</p>
+                        </div>
                           
-                          <div>
-                            <h3 className="font-semibold text-lg mb-1">Objetivos</h3>
-                            {ej.objetivos && ej.objetivos.length > 0 ? (
-                               <ul className="list-disc pl-5 space-y-1 text-sm mb-3">
-                                {ej.objetivos.split(/[.;]+/) 
-                                  .map(obj => obj.trim())
-                                  .filter(obj => obj.length > 0)
-                                  .map((obj, index) => (
-                                    <li key={index}>{obj}{obj.endsWith('.') || obj.endsWith(';') ? '' : '.'}</li>
+                        <div>
+                          <h3 className="font-semibold text-lg mb-1">Objetivos</h3>
+                          {ej.objetivos && ej.objetivos.length > 0 ? (
+                              <ul className="list-disc pl-5 space-y-1 text-sm mb-3">
+                              {ej.objetivos.split(/[.;]+/) 
+                                .map(obj => obj.trim())
+                                .filter(obj => obj.length > 0)
+                                .map((obj, index) => (
+                                  <li key={index}>{obj}{obj.endsWith('.') || obj.endsWith(';') ? '' : '.'}</li>
                                 ))}
-                              </ul>
-                            ) : (
-                              <p className="text-sm mb-3 text-muted-foreground">No especificados.</p>
-                            )}
-                          </div>
-
+                            </ul>
+                          ) : (
+                            <p className="text-sm mb-3 text-muted-foreground">No especificados.</p>
+                          )}
                         </div>
                       </div>
                       <div className="mt-4 space-y-3 text-sm">
