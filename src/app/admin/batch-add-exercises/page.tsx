@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { db } from '@/lib/firebase';
 import { collection, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
-import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas'; 
+import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas';
 import { DURACION_EJERCICIO_OPCIONES_VALUES } from "@/lib/constants";
 
 const EXPECTED_HEADERS = {
@@ -42,13 +42,13 @@ function BatchAddExercisesPageContent() {
   const { toast } = useToast();
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setProcessedStats(null); 
+    setProcessedStats(null);
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       const validTypes = [
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-        "application/vnd.ms-excel", 
-        "text/csv" 
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "text/csv"
       ];
       if (validTypes.includes(file.type) || file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv') ) {
         setSelectedFile(file);
@@ -59,7 +59,7 @@ function BatchAddExercisesPageContent() {
           variant: "destructive",
         });
         setSelectedFile(null);
-        if (event.target) event.target.value = ""; 
+        if (event.target) event.target.value = "";
       }
     }
   };
@@ -118,13 +118,14 @@ function BatchAddExercisesPageContent() {
               edad: row[EXPECTED_HEADERS.edad] ? (row[EXPECTED_HEADERS.edad] as string).split(',').map(e => e.trim()).filter(e => e) : [],
               consejos_entrenador: row[EXPECTED_HEADERS.consejos_entrenador]?.toString() || "",
               imagen: row[EXPECTED_HEADERS.imagen]?.toString() || "",
+              isVisible: true, // Default to true for batch uploads
             };
-            
+
             if (!exerciseData.imagen) {
                 exerciseData.imagen = `https://placehold.co/400x300.png?text=${encodeURIComponent(exerciseData.ejercicio || 'Ejercicio')}`;
             }
-            
-            exerciseData.numero = exerciseData.numero || ""; 
+
+            exerciseData.numero = exerciseData.numero || "";
             exerciseData.variantes = exerciseData.variantes || "";
             exerciseData.consejos_entrenador = exerciseData.consejos_entrenador || "";
 
@@ -143,7 +144,7 @@ function BatchAddExercisesPageContent() {
 
           if (validationErrors.length > 0) {
             console.error("Errores de validación detallados:\n" + validationErrors.join('\n'));
-            
+
             const errorGuidance = (
               <div className="text-sm">
                 <p className="font-semibold mb-1">Se encontraron {failureCount} fila(s) con errores de validación.</p>
@@ -163,30 +164,31 @@ function BatchAddExercisesPageContent() {
                 title: `Errores de Validación (${failureCount})`,
                 description: errorGuidance,
                 variant: "destructive",
-                duration: 30000, 
+                duration: 30000,
              });
           }
-          
+
           if (exercisesToSave.length > 0) {
-            const MAX_BATCH_SIZE = 499; 
+            const MAX_BATCH_SIZE = 499;
             for (let i = 0; i < exercisesToSave.length; i += MAX_BATCH_SIZE) {
                 const batch = writeBatch(db);
                 const chunk = exercisesToSave.slice(i, i + MAX_BATCH_SIZE);
                 chunk.forEach(exData => {
                     const newExerciseRef = doc(collection(db, "ejercicios_futsal"));
                     batch.set(newExerciseRef, {
-                        ...exData, 
+                        ...exData,
                         createdAt: serverTimestamp(),
                         numero: exData.numero || null,
                         variantes: exData.variantes || null,
                         consejos_entrenador: exData.consejos_entrenador || null,
+                        isVisible: exData.isVisible === undefined ? true : exData.isVisible, // Ensure isVisible is set
                     });
                 });
                 await batch.commit();
                 successCount += chunk.length;
             }
           }
-          
+
           setProcessedStats({ success: successCount, failed: failureCount, total: totalRows });
 
           if (successCount > 0 && failureCount === 0) {
@@ -198,7 +200,7 @@ function BatchAddExercisesPageContent() {
              toast({
               title: "Procesamiento Parcial",
               description: `${successCount} de ${totalRows} ejercicios importados. ${failureCount} fallaron. Revisa los errores.`,
-              variant: "default", 
+              variant: "default",
               duration: 10000,
             });
           } else if (failureCount > 0 && successCount === 0 && totalRows > 0){
@@ -298,9 +300,9 @@ function BatchAddExercisesPageContent() {
             />
             {selectedFile && <p className="text-sm text-muted-foreground">Archivo seleccionado: {selectedFile.name}</p>}
           </div>
-          
+
           {processedStats && (
-            <Alert variant={processedStats.failed > 0 && processedStats.success === 0 ? "destructive" : (processedStats.failed > 0 ? "default" : "default")} 
+            <Alert variant={processedStats.failed > 0 && processedStats.success === 0 ? "destructive" : (processedStats.failed > 0 ? "default" : "default")}
                    className={processedStats.failed > 0 && processedStats.success === 0 ? "border-destructive/50" : (processedStats.failed > 0 ? "border-yellow-500/50" : "border-green-500/50")}>
               {processedStats.failed > 0 && processedStats.success === 0 ? <XCircle className="h-5 w-5 text-destructive" /> : (processedStats.failed > 0 ? <AlertTriangle className="h-5 w-5 text-yellow-600" /> : <CheckCircle className="h-5 w-5 text-green-600"/>)}
               <AlertTitle className={processedStats.failed > 0 && processedStats.success === 0 ? "text-destructive" : (processedStats.failed > 0 ? "text-yellow-700" : "text-green-700")}>Resultados del Procesamiento</AlertTitle>

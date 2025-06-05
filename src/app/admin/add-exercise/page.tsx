@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -39,10 +40,11 @@ function AddExercisePageContent() {
       duracion: "", // Default to empty, user must select
       variantes: "",
       fase: "",
-      categoria: "", 
-      edad: [], 
+      categoria: "",
+      edad: [],
       consejos_entrenador: "",
       imagen: "",
+      isVisible: true,
     },
   });
 
@@ -53,11 +55,12 @@ function AddExercisePageContent() {
     setIsLoading(true);
     try {
       await addDoc(collection(db, "ejercicios_futsal"), {
-        ...data, 
-        numero: data.numero || null, 
+        ...data,
+        numero: data.numero || null,
         variantes: data.variantes || null,
         consejos_entrenador: data.consejos_entrenador || null,
         imagen: data.imagen || `https://placehold.co/400x300.png?text=${encodeURIComponent(data.ejercicio)}`,
+        isVisible: data.isVisible === undefined ? true : data.isVisible,
         createdAt: serverTimestamp(),
       });
       toast({
@@ -163,7 +166,7 @@ function AddExercisePageContent() {
                   <FormMessage />
                 </FormItem>
               )} />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField control={form.control} name="fase" render={({ field }) => (
                   <FormItem>
@@ -294,7 +297,28 @@ function AddExercisePageContent() {
                   <FormMessage />
                 </FormItem>
               )} />
-              
+
+              <FormField
+                control={form.control}
+                name="isVisible"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Visibilidad del Ejercicio</FormLabel>
+                      <FormDescription>
+                        Si está activado, el ejercicio será visible para todos los usuarios. Si está desactivado, se ocultará.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                 Añadir Ejercicio

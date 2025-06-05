@@ -28,7 +28,7 @@ export const aiSessionSchema = z.object({
   sessionFocus: z.string().min(5, "Define el foco de la sesión (mín. 5 caracteres)."),
   preferredSessionLengthMinutes: z.coerce.number().min(15, "Mínimo 15 minutos.").max(180, "Máximo 180 minutos."),
   numero_sesion: z.string().optional(),
-  fecha: z.string().optional(), 
+  fecha: z.string().optional(),
   temporada: z.string().optional(),
   club: z.string().optional(),
   equipo: z.string().optional(),
@@ -58,10 +58,11 @@ export const addExerciseSchema = z.object({
   }),
   variantes: z.string().optional(),
   fase: z.string().min(1, "La fase es requerida."),
-  categoria: z.string().min(1, "La categoría es requerida."), 
+  categoria: z.string().min(1, "La categoría es requerida."),
   edad: z.array(z.string()).min(1, "Debes seleccionar al menos una categoría de edad."),
   consejos_entrenador: z.string().optional(),
   imagen: z.string().url({ message: "Debe ser una URL válida para la imagen." }).optional().or(z.literal('')),
+  isVisible: z.boolean().optional().default(true),
 });
 
 export type AddExerciseFormValues = z.infer<typeof addExerciseSchema>;
