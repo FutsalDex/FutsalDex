@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, AlertTriangle, PlusCircle, ListChecks, UploadCloud } from "lucide-react";
+import { ShieldCheck, AlertTriangle, PlusCircle, ListChecks, UploadCloud, Users } from "lucide-react";
 import Link from "next/link";
 
 function AdminPageContent() {
@@ -39,47 +39,73 @@ function AdminPageContent() {
         </p>
       </header>
       
-      <Card className="shadow-lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl">Gestión de Ejercicios</CardTitle>
+            <CardDescription>Añade, modifica o elimina ejercicios de la biblioteca, individualmente o por lote.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
+              <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link href="/admin/add-exercise">
+                  <PlusCircle className="mr-2 h-5 w-5" />
+                  Añadir Nuevo Ejercicio
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="w-full sm:w-auto">
+                <Link href="/admin/batch-add-exercises">
+                  <UploadCloud className="mr-2 h-5 w-5" />
+                  Añadir Ejercicios por Lote
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="w-full sm:w-auto">
+                <Link href="/admin/manage-exercises">
+                  <ListChecks className="mr-2 h-5 w-5" />
+                  Ver/Gestionar Ejercicios
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl">Gestión de Suscripciones</CardTitle>
+            <CardDescription>Visualiza y gestiona las suscripciones de los usuarios.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
+              <Button variant="outline" asChild className="w-full sm:w-auto">
+                <Link href="/admin/manage-subscriptions">
+                  <Users className="mr-2 h-5 w-5" />
+                  Gestionar Suscripciones
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="mt-8 shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline text-2xl">Gestión de Ejercicios</CardTitle>
-          <CardDescription>Añade, modifica o elimina ejercicios de la biblioteca, individualmente o por lote.</CardDescription>
+          <CardTitle className="font-headline text-2xl">Funcionalidades Disponibles</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row flex-wrap gap-4">
-            <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link href="/admin/add-exercise">
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Añadir Nuevo Ejercicio
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className="w-full sm:w-auto">
-              <Link href="/admin/batch-add-exercises">
-                <UploadCloud className="mr-2 h-5 w-5" />
-                Añadir Ejercicios por Lote
-              </Link>
-            </Button>
-             <Button variant="outline" asChild className="w-full sm:w-auto">
-              <Link href="/admin/manage-exercises">
-                <ListChecks className="mr-2 h-5 w-5" />
-                Ver/Gestionar Ejercicios
-              </Link>
-            </Button>
-          </div>
-          
-          <div className="p-4 border rounded-md bg-muted/50">
-            <h4 className="font-semibold text-lg mb-2 text-foreground/90">Funcionalidades Disponibles:</h4>
-            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-              <li>
-                **Añadir Nuevo Ejercicio:** Formulario completo para ingresar todos los detalles de un nuevo ejercicio.
-              </li>
-               <li>
-                **Añadir Ejercicios por Lote:** Sube un archivo Excel para importar múltiples ejercicios a la vez.
-              </li>
-              <li>
-                **Ver/Gestionar Ejercicios:** Listado de ejercicios con opciones para modificar, eliminar, filtrar y paginar los resultados.
-              </li>
-            </ul>
-          </div>
+        <CardContent>
+          <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
+            <li>
+              <strong>Añadir Nuevo Ejercicio:</strong> Formulario completo para ingresar todos los detalles de un nuevo ejercicio.
+            </li>
+            <li>
+              <strong>Añadir Ejercicios por Lote:</strong> Sube un archivo Excel para importar múltiples ejercicios a la vez.
+            </li>
+            <li>
+              <strong>Ver/Gestionar Ejercicios:</strong> Listado de ejercicios con opciones para modificar, eliminar, filtrar y paginar los resultados.
+            </li>
+            <li>
+              <strong>Gestionar Suscripciones:</strong> Visualizar y administrar el estado de las suscripciones de los usuarios (Funcionalidad en desarrollo).
+            </li>
+          </ul>
         </CardContent>
       </Card>
 
@@ -89,7 +115,7 @@ function AdminPageContent() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Aquí se podrían añadir herramientas para gestionar usuarios, ver estadísticas de uso, configurar parámetros de la IA, etc.
+            Aquí se podrían añadir herramientas para gestionar usuarios de forma más detallada, ver estadísticas de uso, configurar parámetros de la IA, etc.
           </p>
         </CardContent>
       </Card>
@@ -105,4 +131,3 @@ export default function AdminPage() {
     </AuthGuard>
   );
 }
-
