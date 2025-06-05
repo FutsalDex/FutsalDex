@@ -162,17 +162,26 @@ const getSessionCategorias = (sesion: SesionConDetallesEjercicio | null): string
 const getSessionObjetivos = (sesion: SesionConDetallesEjercicio | null): string => {
     if (!sesion) return "No especificados";
     if (sesion.type === "AI") return (sesion as SesionAI).trainingGoals || "No especificados";
-    const objetivos = new Set<string>();
-    const exercises: (string | EjercicioDetallado | null | undefined)[] = [
-        sesion.warmUp, ...(sesion.mainExercises || []), sesion.coolDown,
-    ];
-    exercises.forEach(ex => {
+    
+    const objetivosUnicos = new Set<string>();
+    const ejerciciosConsiderados: (string | EjercicioDetallado | null | undefined)[] = [];
+
+    if (sesion.warmUp) ejerciciosConsiderados.push(sesion.warmUp);
+    if (sesion.mainExercises && sesion.mainExercises.length > 0) {
+        ejerciciosConsiderados.push(...sesion.mainExercises);
+    }
+    if (sesion.coolDown) ejerciciosConsiderados.push(sesion.coolDown);
+
+    ejerciciosConsiderados.forEach(ex => {
         if (typeof ex === 'object' && ex?.objetivos) {
-            ex.objetivos.split(/[.;]+/).map(o => o.trim()).filter(o => o.length > 0)
-                .forEach(o => objetivos.add(o + (o.endsWith('.') || o.endsWith(';') ? '' : '.')));
+            const primerObjetivo = ex.objetivos.split(/[.;]+/)[0]?.trim();
+            if (primerObjetivo && primerObjetivo.length > 0) {
+                objetivosUnicos.add(primerObjetivo + (primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') ? '' : '.'));
+            }
         }
     });
-    return objetivos.size === 0 ? "No especificados" : Array.from(objetivos).join(' ');
+
+    return objetivosUnicos.size === 0 ? "No especificados" : Array.from(objetivosUnicos).join(' ');
 };
 
 
@@ -323,7 +332,7 @@ function SesionDetallePageContent() {
       
       const contentStartY = margin;
       const contentPrintableWidth = pdfPageWidth - (margin * 2);
-      const contentPrintableHeight = pdfPageHeight - (margin * 2);
+      const contentPrintableHeight = pdfPageHeight - margin - contentStartY;
 
       const img = new window.Image();
       img.onload = () => {
@@ -346,7 +355,7 @@ function SesionDetallePageContent() {
       console.error("Error PDF:", error); toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
     } finally {
       if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
-      if (headerElement) headerElement.style.display = originalHeaderDisplay;
+      if (headerElement && originalHeaderDisplay !== undefined) headerElement.style.display = originalHeaderDisplay;
       setIsGeneratingPdf(false);
     }
   };
@@ -391,15 +400,15 @@ function SesionDetallePageContent() {
         </div>
 
         <div className="session-print-area bg-white text-gray-800 shadow-lg m-0 rounded-md border border-gray-700">
-            <div className="dialog-header-print-override p-4 border-b bg-gray-800 text-white rounded-t-md">
+            <div className="dialog-header-print-override px-3 py-2 border-b bg-gray-800 text-white rounded-t-md">
                 <div className="flex justify-between items-start">
-                    <h2 className="text-xl font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
-                    <div className="text-right">
-                        <p className="text-md text-gray-300">FECHA: {formatDate(sessionData.fecha)}</p>
-                        <p className="text-md text-gray-300">Nº SESIÓN: {sessionData.numero_sesion || 'N/A'}</p>
+                    <h2 className="text-lg font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
+                    <div className="text-right text-xs">
+                        <p className="text-gray-300">FECHA: {formatDate(sessionData.fecha)}</p>
+                        <p className="text-gray-300">Nº SESIÓN: {sessionData.numero_sesion || 'N/A'}</p>
                     </div>
                 </div>
-                <div className="flex justify-between text-md text-gray-300">
+                <div className="flex justify-between text-xs text-gray-300 mt-1">
                     <p>EQUIPO: {sessionData.equipo || 'No especificado'}</p>
                     <p>CLUB: {sessionData.club || 'No especificado'}</p>
                 </div>
@@ -417,7 +426,7 @@ function SesionDetallePageContent() {
 
             <div className="p-4 border-b border-gray-300">
               <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                <h3 className="font-semibold text-lg">PARTE INICIAL</h3>
+                <h3 className="font-semibold text-lg">FASE INICIAL</h3>
                 <span className="text-sm">{getExerciseDuration(sessionData.warmUp)}</span>
               </div>
               <div className="flex flex-col md:flex-row gap-4 items-start">
@@ -435,14 +444,15 @@ function SesionDetallePageContent() {
 
             <div className="p-4 border-b border-gray-300">
               <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                <h3 className="font-semibold text-lg text-left">PARTE PRINCIPAL</h3>
+                <h3 className="font-semibold text-lg text-left">FASE PRINCIPAL</h3>
                 <span className="text-sm text-right">{getMainExercisesTotalDuration(sessionData.mainExercises)}</span>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-1"> {/* Reducido space-y-4 a space-y-1 */}
                 {sessionData.mainExercises.map((ex, index) => (
                   <div key={typeof ex === 'string' ? `ai-main-${index}` : ex.id || `manual-main-${index}`} className="p-3 border border-gray-400 rounded bg-white">
-                    <div className="flex justify-end items-center mb-1 text-sm">
-                      <span className="font-medium">TIEMPO: {getExerciseDuration(ex)}</span>
+                    <div className="flex justify-between items-center mb-1">
+                       <p className="text-md font-semibold">{formatExerciseName(ex)}</p>
+                       <span className="text-sm font-medium">TIEMPO: {getExerciseDuration(ex)}</span>
                     </div>
                     <div className="flex flex-col md:flex-row gap-4 items-start">
                       {typeof ex === 'object' && (
@@ -451,7 +461,6 @@ function SesionDetallePageContent() {
                           </div>
                       )}
                       <div className="flex-1">
-                        <p className="text-md font-semibold">{formatExerciseName(ex)}</p>
                         <p className="text-sm mt-1 whitespace-pre-wrap">{typeof ex === 'string' ? ex : formatExerciseDescription(ex as EjercicioDetallado)}</p>
                       </div>
                     </div>
