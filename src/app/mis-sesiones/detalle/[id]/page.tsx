@@ -1,4 +1,3 @@
-
 // src/app/mis-sesiones/detalle/[id]/page.tsx
 "use client";
 
@@ -289,9 +288,8 @@ function SesionDetallePageContent() {
     const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
     if (printButtonContainer) printButtonContainer.style.display = 'none';
 
-    const headerElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-    const originalHeaderDisplay = headerElement ? headerElement.style.display : '';
-    let tempHeaderClone: HTMLElement | null = null;
+    const headerHtmlElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
+    const originalHeaderDisplay = headerHtmlElement ? headerHtmlElement.style.display : '';
 
 
     try {
@@ -303,9 +301,9 @@ function SesionDetallePageContent() {
             const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container)');
             textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
             
-            tempHeaderClone = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-            if (tempHeaderClone) {
-                tempHeaderClone.style.display = 'none !important';
+            const headerToHide = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
+            if (headerToHide) {
+                headerToHide.style.display = 'none !important';
             }
             
             const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
@@ -357,10 +355,8 @@ function SesionDetallePageContent() {
       console.error("Error PDF:", error); toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
     } finally {
       if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
-       if (headerElement && originalHeaderDisplay !== undefined) { // Restore original display
-         headerElement.style.display = originalHeaderDisplay;
-       } else if (headerElement && tempHeaderClone === null) { // If it was visible and not cloned, restore default
-         headerElement.style.display = ''; // Or block, or whatever its default is
+       if (headerHtmlElement) { 
+         headerHtmlElement.style.display = originalHeaderDisplay;
        }
       setIsGeneratingPdf(false);
     }
@@ -437,7 +433,7 @@ function SesionDetallePageContent() {
               </div>
               <div className="flex flex-col md:flex-row gap-4 items-start">
                 {sessionData.type === "Manual" && sessionData.warmUp && typeof sessionData.warmUp === 'object' && (
-                    <div className="md:w-[28.33%] flex-shrink-0">
+                    <div className="md:w-1/4 flex-shrink-0">
                         <Image src={getExerciseImage(sessionData.warmUp as EjercicioDetallado, "Calentamiento")} alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal warmup"/>
                     </div>
                 )}
@@ -461,7 +457,7 @@ function SesionDetallePageContent() {
                   <div key={typeof ex === 'string' ? `ai-main-${index}` : ex.id || `manual-main-${index}`} className="p-3 border border-gray-400 rounded bg-white">
                     <div className="flex flex-col md:flex-row gap-4 items-start">
                       {typeof ex === 'object' && (
-                          <div className="md:w-[28.33%] flex-shrink-0">
+                          <div className="md:w-1/4 flex-shrink-0">
                               <Image src={getExerciseImage(ex as EjercicioDetallado, `Principal ${index + 1}`)} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal exercise"/>
                           </div>
                       )}
@@ -485,7 +481,7 @@ function SesionDetallePageContent() {
               </div>
                <div className="flex flex-col md:flex-row gap-4 items-start">
                  {sessionData.type === "Manual" && sessionData.coolDown && typeof sessionData.coolDown === 'object' && (
-                     <div className="md:w-[28.33%] flex-shrink-0">
+                     <div className="md:w-1/4 flex-shrink-0">
                          <Image src={getExerciseImage(sessionData.coolDown as EjercicioDetallado, "Vuelta a la Calma")} alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal cooldown"/>
                      </div>
                  )}
