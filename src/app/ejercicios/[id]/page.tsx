@@ -18,7 +18,6 @@ import { cn } from '@/lib/utils';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-
 interface Ejercicio {
   id: string;
   numero?: string;
@@ -27,11 +26,11 @@ interface Ejercicio {
   objetivos: string;
   espacio_materiales: string;
   jugadores: string;
-  duracion: string; 
+  duracion: string;
   variantes?: string;
   fase: string;
-  categoria: string; 
-  edad: string[]; 
+  categoria: string;
+  edad: string[];
   imagen: string;
   consejos_entrenador?: string;
 }
@@ -39,6 +38,14 @@ interface Ejercicio {
 interface FavoriteState {
   [exerciseId: string]: boolean;
 }
+
+// FutsalDex Icon SVG string for PDF
+const futsalDexIconSVGString = `
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 1.6a10.4 10.4 0 1 0 0 20.8 10.4 10.4 0 0 0 0-20.8z"/>
+  <path d="M12 1.6a10.4 10.4 0 0 0-7.35 3.05M12 1.6a10.4 10.4 0 0 1 7.35 3.05M1.6 12a10.4 10.4 0 0 0 3.05 7.35M1.6 12a10.4 10.4 0 0 1 3.05-7.35M22.4 12a10.4 10.4 0 0 0-3.05-7.35M22.4 12a10.4 10.4 0 0 1-3.05 7.35M12 22.4a10.4 10.4 0 0 0 7.35-3.05M12 22.4a10.4 10.4 0 0 1-7.35-3.05"/>
+  <path d="M5.75 5.75l3.5 3.5M14.75 5.75l-3.5 3.5M5.75 14.75l3.5-3.5M14.75 14.75l-3.5-3.5"/>
+</svg>`;
 
 export default function EjercicioDetallePage() {
   const params = useParams();
@@ -108,16 +115,16 @@ export default function EjercicioDetallePage() {
       });
       return;
     }
-  
+
     const isCurrentlyFavorite = !!favorites[currentExerciseId];
     setFavorites(prev => ({ ...prev, [currentExerciseId]: !isCurrentlyFavorite }));
-  
+
     try {
       const favDocRef = doc(db, "users", user.uid, "user_favorites", currentExerciseId);
-      if (!isCurrentlyFavorite) { 
+      if (!isCurrentlyFavorite) {
         await firestoreSetDoc(favDocRef, { addedAt: serverTimestamp() });
         toast({ title: "Favorito Añadido", description: "El ejercicio se ha añadido a tus favoritos." });
-      } else { 
+      } else {
         await firestoreDeleteDoc(favDocRef);
         toast({ title: "Favorito Eliminado", description: "El ejercicio se ha eliminado de tus favoritos." });
       }
@@ -140,108 +147,112 @@ export default function EjercicioDetallePage() {
     }
 
     setIsGeneratingPdf(true);
-    
     const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
     const originalDisplay = printButtonContainer ? printButtonContainer.style.display : '';
     if (printButtonContainer) printButtonContainer.style.display = 'none';
-    
-    const headerElement = printArea.querySelector('header');
-    const originalHeaderBg = headerElement ? headerElement.style.backgroundColor : '';
-    if (headerElement) headerElement.style.backgroundColor = 'white';
 
     try {
-      const canvas = await html2canvas(printArea, { 
+      const canvas = await html2canvas(printArea, {
         scale: 2,
         useCORS: true,
-        logging: false, 
+        logging: false,
         backgroundColor: '#ffffff',
-         onclone: (document) => {
-            const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
-            if (clonedPrintArea) {
-                const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg), td, th, a, button, label, [class*="text-"]');
-                textElements.forEach(el => {
-                    (el as HTMLElement).style.color = '#000000 !important'; 
-                });
-                const primaryElements = clonedPrintArea.querySelectorAll('.text-primary, .text-accent');
-                 primaryElements.forEach(el => {
-                    (el as HTMLElement).style.color = '#000000 !important';
-                 });
-                 const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
-                 badges.forEach(el => {
-                    (el as HTMLElement).style.backgroundColor = '#dddddd !important'; 
-                    (el as HTMLElement).style.color = '#000000 !important'; 
-                    (el as HTMLElement).style.borderColor = '#aaaaaa !important';
-                 });
-                if (clonedPrintArea.classList.contains('bg-card')) {
-                   clonedPrintArea.style.backgroundColor = '#ffffff !important';
-                }
-                document.body.style.backgroundColor = '#ffffff !important';
+        onclone: (document) => {
+          const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
+          if (clonedPrintArea) {
+            const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container), td, th, a, button, label, [class*="text-"]');
+            textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
+            const primaryElements = clonedPrintArea.querySelectorAll('.text-primary, .text-accent');
+            primaryElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
+            const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
+            badges.forEach(el => {
+              (el as HTMLElement).style.backgroundColor = '#dddddd !important';
+              (el as HTMLElement).style.color = '#000000 !important';
+              (el as HTMLElement).style.borderColor = '#aaaaaa !important';
+            });
+            if (clonedPrintArea.classList.contains('bg-card')) {
+              clonedPrintArea.style.backgroundColor = '#ffffff !important';
             }
+             const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
+            if (btnContainer) btnContainer.style.display = 'none';
+            document.body.style.backgroundColor = '#ffffff !important';
+          }
         }
       });
-      
+
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
-        orientation: 'portrait', // Changed to portrait
+        orientation: 'portrait', // A4 Vertical
         unit: 'pt',
         format: 'a4',
       });
 
-      const margin = 20; // points
+      const PT_PER_CM = 28.346;
+      const MARGIN_CM = 1;
+      const HEADER_HEIGHT_CM = 3; // Adjusted for better spacing, 4cm might be too much with logo
+      const LOGO_SIZE_CM = 1.5;
+
+      const margin = MARGIN_CM * PT_PER_CM;
+      const headerReservedHeight = HEADER_HEIGHT_CM * PT_PER_CM;
+      const logoSize = LOGO_SIZE_CM * PT_PER_CM;
+
       const pdfPageWidth = pdf.internal.pageSize.getWidth();
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
-      const pdfPrintableWidth = pdfPageWidth - (margin * 2);
-      const pdfPrintableHeight = pdfPageHeight - (margin * 2);
+
+      // Add Header
+      const svgDataUrl = `data:image/svg+xml;base64,${btoa(futsalDexIconSVGString)}`;
+      pdf.addImage(svgDataUrl, 'SVG', margin, margin, logoSize, logoSize);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(24); // Prominent title font size
+      const titleText = "Ejercicios de futsal";
+      const titleTextWidth = pdf.getStringUnitWidth(titleText) * pdf.getFontSize() / pdf.internal.scaleFactor;
+      // Position title text to the right of the logo, vertically centered with the logo or header area
+      pdf.text(titleText, pdfPageWidth - margin - titleTextWidth, margin + logoSize / 1.5, { align: 'left' });
+
+
+      const contentStartY = margin + headerReservedHeight;
+      const contentPrintableWidth = pdfPageWidth - (margin * 2);
+      const contentPrintableHeight = pdfPageHeight - margin - contentStartY;
+
 
       const img = new window.Image();
       img.onload = () => {
-          const originalImgWidth = img.width;
-          const originalImgHeight = img.height;
+        const originalImgWidth = img.width;
+        const originalImgHeight = img.height;
 
-          const scaleFactorWidth = pdfPrintableWidth / originalImgWidth;
-          const scaleFactorHeight = pdfPrintableHeight / originalImgHeight;
-          const finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight);
+        const scaleFactorWidth = contentPrintableWidth / originalImgWidth;
+        const scaleFactorHeight = contentPrintableHeight / originalImgHeight;
+        const finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight); // Fit entirely
 
-          const pdfImageWidth = originalImgWidth * finalScaleFactor;
-          const pdfImageHeight = originalImgHeight * finalScaleFactor;
-          
-          const xOffset = Math.max(margin, (pdfPageWidth - pdfImageWidth) / 2);
-          const yOffset = Math.max(margin, (pdfPageHeight - pdfImageHeight) / 2);
-          
-          pdf.addImage(imgData, 'PNG', xOffset, yOffset, pdfImageWidth, pdfImageHeight);
-          pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
-          
-          if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
-          if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
-          setIsGeneratingPdf(false);
+        const pdfImageWidth = originalImgWidth * finalScaleFactor;
+        const pdfImageHeight = originalImgHeight * finalScaleFactor;
+
+        const xOffset = (pdfPageWidth - pdfImageWidth) / 2; // Center horizontally
+
+        pdf.addImage(imgData, 'PNG', xOffset, contentStartY, pdfImageWidth, pdfImageHeight);
+        pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
+
+        if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
+        setIsGeneratingPdf(false);
       };
 
       img.onerror = (err) => {
-          console.error("Error loading image for PDF generation:", err);
-          toast({
-              title: "Error al Cargar Imagen",
-              description: "No se pudo cargar la imagen capturada para generar el PDF.",
-              variant: "destructive",
-          });
-          if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
-          if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
-          setIsGeneratingPdf(false);
+        console.error("Error loading image for PDF generation:", err);
+        toast({ title: "Error al Cargar Imagen", description: "No se pudo cargar la imagen capturada.", variant: "destructive" });
+        if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
+        setIsGeneratingPdf(false);
       };
       img.src = imgData;
 
     } catch (error) {
-      console.error("Error generating PDF for exercise detail:", error);
-      toast({
-        title: "Error al Generar PDF",
-        description: "Hubo un problema al crear el archivo PDF. " + (error instanceof Error ? error.message : String(error)),
-        variant: "destructive",
-      });
+      console.error("Error generating PDF:", error);
+      toast({ title: "Error al Generar PDF", description: "Hubo un problema al crear el archivo PDF.", variant: "destructive" });
       if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
-      if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
       setIsGeneratingPdf(false);
     }
   };
-  
+
   const formatDuracion = (duracion: string | undefined) => duracion ? `${duracion} min` : 'N/A';
 
   if (isLoading) {
@@ -287,7 +298,7 @@ export default function EjercicioDetallePage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="ml-4 bg-background/70 hover:bg-background/90 text-primary rounded-full h-10 w-10 shrink-0 print-button-container" 
+                className="ml-4 bg-background/70 hover:bg-background/90 text-primary rounded-full h-10 w-10 shrink-0"
                 onClick={() => toggleFavorite(ejercicio.id)}
                 title={favorites[ejercicio.id] ? "Quitar de favoritos" : "Añadir a favoritos"}
               >
@@ -297,7 +308,7 @@ export default function EjercicioDetallePage() {
           </div>
           {ejercicio.categoria && <Badge variant="default" className="mt-2 text-sm py-1 px-2">{ejercicio.categoria}</Badge>}
         </header>
-        
+
         <div className="mb-6 relative aspect-video w-full max-w-2xl mx-auto">
            <Image
             src={ejercicio.imagen || `https://placehold.co/600x400.png`}
@@ -309,17 +320,17 @@ export default function EjercicioDetallePage() {
             data-ai-hint="futsal game"
            />
         </div>
-        
+
         <div className="mb-6">
           <h3 className="font-semibold text-xl mb-2 text-foreground/90">Descripción</h3>
           <p className="text-md text-foreground/80">{ejercicio.descripcion}</p>
         </div>
-            
+
         <div className="mb-6">
           <h3 className="font-semibold text-xl mb-2 text-foreground/90">Objetivos</h3>
           {ejercicio.objetivos && ejercicio.objetivos.length > 0 ? (
               <ul className="list-disc pl-5 space-y-1 text-md text-foreground/80">
-              {ejercicio.objetivos.split(/[.;]+/) 
+              {ejercicio.objetivos.split(/[.;]+/)
                 .map(obj => obj.trim())
                 .filter(obj => obj.length > 0)
                 .map((obj, index) => (
@@ -331,19 +342,19 @@ export default function EjercicioDetallePage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6 text-md">
-          <p className="md:col-span-2"><strong className="font-semibold text-foreground/90">Fase:</strong> {ejercicio.fase}</p>
+        <div className="mb-6 text-md space-y-2"> {/* Changed to space-y-2 for vertical stacking */}
+          <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ejercicio.fase}</p>
           <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</p>
           <p><strong className="font-semibold text-foreground/90">Nº Jugadores:</strong> {ejercicio.jugadores}</p>
           <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ejercicio.duracion)}</p>
-          <p className="md:col-span-2"><strong className="font-semibold text-foreground/90">Materiales y Espacio:</strong> {ejercicio.espacio_materiales}</p>
+          <p><strong className="font-semibold text-foreground/90">Materiales y Espacio:</strong> {ejercicio.espacio_materiales}</p>
         </div>
 
         <div className="mb-6">
           <h3 className="font-semibold text-xl mb-2 text-foreground/90">Variantes</h3>
           <p className="text-md text-foreground/80">{ejercicio.variantes || 'No especificadas.'}</p>
         </div>
-        
+
         <div>
           <h3 className="font-semibold text-xl mb-2 text-foreground/90">Consejos del Entrenador</h3>
           <p className="text-md text-foreground/80">{ejercicio.consejos_entrenador || 'No disponibles.'}</p>
@@ -359,4 +370,3 @@ export default function EjercicioDetallePage() {
     </div>
   );
 }
-
