@@ -291,7 +291,9 @@ function SesionDetallePageContent() {
 
     const headerElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
     const originalHeaderDisplay = headerElement ? headerElement.style.display : '';
-    
+    let tempHeaderClone: HTMLElement | null = null;
+
+
     try {
       const canvas = await html2canvas(printArea, {
         scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff',
@@ -301,9 +303,9 @@ function SesionDetallePageContent() {
             const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container)');
             textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
             
-            const headerToHide = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-            if (headerToHide) {
-                headerToHide.style.display = 'none !important';
+            tempHeaderClone = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
+            if (tempHeaderClone) {
+                tempHeaderClone.style.display = 'none !important';
             }
             
             const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
@@ -355,7 +357,11 @@ function SesionDetallePageContent() {
       console.error("Error PDF:", error); toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
     } finally {
       if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
-      if (headerElement && originalHeaderDisplay !== undefined) headerElement.style.display = originalHeaderDisplay;
+       if (headerElement && originalHeaderDisplay !== undefined) { // Restore original display
+         headerElement.style.display = originalHeaderDisplay;
+       } else if (headerElement && tempHeaderClone === null) { // If it was visible and not cloned, restore default
+         headerElement.style.display = ''; // Or block, or whatever its default is
+       }
       setIsGeneratingPdf(false);
     }
   };
@@ -436,7 +442,10 @@ function SesionDetallePageContent() {
                     </div>
                 )}
                 <div className="flex-1">
-                    <p className="text-md font-semibold">{formatExerciseName(sessionData.warmUp)}</p>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-md font-semibold">{formatExerciseName(sessionData.warmUp)}</p>
+                      <span className="text-sm font-medium">{getExerciseDuration(sessionData.warmUp)}</span>
+                    </div>
                     <p className="text-sm mt-1 whitespace-pre-wrap">{sessionData.type === "AI" ? sessionData.warmUp : formatExerciseDescription(sessionData.warmUp as EjercicioDetallado)}</p>
                 </div>
               </div>
@@ -447,13 +456,9 @@ function SesionDetallePageContent() {
                 <h3 className="font-semibold text-lg text-left">FASE PRINCIPAL</h3>
                 <span className="text-sm text-right">{getMainExercisesTotalDuration(sessionData.mainExercises)}</span>
               </div>
-              <div className="space-y-1"> {/* Reducido space-y-4 a space-y-1 */}
+              <div className="space-y-1">
                 {sessionData.mainExercises.map((ex, index) => (
                   <div key={typeof ex === 'string' ? `ai-main-${index}` : ex.id || `manual-main-${index}`} className="p-3 border border-gray-400 rounded bg-white">
-                    <div className="flex justify-between items-center mb-1">
-                       <p className="text-md font-semibold">{formatExerciseName(ex)}</p>
-                       <span className="text-sm font-medium">TIEMPO: {getExerciseDuration(ex)}</span>
-                    </div>
                     <div className="flex flex-col md:flex-row gap-4 items-start">
                       {typeof ex === 'object' && (
                           <div className="md:w-[28.33%] flex-shrink-0">
@@ -461,6 +466,10 @@ function SesionDetallePageContent() {
                           </div>
                       )}
                       <div className="flex-1">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-md font-semibold">{formatExerciseName(ex)}</p>
+                          <span className="text-sm font-medium">TIEMPO: {getExerciseDuration(ex)}</span>
+                        </div>
                         <p className="text-sm mt-1 whitespace-pre-wrap">{typeof ex === 'string' ? ex : formatExerciseDescription(ex as EjercicioDetallado)}</p>
                       </div>
                     </div>
@@ -481,7 +490,10 @@ function SesionDetallePageContent() {
                      </div>
                  )}
                  <div className="flex-1">
-                    <p className="text-md font-semibold">{formatExerciseName(sessionData.coolDown)}</p>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-md font-semibold">{formatExerciseName(sessionData.coolDown)}</p>
+                      <span className="text-sm font-medium">{getExerciseDuration(sessionData.coolDown)}</span>
+                    </div>
                     <p className="text-sm mt-1 whitespace-pre-wrap">{sessionData.type === "AI" ? sessionData.coolDown : formatExerciseDescription(sessionData.coolDown as EjercicioDetallado)}</p>
                  </div>
                </div>
