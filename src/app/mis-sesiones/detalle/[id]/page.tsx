@@ -73,7 +73,7 @@ interface SesionConDetallesEjercicio extends Omit<Sesion, 'warmUp' | 'mainExerci
   coolDown: string | EjercicioDetallado | null;
 }
 
-// Helper functions (copied from mis-sesiones/page.tsx or adapted)
+// Helper functions
 const formatDate = (dateValue: string | Timestamp | undefined): string => {
     if (!dateValue) return 'N/A';
     let date: Date;
@@ -275,32 +275,23 @@ function SesionDetallePageContent() {
       return;
     }
     setIsGeneratingPdf(true);
+    
     const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
     const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
     if (printButtonContainer) printButtonContainer.style.display = 'none';
-    
-    // Temporarily store original styles of the header and its children
+
     const headerElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-    const originalHeaderStyles: { element: HTMLElement; display: string; bgColor: string; textColor: string }[] = [];
-
-    if (headerElement) {
-        originalHeaderStyles.push({ element: headerElement, display: headerElement.style.display, bgColor: headerElement.style.backgroundColor, textColor: headerElement.style.color });
-        const children = headerElement.querySelectorAll<HTMLElement>('*');
-        children.forEach(child => { originalHeaderStyles.push({ element: child, display: child.style.display, bgColor: child.style.backgroundColor, textColor: child.style.color }); });
-    }
-
-
+    const originalHeaderDisplay = headerElement ? headerElement.style.display : '';
+    
     try {
       const canvas = await html2canvas(printArea, {
         scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff',
         onclone: (document) => {
           const clonedPrintArea = document.querySelector('.session-print-area') as HTMLElement;
           if (clonedPrintArea) {
-            // Make all text black
             const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container)');
             textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
             
-            // Hide the HTML header for the PDF capture
             const headerToHide = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
             if (headerToHide) {
                 headerToHide.style.display = 'none !important';
@@ -317,7 +308,6 @@ function SesionDetallePageContent() {
               clonedPrintArea.style.backgroundColor = '#ffffff !important';
             }
 
-            // Hide print button
             const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
             if (btnContainer) btnContainer.style.display = 'none';
             
@@ -331,23 +321,20 @@ function SesionDetallePageContent() {
       const margin = MARGIN_CM * PT_PER_CM;
       const pdfPageWidth = pdf.internal.pageSize.getWidth(); const pdfPageHeight = pdf.internal.pageSize.getHeight();
       
-      const contentStartY = margin; // Content starts from top margin as header is removed
+      const contentStartY = margin;
       const contentPrintableWidth = pdfPageWidth - (margin * 2);
-      const contentPrintableHeight = pdfPageHeight - (margin * 2); // Full height minus top/bottom margins
+      const contentPrintableHeight = pdfPageHeight - (margin * 2);
 
       const img = new window.Image();
       img.onload = () => {
         const originalImgWidth = img.width; const originalImgHeight = img.height;
         
-        // Scale to fit width
         const finalScaleFactor = contentPrintableWidth / originalImgWidth;
-        const pdfImageWidth = contentPrintableWidth; // Use full printable width
+        const pdfImageWidth = contentPrintableWidth;
         const pdfImageHeight = originalImgHeight * finalScaleFactor;
         
-        const xOffset = margin; // Align to left margin
+        const xOffset = margin;
 
-        // If scaled height is still too much for one page, it will be clipped as per single page requirement.
-        // For true multi-page, different logic would be needed here.
         pdf.addImage(imgData, 'PNG', xOffset, contentStartY, pdfImageWidth, pdfImageHeight);
         const sessionDateStr = sessionData.fecha ? formatDate(sessionData.fecha).replace(/\s/g, '_').replace(/\//g, '-') : 'sin_fecha';
         const sessionNumStr = sessionData.numero_sesion || 'N';
@@ -359,12 +346,7 @@ function SesionDetallePageContent() {
       console.error("Error PDF:", error); toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
     } finally {
       if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
-      // Restore original styles of the header and its children
-      originalHeaderStyles.forEach(s => { 
-          s.element.style.display = s.display;
-          s.element.style.backgroundColor = s.bgColor;
-          s.element.style.color = s.textColor; 
-      });
+      if (headerElement) headerElement.style.display = originalHeaderDisplay;
       setIsGeneratingPdf(false);
     }
   };
@@ -408,9 +390,7 @@ function SesionDetallePageContent() {
             {sessionData.type === "AI" && <Bot className="h-8 w-8 text-accent" title="Sesión generada por IA"/>}
         </div>
 
-        {/* Content to be rendered for PDF */}
         <div className="session-print-area bg-white text-gray-800 shadow-lg m-0 rounded-md border border-gray-700">
-            {/* This header will be hidden during PDF capture by the onclone logic */}
             <div className="dialog-header-print-override p-4 border-b bg-gray-800 text-white rounded-t-md">
                 <div className="flex justify-between items-start">
                     <h2 className="text-xl font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
@@ -442,7 +422,7 @@ function SesionDetallePageContent() {
               </div>
               <div className="flex flex-col md:flex-row gap-4 items-start">
                 {sessionData.type === "Manual" && sessionData.warmUp && typeof sessionData.warmUp === 'object' && (
-                    <div className="md:w-1/3 flex-shrink-0">
+                    <div className="md:w-[28.33%] flex-shrink-0">
                         <Image src={getExerciseImage(sessionData.warmUp as EjercicioDetallado, "Calentamiento")} alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal warmup"/>
                     </div>
                 )}
@@ -466,7 +446,7 @@ function SesionDetallePageContent() {
                     </div>
                     <div className="flex flex-col md:flex-row gap-4 items-start">
                       {typeof ex === 'object' && (
-                          <div className="md:w-1/3 flex-shrink-0">
+                          <div className="md:w-[28.33%] flex-shrink-0">
                               <Image src={getExerciseImage(ex as EjercicioDetallado, `Principal ${index + 1}`)} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal exercise"/>
                           </div>
                       )}
@@ -487,7 +467,7 @@ function SesionDetallePageContent() {
               </div>
                <div className="flex flex-col md:flex-row gap-4 items-start">
                  {sessionData.type === "Manual" && sessionData.coolDown && typeof sessionData.coolDown === 'object' && (
-                     <div className="md:w-1/3 flex-shrink-0">
+                     <div className="md:w-[28.33%] flex-shrink-0">
                          <Image src={getExerciseImage(sessionData.coolDown as EjercicioDetallado, "Vuelta a la Calma")} alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal cooldown"/>
                      </div>
                  )}
@@ -517,7 +497,6 @@ function SesionDetallePageContent() {
                 {(sessionData as SesionAI).trainingGoals && sessionData.type === "AI" && (!sessionData.coachNotes?.includes((sessionData as SesionAI).trainingGoals!)) && <div><h4 className="font-semibold text-md">Objetivos (Input IA):</h4><p className="text-sm whitespace-pre-wrap">{(sessionData as SesionAI).trainingGoals}</p></div>}
               </div>
             )}
-            {/* This button will be hidden during PDF capture */}
             <div className="print-button-container p-4 mt-4 text-center border-t border-gray-300">
                 <Button onClick={handleSavePdf} className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isGeneratingPdf}>
                     {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
