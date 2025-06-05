@@ -344,7 +344,6 @@ function SesionDetallePageContent() {
       
       const contentStartY = margin;
       const contentPrintableWidth = pdfPageWidth - (margin * 2);
-      // const contentPrintableHeight = pdfPageHeight - margin - contentStartY; // Not strictly needed if content might overflow/get cut
 
       const img = new window.Image();
       img.onload = () => {
@@ -415,19 +414,17 @@ function SesionDetallePageContent() {
 
         <div className="session-print-area bg-white text-gray-800 shadow-lg m-0 rounded-md border border-gray-700">
             <div className="dialog-header-print-override px-3 py-2 border-b bg-gray-800 text-white rounded-t-md">
-                <div className="flex justify-between items-start">
+                <div className="text-center mb-1">
                     <h2 className="text-lg font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
-                    <div className="text-right text-xs">
-                        <p className="text-gray-300">FECHA: {formatDate(sessionData.fecha)}</p>
-                        <p className="text-gray-300">Nº SESIÓN: {sessionData.numero_sesion || 'N/A'}</p>
-                    </div>
                 </div>
-                <div className="flex justify-between text-xs text-gray-300 mt-1">
+                <div className="flex justify-between items-start text-xs text-gray-300">
                     <div>
                         <p>CLUB: {sessionData.club || 'No especificado'}</p>
                         <p>EQUIPO: {sessionData.equipo || 'No especificado'}</p>
                     </div>
-                    <div> {/* This div can be empty or removed if no content for the right side on this line */}
+                    <div className="text-right">
+                        <p>FECHA: {formatDate(sessionData.fecha)}</p>
+                        <p>Nº SESIÓN: {sessionData.numero_sesion || 'N/A'}</p>
                     </div>
                 </div>
             </div>
@@ -447,15 +444,13 @@ function SesionDetallePageContent() {
                 <h3 className="font-semibold text-lg">FASE INICIAL</h3>
                 <span className="text-sm">{getExerciseDuration(sessionData.warmUp)}</span>
               </div>
-              <div> {/* Removed flex container for image+text as image is gone */}
-                <div className="flex-1"> 
-                  <p className="text-md font-semibold mb-1">{formatExerciseName(sessionData.warmUp)}</p>
-                  <p className="text-sm mt-1 whitespace-pre-wrap">
-                    {sessionData.type === "AI" 
-                      ? sessionData.warmUp 
-                      : formatExerciseDescription(sessionData.warmUp as EjercicioDetallado)}
-                  </p>
-                </div>
+              <div> 
+                <p className="text-md font-semibold mb-1">{formatExerciseName(sessionData.warmUp)}</p>
+                <p className="text-sm mt-1 whitespace-pre-wrap">
+                  {sessionData.type === "AI" 
+                    ? sessionData.warmUp 
+                    : formatExerciseDescription(sessionData.warmUp as EjercicioDetallado)}
+                </p>
               </div>
             </div>
 
