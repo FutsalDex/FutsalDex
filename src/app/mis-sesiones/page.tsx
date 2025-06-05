@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles, Info, Printer } from "lucide-react";
+import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles, Info, Save } from "lucide-react"; // Changed Printer to Save
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader as ShadcnDialogHeader, DialogTitle as ShadcnDialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from "next/link";
@@ -27,6 +27,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
 import { parseDurationToMinutes } from "@/lib/utils";
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 
 interface EjercicioInfo {
@@ -61,11 +63,10 @@ interface Sesion {
 }
 
 interface EjercicioDetallado extends EjercicioInfo {
-  // Ensure all fields from EjercicioInfo are here, plus any specific detailed ones
-  descripcion: string; // Mark as non-optional if it's always expected
-  objetivos: string; // Mark as non-optional
-  categoria: string; // Mark as non-optional
-  imagen?: string; // Add imagen field
+  descripcion: string; 
+  objetivos: string; 
+  categoria: string; 
+  imagen?: string; 
 }
 
 interface SesionConDetallesEjercicio extends Omit<Sesion, 'warmUp' | 'mainExercises' | 'coolDown'> {
@@ -90,6 +91,43 @@ const getYearsRange = () => {
   }
   return years;
 };
+
+// SVG string for FutsalDex Icon (black stroke for PDF visibility)
+const futsalDexIconSVGString = `
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 1.6a10.4 10.4 0 1 0 0 20.8 10.4 10.4 0 0 0 0-20.8z"/>
+  <path d="M12 1.6a10.4 10.4 0 0 0-7.35 3.05M12 1.6a10.4 10.4 0 0 1 7.35 3.05M1.6 12a10.4 10.4 0 0 0 3.05 7.35M1.6 12a10.4 10.4 0 0 1 3.05-7.35M22.4 12a10.4 10.4 0 0 0-3.05-7.35M22.4 12a10.4 10.4 0 0 1-3.05 7.35M12 22.4a10.4 10.4 0 0 0 7.35-3.05M12 22.4a10.4 10.4 0 0 1-7.35-3.05"/>
+  <path d="M5.75 5.75l3.5 3.5M14.75 5.75l-3.5 3.5M5.75 14.75l3.5-3.5M14.75 14.75l-3.5-3.5"/>
+</svg>`;
+
+// Helper to convert SVG string to PNG data URL
+const convertSvgStringToPngDataURL = (svgString: string, width: number, height: number): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      reject(new Error('Window object not available'));
+      return;
+    }
+    const img = new window.Image();
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    img.onload = () => {
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        reject(new Error('Could not get canvas context'));
+      }
+    };
+    img.onerror = (err) => {
+      reject(err);
+    };
+    img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+  });
+};
+
 
 export default function MisSesionesPage() {
   return (
@@ -116,6 +154,7 @@ function MisSesionesContent() {
   const [selectedSesionForDialog, setSelectedSesionForDialog] = useState<Sesion | null>(null);
   const [detailedSessionData, setDetailedSessionData] = useState<SesionConDetallesEjercicio | null>(null);
   const [isLoadingDialogDetails, setIsLoadingDialogDetails] = useState(false);
+  const [isGeneratingSessionPdf, setIsGeneratingSessionPdf] = useState(false);
 
 
   const fetchSesiones = useCallback(async (filter?: { year: number; month: number } | null) => {
@@ -404,7 +443,6 @@ const getDialogCategorias = (sesion: SesionConDetallesEjercicio | null): string 
     if (sesion.type === "AI") {
         return sesion.sessionFocus || "No especificadas";
     }
-    // Manual session
     const categorias = new Set<string>();
     const exercises: (string | EjercicioDetallado | null | undefined)[] = [
         sesion.warmUp,
@@ -425,7 +463,6 @@ const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string =
     if (sesion.type === "AI") {
         return sesion.trainingGoals || "No especificados";
     }
-    // Manual session
     const objetivos = new Set<string>();
      const exercises: (string | EjercicioDetallado | null | undefined)[] = [
         sesion.warmUp,
@@ -443,6 +480,154 @@ const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string =
     if (objetivos.size === 0) return "No especificados";
     return Array.from(objetivos).join(' ');
 };
+
+ const handleSaveSessionPdf = async () => {
+    const printArea = document.querySelector('.session-print-area') as HTMLElement;
+    if (!printArea || !detailedSessionData) {
+      toast({
+        title: "Error",
+        description: "No se pudo encontrar el contenido de la sesión para generar el PDF.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingSessionPdf(true);
+    const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
+    const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
+    if (printButtonContainer) printButtonContainer.style.display = 'none';
+    
+    // Store original styles for elements within the dialog header that might be dark
+    const dialogHeader = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
+    const originalHeaderStyles: { element: HTMLElement; bgColor: string; textColor: string }[] = [];
+
+    if (dialogHeader) {
+        originalHeaderStyles.push({ element: dialogHeader, bgColor: dialogHeader.style.backgroundColor, textColor: dialogHeader.style.color });
+        const children = dialogHeader.querySelectorAll<HTMLElement>('*');
+        children.forEach(child => {
+            originalHeaderStyles.push({ element: child, bgColor: child.style.backgroundColor, textColor: child.style.color });
+        });
+    }
+
+    try {
+      const canvas = await html2canvas(printArea, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        onclone: (document) => {
+          const clonedPrintArea = document.querySelector('.session-print-area') as HTMLElement;
+          if (clonedPrintArea) {
+            const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container)');
+            textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
+            
+            const dialogHeaderClone = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
+            if (dialogHeaderClone) {
+                dialogHeaderClone.style.backgroundColor = '#ffffff !important';
+                dialogHeaderClone.style.color = '#000000 !important';
+                const headerChildren = dialogHeaderClone.querySelectorAll<HTMLElement>('*');
+                headerChildren.forEach(child => {
+                    child.style.backgroundColor = 'transparent !important'; // Or #ffffff
+                    child.style.color = '#000000 !important';
+                });
+            }
+            
+            const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
+            badges.forEach(el => {
+              (el as HTMLElement).style.backgroundColor = '#dddddd !important';
+              (el as HTMLElement).style.color = '#000000 !important';
+              (el as HTMLElement).style.borderColor = '#aaaaaa !important';
+            });
+            
+            if (clonedPrintArea.classList.contains('bg-card') || clonedPrintArea.classList.contains('bg-gray-50')) {
+              clonedPrintArea.style.backgroundColor = '#ffffff !important';
+            }
+             const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
+            if (btnContainer) btnContainer.style.display = 'none';
+
+            document.body.style.backgroundColor = '#ffffff !important';
+          }
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait', // A4 Vertical
+        unit: 'pt',
+        format: 'a4',
+      });
+
+      const PT_PER_CM = 28.346;
+      const MARGIN_CM = 1.5;
+      const HEADER_RESERVED_CM = 3;
+      const LOGO_SIZE_CM = 1.5;
+
+      const margin = MARGIN_CM * PT_PER_CM;
+      const headerReservedHeight = HEADER_RESERVED_CM * PT_PER_CM;
+      const logoSize = LOGO_SIZE_CM * PT_PER_CM;
+
+      const pdfPageWidth = pdf.internal.pageSize.getWidth();
+      const pdfPageHeight = pdf.internal.pageSize.getHeight();
+
+      const logoPngDataUrl = await convertSvgStringToPngDataURL(futsalDexIconSVGString, 100, 100);
+      pdf.addImage(logoPngDataUrl, 'PNG', margin, margin, logoSize, logoSize);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(20); // Adjusted for session title
+      const titleText = "Ficha de Sesión";
+      const titleTextWidth = pdf.getStringUnitWidth(titleText) * pdf.getFontSize() / pdf.internal.scaleFactor;
+      pdf.text(titleText, pdfPageWidth - margin - titleTextWidth, margin + logoSize / 1.5 , { align: 'left' });
+
+      const contentStartY = margin + headerReservedHeight;
+      const contentPrintableWidth = pdfPageWidth - (margin * 2);
+      const contentPrintableHeight = pdfPageHeight - margin - contentStartY;
+
+      const img = new window.Image();
+      img.onload = () => {
+        const originalImgWidth = img.width;
+        const originalImgHeight = img.height;
+
+        let scaleFactorWidth = contentPrintableWidth / originalImgWidth;
+        let scaleFactorHeight = contentPrintableHeight / originalImgHeight;
+        let finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight);
+        
+        // If content is shorter than page, don't scale up beyond its natural size if scaleFactorWidth would allow
+        if (originalImgHeight * finalScaleFactor < contentPrintableHeight && scaleFactorWidth > scaleFactorHeight) {
+            finalScaleFactor = scaleFactorHeight; // Prioritize fitting height if content is short
+            if (originalImgWidth * finalScaleFactor > contentPrintableWidth) { // re-check width with height-priority scale
+                 finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight); // fallback to min if both overflow
+            }
+        }
+
+
+        const pdfImageWidth = originalImgWidth * finalScaleFactor;
+        const pdfImageHeight = originalImgHeight * finalScaleFactor;
+        
+        const xOffset = (pdfPageWidth - pdfImageWidth) / 2; 
+
+        pdf.addImage(imgData, 'PNG', xOffset, contentStartY, pdfImageWidth, pdfImageHeight);
+        const sessionDate = detailedSessionData.fecha ? formatDate(detailedSessionData.fecha).replace(/\s/g, '_') : 'sin_fecha';
+        const sessionNum = detailedSessionData.numero_sesion || 'N';
+        pdf.save(`sesion_${sessionNum}_${sessionDate}.pdf`);
+      };
+      img.onerror = (err) => {
+        console.error("Error loading image for PDF generation:", err);
+        toast({ title: "Error al Cargar Imagen", description: "No se pudo cargar la imagen capturada para el PDF.", variant: "destructive" });
+      };
+      img.src = imgData;
+
+    } catch (error: any) {
+      console.error("Error generating PDF for session:", error);
+      toast({ title: "Error al Generar PDF", description: error.message || "Hubo un problema al crear el PDF de la sesión.", variant: "destructive" });
+    } finally {
+      if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
+      originalHeaderStyles.forEach(s => {
+          s.element.style.backgroundColor = s.bgColor;
+          s.element.style.color = s.textColor;
+      });
+      setIsGeneratingSessionPdf(false);
+    }
+  };
 
 
   if (isLoading && sesiones.length === 0) {
@@ -582,7 +767,7 @@ const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string =
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
-                    <ShadcnDialogHeader className="p-4 border-b bg-gray-800 text-white rounded-t-md">
+                    <ShadcnDialogHeader className="p-4 border-b bg-gray-800 text-white rounded-t-md dialog-header-print-override">
                         <ShadcnDialogTitle className="text-xl font-bold uppercase sr-only">SESIÓN DE ENTRENAMIENTO</ShadcnDialogTitle>
                          {detailedSessionData && (
                              <div className="flex justify-between items-start">
@@ -696,9 +881,13 @@ const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string =
                           </div>
                         )}
                         <div className="print-button-container p-4 mt-4 text-center border-t border-gray-300">
-                            <Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white">
-                                <Printer className="mr-2 h-4 w-4" />
-                                Imprimir / Guardar PDF
+                            <Button 
+                                onClick={handleSaveSessionPdf} 
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                disabled={isGeneratingSessionPdf}
+                            >
+                                {isGeneratingSessionPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                {isGeneratingSessionPdf ? 'Generando PDF...' : 'Guardar PDF'}
                             </Button>
                         </div>
                       </div>
