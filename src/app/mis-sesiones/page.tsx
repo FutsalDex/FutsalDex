@@ -4,14 +4,12 @@
 import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp, deleteDoc, doc, getDoc, DocumentData } from "firebase/firestore";
+import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, ClockIcon, Sparkles, Info, Save } from "lucide-react"; // Changed Printer to Save
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader as ShadcnDialogHeader, DialogTitle as ShadcnDialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -25,19 +23,13 @@ import {
   AlertDialogTitle as AlertDialogHeading,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import Image from "next/image";
 import { parseDurationToMinutes } from "@/lib/utils";
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 
 interface EjercicioInfo {
   id: string;
   ejercicio: string;
   duracion?: string;
-  descripcion?: string;
-  objetivos?: string;
-  categoria?: string;
 }
 
 interface Sesion {
@@ -62,19 +54,6 @@ interface Sesion {
   sessionFocus?: string;
 }
 
-interface EjercicioDetallado extends EjercicioInfo {
-  descripcion: string; 
-  objetivos: string; 
-  categoria: string; 
-  imagen?: string; 
-}
-
-interface SesionConDetallesEjercicio extends Omit<Sesion, 'warmUp' | 'mainExercises' | 'coolDown'> {
-  warmUp: string | EjercicioDetallado;
-  mainExercises: (string | EjercicioDetallado)[];
-  coolDown: string | EjercicioDetallado;
-}
-
 
 const MESES = [
   { value: 1, label: "Enero" }, { value: 2, label: "Febrero" }, { value: 3, label: "Marzo" },
@@ -90,42 +69,6 @@ const getYearsRange = () => {
     years.push(i);
   }
   return years;
-};
-
-// SVG string for FutsalDex Icon (black stroke for PDF visibility)
-const futsalDexIconSVGString = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M12 1.6a10.4 10.4 0 1 0 0 20.8 10.4 10.4 0 0 0 0-20.8z"/>
-  <path d="M12 1.6a10.4 10.4 0 0 0-7.35 3.05M12 1.6a10.4 10.4 0 0 1 7.35 3.05M1.6 12a10.4 10.4 0 0 0 3.05 7.35M1.6 12a10.4 10.4 0 0 1 3.05-7.35M22.4 12a10.4 10.4 0 0 0-3.05-7.35M22.4 12a10.4 10.4 0 0 1-3.05 7.35M12 22.4a10.4 10.4 0 0 0 7.35-3.05M12 22.4a10.4 10.4 0 0 1-7.35-3.05"/>
-  <path d="M5.75 5.75l3.5 3.5M14.75 5.75l-3.5 3.5M5.75 14.75l3.5-3.5M14.75 14.75l-3.5-3.5"/>
-</svg>`;
-
-// Helper to convert SVG string to PNG data URL
-const convertSvgStringToPngDataURL = (svgString: string, width: number, height: number): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined') {
-      reject(new Error('Window object not available'));
-      return;
-    }
-    const img = new window.Image();
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-
-    img.onload = () => {
-      if (ctx) {
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/png'));
-      } else {
-        reject(new Error('Could not get canvas context'));
-      }
-    };
-    img.onerror = (err) => {
-      reject(err);
-    };
-    img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
-  });
 };
 
 
@@ -150,12 +93,6 @@ function MisSesionesContent() {
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
   const [activeFilter, setActiveFilter] = useState<{ year: number; month: number } | null>(null);
-
-  const [selectedSesionForDialog, setSelectedSesionForDialog] = useState<Sesion | null>(null);
-  const [detailedSessionData, setDetailedSessionData] = useState<SesionConDetallesEjercicio | null>(null);
-  const [isLoadingDialogDetails, setIsLoadingDialogDetails] = useState(false);
-  const [isGeneratingSessionPdf, setIsGeneratingSessionPdf] = useState(false);
-
 
   const fetchSesiones = useCallback(async (filter?: { year: number; month: number } | null) => {
     if (!user) return;
@@ -228,81 +165,6 @@ function MisSesionesContent() {
     fetchSesiones(initialFilter);
   }, [fetchSesiones]);
 
-
-  const fetchExerciseDetailsForDialog = useCallback(async (sesion: Sesion) => {
-    setIsLoadingDialogDetails(true);
-    setDetailedSessionData(null); 
-
-    try {
-      const exerciseIdsToFetch: string[] = [];
-      if (sesion.type === "Manual") {
-        if (typeof sesion.warmUp === 'object' && sesion.warmUp?.id) exerciseIdsToFetch.push(sesion.warmUp.id);
-        sesion.mainExercises.forEach(ex => {
-          if (typeof ex === 'object' && ex?.id) exerciseIdsToFetch.push(ex.id);
-        });
-        if (typeof sesion.coolDown === 'object' && sesion.coolDown?.id) exerciseIdsToFetch.push(sesion.coolDown.id);
-      }
-
-      const uniqueExerciseIds = Array.from(new Set(exerciseIdsToFetch));
-      const exerciseDocs: Record<string, EjercicioDetallado> = {};
-
-      if (uniqueExerciseIds.length > 0) {
-        const MAX_IN_VALUES = 30;
-        for (let i = 0; i < uniqueExerciseIds.length; i += MAX_IN_VALUES) {
-            const chunk = uniqueExerciseIds.slice(i, i + MAX_IN_VALUES);
-            if (chunk.length > 0) {
-                const exercisesQuery = query(collection(db, "ejercicios_futsal"), where("__name__", "in", chunk));
-                const querySnapshot = await getDocs(exercisesQuery);
-                querySnapshot.forEach(docSnap => {
-                  const data = docSnap.data() as Omit<EjercicioDetallado, 'id'>;
-                  exerciseDocs[docSnap.id] = { 
-                    id: docSnap.id, 
-                    ejercicio: data.ejercicio || "Ejercicio sin nombre",
-                    descripcion: data.descripcion || "Descripción no disponible.",
-                    objetivos: data.objetivos || "Objetivos no especificados.",
-                    categoria: data.categoria || "Categoría no especificada.",
-                    duracion: data.duracion, 
-                    imagen: data.imagen || `https://placehold.co/300x200.png?text=${encodeURIComponent(data.ejercicio || 'Ejercicio')}`,
-                    ...data 
-                  };
-                });
-            }
-        }
-      }
-      
-      let enrichedWarmUp: string | EjercicioDetallado = sesion.warmUp as string | EjercicioDetallado;
-      let enrichedMainExercises: (string | EjercicioDetallado)[] = sesion.mainExercises as (string | EjercicioDetallado)[];
-      let enrichedCoolDown: string | EjercicioDetallado = sesion.coolDown as string | EjercicioDetallado;
-
-      if (sesion.type === "Manual") {
-          enrichedWarmUp = (typeof sesion.warmUp === 'object' && sesion.warmUp?.id && exerciseDocs[sesion.warmUp.id]) ? exerciseDocs[sesion.warmUp.id] : sesion.warmUp;
-          enrichedMainExercises = sesion.mainExercises.map(ex => (typeof ex === 'object' && ex?.id && exerciseDocs[ex.id]) ? exerciseDocs[ex.id] : ex);
-          enrichedCoolDown = (typeof sesion.coolDown === 'object' && sesion.coolDown?.id && exerciseDocs[sesion.coolDown.id]) ? exerciseDocs[sesion.coolDown.id] : sesion.coolDown;
-      }
-
-
-      setDetailedSessionData({
-        ...sesion,
-        warmUp: enrichedWarmUp,
-        mainExercises: enrichedMainExercises,
-        coolDown: enrichedCoolDown,
-      });
-
-    } catch (error) {
-      console.error("Error fetching exercise details for dialog:", error);
-      toast({ title: "Error al cargar detalles", description: "No se pudieron cargar los detalles completos de los ejercicios.", variant: "destructive"});
-      setDetailedSessionData(sesion as SesionConDetallesEjercicio); 
-    }
-    setIsLoadingDialogDetails(false);
-  }, [toast]);
-
-
-  const handleOpenDialog = (sesion: Sesion) => {
-    setSelectedSesionForDialog(sesion);
-    fetchExerciseDetailsForDialog(sesion);
-  };
-
-
   const handleApplyFilter = () => {
     if (selectedYear && selectedMonth) {
       const yearNum = parseInt(selectedYear, 10);
@@ -335,28 +197,32 @@ function MisSesionesContent() {
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const formatExerciseName = (exercise: string | EjercicioInfo | EjercicioDetallado | null | undefined): string => {
+  const formatExerciseName = (exercise: string | EjercicioInfo | null | undefined): string => {
     if (!exercise) return "Ejercicio no especificado";
     if (typeof exercise === 'string') return exercise;
     return exercise.ejercicio || "Ejercicio sin nombre";
   };
-
-  const formatExerciseDescription = (exercise: string | EjercicioInfo | EjercicioDetallado | null | undefined): string => {
-    if (!exercise || typeof exercise === 'string' || !exercise.descripcion) return "Descripción no disponible.";
-    return exercise.descripcion;
-  };
   
-  const getExerciseDuration = (exercise: string | EjercicioInfo | EjercicioDetallado | null | undefined): string => {
-    if (!exercise || typeof exercise === 'string' || !exercise.duracion || exercise.duracion === "0") return "N/A";
-    return `${exercise.duracion} min`;
+  const getTotalDuration = (sesion: Sesion): string => {
+    if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
+        return `${sesion.preferredSessionLengthMinutes} min`;
+    } else if (sesion.type === "Manual") {
+        let totalMinutes = 0;
+        if (typeof sesion.warmUp === 'object' && sesion.warmUp?.duracion) {
+            totalMinutes += parseDurationToMinutes(sesion.warmUp.duracion);
+        }
+        sesion.mainExercises.forEach(ex => {
+            if (typeof ex === 'object' && ex?.duracion) {
+                totalMinutes += parseDurationToMinutes(ex.duracion);
+            }
+        });
+        if (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion) {
+            totalMinutes += parseDurationToMinutes(sesion.coolDown.duracion);
+        }
+        return totalMinutes > 0 ? `${totalMinutes} min` : 'N/A';
+    }
+    return 'N/A';
   };
-  
-  const getExerciseImage = (exercise: string | EjercicioInfo | EjercicioDetallado | null | undefined, defaultText: string): string => {
-    if (typeof exercise === 'object' && exercise?.imagen) return exercise.imagen;
-    const text = typeof exercise === 'object' && exercise?.ejercicio ? exercise.ejercicio : defaultText;
-    return `https://placehold.co/300x200.png?text=${encodeURIComponent(text)}`;
-  };
-
 
   const handleDeleteSessionClick = (sessionId: string) => {
     setSessionToDeleteId(sessionId);
@@ -404,231 +270,6 @@ function MisSesionesContent() {
   };
 
   const years = getYearsRange();
-  
- const getDialogTotalDuration = (sesion: SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return 'N/A';
-    let totalMinutes = 0;
-
-    if (sesion.type === "AI" && sesion.preferredSessionLengthMinutes) {
-        totalMinutes = sesion.preferredSessionLengthMinutes;
-    } else if (sesion.type === "Manual") {
-        if (typeof sesion.warmUp === 'object' && sesion.warmUp?.duracion) {
-            totalMinutes += parseDurationToMinutes(sesion.warmUp.duracion);
-        }
-        sesion.mainExercises.forEach(ex => {
-            if (typeof ex === 'object' && ex?.duracion) {
-                totalMinutes += parseDurationToMinutes(ex.duracion);
-            }
-        });
-        if (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion) {
-            totalMinutes += parseDurationToMinutes(sesion.coolDown.duracion);
-        }
-    }
-    return totalMinutes > 0 ? `${totalMinutes} min` : 'N/A';
-};
-
-const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[]): string => {
-  if (!exercises || exercises.length === 0) return '0 min';
-  let totalMinutes = 0;
-  exercises.forEach(ex => {
-    if (typeof ex === 'object' && ex?.duracion) {
-      totalMinutes += parseDurationToMinutes(ex.duracion);
-    }
-  });
-  return totalMinutes > 0 ? `${totalMinutes} min` : '0 min';
-};
-
-const getDialogCategorias = (sesion: SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return "No especificadas";
-    if (sesion.type === "AI") {
-        return sesion.sessionFocus || "No especificadas";
-    }
-    const categorias = new Set<string>();
-    const exercises: (string | EjercicioDetallado | null | undefined)[] = [
-        sesion.warmUp,
-        ...(sesion.mainExercises || []),
-        sesion.coolDown,
-    ];
-    exercises.forEach(ex => {
-        if (typeof ex === 'object' && ex?.categoria) {
-            categorias.add(ex.categoria);
-        }
-    });
-    if (categorias.size === 0) return "No especificadas";
-    return Array.from(categorias).join(', ');
-};
-
-const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return "No especificados";
-    if (sesion.type === "AI") {
-        return sesion.trainingGoals || "No especificados";
-    }
-    const objetivos = new Set<string>();
-     const exercises: (string | EjercicioDetallado | null | undefined)[] = [
-        sesion.warmUp,
-        ...(sesion.mainExercises || []),
-        sesion.coolDown,
-    ];
-    exercises.forEach(ex => {
-        if (typeof ex === 'object' && ex?.objetivos) {
-            ex.objetivos.split(/[.;]+/)
-                .map(obj => obj.trim())
-                .filter(obj => obj.length > 0)
-                .forEach(obj => objetivos.add(obj + (obj.endsWith('.') || obj.endsWith(';') ? '' : '.')));
-        }
-    });
-    if (objetivos.size === 0) return "No especificados";
-    return Array.from(objetivos).join(' ');
-};
-
- const handleSaveSessionPdf = async () => {
-    const printArea = document.querySelector('.session-print-area') as HTMLElement;
-    if (!printArea || !detailedSessionData) {
-      toast({
-        title: "Error",
-        description: "No se pudo encontrar el contenido de la sesión para generar el PDF.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsGeneratingSessionPdf(true);
-    const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
-    const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
-    if (printButtonContainer) printButtonContainer.style.display = 'none';
-    
-    // Store original styles for elements within the dialog header that might be dark
-    const dialogHeader = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-    const originalHeaderStyles: { element: HTMLElement; bgColor: string; textColor: string }[] = [];
-
-    if (dialogHeader) {
-        originalHeaderStyles.push({ element: dialogHeader, bgColor: dialogHeader.style.backgroundColor, textColor: dialogHeader.style.color });
-        const children = dialogHeader.querySelectorAll<HTMLElement>('*');
-        children.forEach(child => {
-            originalHeaderStyles.push({ element: child, bgColor: child.style.backgroundColor, textColor: child.style.color });
-        });
-    }
-
-    try {
-      const canvas = await html2canvas(printArea, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        onclone: (document) => {
-          const clonedPrintArea = document.querySelector('.session-print-area') as HTMLElement;
-          if (clonedPrintArea) {
-            const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container)');
-            textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
-            
-            const dialogHeaderClone = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-            if (dialogHeaderClone) {
-                dialogHeaderClone.style.backgroundColor = '#ffffff !important';
-                dialogHeaderClone.style.color = '#000000 !important';
-                const headerChildren = dialogHeaderClone.querySelectorAll<HTMLElement>('*');
-                headerChildren.forEach(child => {
-                    child.style.backgroundColor = 'transparent !important'; // Or #ffffff
-                    child.style.color = '#000000 !important';
-                });
-            }
-            
-            const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
-            badges.forEach(el => {
-              (el as HTMLElement).style.backgroundColor = '#dddddd !important';
-              (el as HTMLElement).style.color = '#000000 !important';
-              (el as HTMLElement).style.borderColor = '#aaaaaa !important';
-            });
-            
-            if (clonedPrintArea.classList.contains('bg-card') || clonedPrintArea.classList.contains('bg-gray-50')) {
-              clonedPrintArea.style.backgroundColor = '#ffffff !important';
-            }
-             const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
-            if (btnContainer) btnContainer.style.display = 'none';
-
-            document.body.style.backgroundColor = '#ffffff !important';
-          }
-        }
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait', // A4 Vertical
-        unit: 'pt',
-        format: 'a4',
-      });
-
-      const PT_PER_CM = 28.346;
-      const MARGIN_CM = 1.5;
-      const HEADER_RESERVED_CM = 3;
-      const LOGO_SIZE_CM = 1.5;
-
-      const margin = MARGIN_CM * PT_PER_CM;
-      const headerReservedHeight = HEADER_RESERVED_CM * PT_PER_CM;
-      const logoSize = LOGO_SIZE_CM * PT_PER_CM;
-
-      const pdfPageWidth = pdf.internal.pageSize.getWidth();
-      const pdfPageHeight = pdf.internal.pageSize.getHeight();
-
-      const logoPngDataUrl = await convertSvgStringToPngDataURL(futsalDexIconSVGString, 100, 100);
-      pdf.addImage(logoPngDataUrl, 'PNG', margin, margin, logoSize, logoSize);
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(20); // Adjusted for session title
-      const titleText = "Ficha de Sesión";
-      const titleTextWidth = pdf.getStringUnitWidth(titleText) * pdf.getFontSize() / pdf.internal.scaleFactor;
-      pdf.text(titleText, pdfPageWidth - margin - titleTextWidth, margin + logoSize / 1.5 , { align: 'left' });
-
-      const contentStartY = margin + headerReservedHeight;
-      const contentPrintableWidth = pdfPageWidth - (margin * 2);
-      const contentPrintableHeight = pdfPageHeight - margin - contentStartY;
-
-      const img = new window.Image();
-      img.onload = () => {
-        const originalImgWidth = img.width;
-        const originalImgHeight = img.height;
-
-        let scaleFactorWidth = contentPrintableWidth / originalImgWidth;
-        let scaleFactorHeight = contentPrintableHeight / originalImgHeight;
-        let finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight);
-        
-        // If content is shorter than page, don't scale up beyond its natural size if scaleFactorWidth would allow
-        if (originalImgHeight * finalScaleFactor < contentPrintableHeight && scaleFactorWidth > scaleFactorHeight) {
-            finalScaleFactor = scaleFactorHeight; // Prioritize fitting height if content is short
-            if (originalImgWidth * finalScaleFactor > contentPrintableWidth) { // re-check width with height-priority scale
-                 finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight); // fallback to min if both overflow
-            }
-        }
-
-
-        const pdfImageWidth = originalImgWidth * finalScaleFactor;
-        const pdfImageHeight = originalImgHeight * finalScaleFactor;
-        
-        const xOffset = (pdfPageWidth - pdfImageWidth) / 2; 
-
-        pdf.addImage(imgData, 'PNG', xOffset, contentStartY, pdfImageWidth, pdfImageHeight);
-        const sessionDate = detailedSessionData.fecha ? formatDate(detailedSessionData.fecha).replace(/\s/g, '_') : 'sin_fecha';
-        const sessionNum = detailedSessionData.numero_sesion || 'N';
-        pdf.save(`sesion_${sessionNum}_${sessionDate}.pdf`);
-      };
-      img.onerror = (err) => {
-        console.error("Error loading image for PDF generation:", err);
-        toast({ title: "Error al Cargar Imagen", description: "No se pudo cargar la imagen capturada para el PDF.", variant: "destructive" });
-      };
-      img.src = imgData;
-
-    } catch (error: any) {
-      console.error("Error generating PDF for session:", error);
-      toast({ title: "Error al Generar PDF", description: error.message || "Hubo un problema al crear el PDF de la sesión.", variant: "destructive" });
-    } finally {
-      if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
-      originalHeaderStyles.forEach(s => {
-          s.element.style.backgroundColor = s.bgColor;
-          s.element.style.color = s.textColor;
-      });
-      setIsGeneratingSessionPdf(false);
-    }
-  };
-
 
   if (isLoading && sesiones.length === 0) {
     return (
@@ -721,6 +362,7 @@ const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string =
                       {formatDate(sesion.fecha)}
                     </p>
                   </div>
+                  {sesion.type === "AI" && <Bot className="h-6 w-6 text-accent" title="Sesión generada por IA"/>}
                 </div>
                  <p className="text-xs text-muted-foreground">
                     Número sesión: {sesion.numero_sesion || "N/A"}
@@ -730,7 +372,7 @@ const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string =
                 <div>
                   <p className="text-xs"> 
                     <span className="font-semibold text-muted-foreground">Tiempo total: </span>
-                    <span className="font-medium text-xs">{getDialogTotalDuration(sesion as SesionConDetallesEjercicio)}</span>
+                    <span className="font-medium text-xs">{getTotalDuration(sesion)}</span>
                   </p>
                 </div>
 
@@ -760,140 +402,11 @@ const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string =
                 )}
               </CardContent>
               <CardFooter className="flex flex-col items-center gap-2 px-4 py-4 border-t">
-                <Dialog onOpenChange={(open) => { if (open) handleOpenDialog(sesion); else { setSelectedSesionForDialog(null); setDetailedSessionData(null);}}}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg">
-                      <Eye className="mr-2 h-4 w-4" /> Ver Ficha Detallada
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
-                    <ShadcnDialogHeader className="p-4 border-b bg-gray-800 text-white rounded-t-md dialog-header-print-override">
-                        <ShadcnDialogTitle className="text-xl font-bold uppercase sr-only">SESIÓN DE ENTRENAMIENTO</ShadcnDialogTitle>
-                         {detailedSessionData && (
-                             <div className="flex justify-between items-start">
-                                <h2 className="text-xl font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
-                                <div className="text-right">
-                                <p className="text-md text-gray-300">FECHA: {formatDate(detailedSessionData.fecha)}</p>
-                                <p className="text-md text-gray-300">Nº SESIÓN: {detailedSessionData.numero_sesion || 'N/A'}</p>
-                                </div>
-                            </div>
-                         )}
-                         {detailedSessionData && (
-                            <div className="flex justify-between text-md text-gray-300">
-                                <p>EQUIPO: {detailedSessionData.equipo || 'No especificado'}</p>
-                                <p>CLUB: {detailedSessionData.club || 'No especificado'}</p>
-                            </div>
-                         )}
-                    </ShadcnDialogHeader>
-                    {isLoadingDialogDetails && !detailedSessionData && (
-                        <div className="flex flex-col items-center justify-center p-10 min-h-[300px]">
-                            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                            <p className="text-lg">Cargando detalles de la sesión...</p>
-                        </div>
-                    )}
-                    {detailedSessionData && (
-                      <div className="session-print-area border border-gray-700 bg-gray-50 text-gray-800 shadow-lg m-0 rounded-b-md">
-                        
-                        <div className="p-4 border-b border-gray-300">
-                            <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                                <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
-                            </div>
-                            <div className="text-sm space-y-1">
-                                <p><strong className="font-medium">CATEGORÍA(S):</strong> {getDialogCategorias(detailedSessionData)}</p>
-                                <p><strong className="font-medium">OBJETIVOS GENERALES:</strong> {getDialogObjetivos(detailedSessionData)}</p>
-                            </div>
-                        </div>
-
-                        <div className="p-4 border-b border-gray-300">
-                          <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                            <h3 className="font-semibold text-lg">PARTE INICIAL</h3>
-                            <span className="text-sm">{getExerciseDuration(detailedSessionData.warmUp)}</span>
-                          </div>
-                          <div className="flex flex-col md:flex-row gap-4 items-start">
-                            <div className="md:w-1/3 flex-shrink-0">
-                                <Image src={getExerciseImage(detailedSessionData.warmUp, "Calentamiento")} alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal warmup"/>
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-md font-semibold">{formatExerciseName(detailedSessionData.warmUp)}</p>
-                                <p className="text-sm mt-1">{formatExerciseDescription(detailedSessionData.warmUp)}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-4 border-b border-gray-300">
-                          <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                            <h3 className="font-semibold text-lg text-left">PARTE PRINCIPAL</h3>
-                            <span className="text-sm text-right">{getMainExercisesTotalDuration(detailedSessionData.mainExercises)}</span>
-                          </div>
-                          <div className="space-y-4">
-                            {detailedSessionData.mainExercises.map((ex, index) => (
-                              <div key={typeof ex === 'string' ? `ai-main-${index}` : ex.id || `manual-main-${index}`} className="p-3 border border-gray-400 rounded bg-white">
-                                <div className="flex justify-end items-center mb-1 text-sm">
-                                  <span className="font-medium">TIEMPO: {getExerciseDuration(ex)}</span>
-                                </div>
-                                <div className="flex flex-col md:flex-row gap-4 items-start">
-                                  <div className="md:w-1/3 flex-shrink-0">
-                                      <Image src={getExerciseImage(ex, `Principal ${index + 1}`)} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal exercise"/>
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-md font-semibold">{formatExerciseName(ex)}</p>
-                                    <p className="text-sm mt-1">{formatExerciseDescription(ex)}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="p-4 border-b border-gray-300">
-                          <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
-                            <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
-                            <span className="text-sm">{getExerciseDuration(detailedSessionData.coolDown)}</span>
-                          </div>
-                           <div className="flex flex-col md:flex-row gap-4 items-start">
-                             <div className="md:w-1/3 flex-shrink-0">
-                                 <Image src={getExerciseImage(detailedSessionData.coolDown, "Vuelta a la Calma")} alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal cooldown"/>
-                             </div>
-                             <div className="flex-1">
-                                <p className="text-md font-semibold">{formatExerciseName(detailedSessionData.coolDown)}</p>
-                                <p className="text-sm mt-1">{formatExerciseDescription(detailedSessionData.coolDown)}</p>
-                             </div>
-                           </div>
-                        </div>
-                        
-                         <div className="p-4 mt-3 border-b border-gray-300 text-center">
-                            <p className="font-semibold text-md">
-                                <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
-                                Tiempo total: {getDialogTotalDuration(detailedSessionData)}
-                            </p>
-                        </div>
-
-                        {(detailedSessionData.coachNotes && detailedSessionData.coachNotes.trim() !== "") && (
-                          <div className="p-4">
-                            <h3 className="font-semibold mb-1 text-lg uppercase">OBSERVACIONES:</h3>
-                            <p className="text-md whitespace-pre-wrap">{detailedSessionData.coachNotes}</p>
-                          </div>
-                        )}
-                        {detailedSessionData.type === "AI" && (
-                          <div className="p-4 space-y-2 border-t border-gray-300 mt-2">
-                            {detailedSessionData.teamDescription && <div><h4 className="font-semibold text-md">Descripción del Equipo (IA):</h4><p className="text-sm whitespace-pre-wrap">{detailedSessionData.teamDescription}</p></div>}
-                            {detailedSessionData.trainingGoals && detailedSessionData.type === "AI" && (!detailedSessionData.coachNotes?.includes(detailedSessionData.trainingGoals)) && <div><h4 className="font-semibold text-md">Objetivos (Input IA):</h4><p className="text-sm whitespace-pre-wrap">{detailedSessionData.trainingGoals}</p></div>}
-                          </div>
-                        )}
-                        <div className="print-button-container p-4 mt-4 text-center border-t border-gray-300">
-                            <Button 
-                                onClick={handleSaveSessionPdf} 
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                disabled={isGeneratingSessionPdf}
-                            >
-                                {isGeneratingSessionPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                {isGeneratingSessionPdf ? 'Generando PDF...' : 'Guardar PDF'}
-                            </Button>
-                        </div>
-                      </div>
-                    )}
-                  </DialogContent>
-                </Dialog>
+                <Button asChild variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg">
+                    <Link href={`/mis-sesiones/detalle/${sesion.id}`}>
+                        <Eye className="mr-2 h-4 w-4" /> Ver Ficha Detallada
+                    </Link>
+                </Button>
                 <div className="flex flex-row justify-center gap-2 w-full">
                   <Button
                     variant="outline"
@@ -939,3 +452,4 @@ const getDialogObjetivos = (sesion: SesionConDetallesEjercicio | null): string =
   );
 }
 
+    
