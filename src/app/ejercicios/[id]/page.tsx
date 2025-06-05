@@ -10,7 +10,7 @@ import { doc, getDoc, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Printer, Heart } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Heart } from 'lucide-react'; // Changed Printer to Save
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
@@ -139,49 +139,54 @@ export default function EjercicioDetallePage() {
     }
 
     setIsGeneratingPdf(true);
-    console.log("handlePrint called on exercise detail page.");
-
+    
     const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
     const originalDisplay = printButtonContainer ? printButtonContainer.style.display : '';
     if (printButtonContainer) printButtonContainer.style.display = 'none';
     
-    const headerElement = printArea.querySelector('header');
+    const headerElement = printArea.querySelector('header'); // Assuming header is a direct child or identifiable
     const originalHeaderBg = headerElement ? headerElement.style.backgroundColor : '';
-    if (headerElement) headerElement.style.backgroundColor = 'white';
-
+    if (headerElement) headerElement.style.backgroundColor = 'white'; // Ensure header bg is white for capture
 
     try {
-      console.log("Attempting to capture with html2canvas for exercise detail page.");
       const canvas = await html2canvas(printArea, { 
-        scale: 2, 
+        scale: 2, // Improves resolution
         useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-         onclone: (document) => {
+        logging: false, 
+        backgroundColor: '#ffffff', // Ensure a white background for the capture
+         onclone: (document) => { // Style the cloned document for canvas rendering
             const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
             if (clonedPrintArea) {
-                const textElements = clonedPrintArea.querySelectorAll('p, h1, h3, li, strong, span, div:not(img):not(svg), td, th, a, button');
+                // Make text black
+                const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg), td, th, a, button, label, [class*="text-"]');
                 textElements.forEach(el => {
-                    (el as HTMLElement).style.color = '#000000'; 
+                    (el as HTMLElement).style.color = '#000000 !important'; 
                 });
-                const primaryElements = clonedPrintArea.querySelectorAll('.text-primary');
+
+                const primaryElements = clonedPrintArea.querySelectorAll('.text-primary, .text-accent');
                  primaryElements.forEach(el => {
-                    (el as HTMLElement).style.color = '#000000';
+                    (el as HTMLElement).style.color = '#000000 !important';
                  });
-                 const badges = clonedPrintArea.querySelectorAll('.bg-primary');
+
+                 const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge'); // More general badge selector
                  badges.forEach(el => {
-                    (el as HTMLElement).style.backgroundColor = '#dddddd';
-                    (el as HTMLElement).style.color = '#000000'; 
+                    (el as HTMLElement).style.backgroundColor = '#dddddd !important'; 
+                    (el as HTMLElement).style.color = '#000000 !important'; 
+                    (el as HTMLElement).style.borderColor = '#aaaaaa !important';
                  });
+                
+                if (clonedPrintArea.classList.contains('bg-card')) {
+                   clonedPrintArea.style.backgroundColor = '#ffffff !important';
+                }
+                document.body.style.backgroundColor = '#ffffff !important';
             }
         }
       });
-      console.log("html2canvas capture successful for exercise detail page.");
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'pt',
+        orientation: 'landscape', // A4 Landscape: 29.7cm x 21cm
+        unit: 'pt', // Using points; A4 landscape points: ~841.89pt x ~595.28pt
         format: 'a4',
       });
 
@@ -196,6 +201,7 @@ export default function EjercicioDetallePage() {
           const originalImgWidth = img.width;
           const originalImgHeight = img.height;
 
+          // Calculate scale factor to fit within printable area, maintaining aspect ratio
           const scaleFactorWidth = pdfPrintableWidth / originalImgWidth;
           const scaleFactorHeight = pdfPrintableHeight / originalImgHeight;
           const finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight);
@@ -203,15 +209,11 @@ export default function EjercicioDetallePage() {
           const pdfImageWidth = originalImgWidth * finalScaleFactor;
           const pdfImageHeight = originalImgHeight * finalScaleFactor;
           
-          // Center image on page if it's smaller than printable area (optional)
-          const xOffset = (pdfPageWidth - pdfImageWidth) / 2;
-          const yOffset = (pdfPageHeight - pdfImageHeight) / 2;
+          // Center the image on the page, ensuring it doesn't go outside margins
+          const xOffset = Math.max(margin, (pdfPageWidth - pdfImageWidth) / 2);
+          const yOffset = Math.max(margin, (pdfPageHeight - pdfImageHeight) / 2);
           
-          // Use margin for positioning if not centering, or adjust based on centering logic.
-          // Forcing it to top-left with margin for simplicity now.
-          pdf.addImage(imgData, 'PNG', margin, margin, pdfImageWidth, pdfImageHeight);
-          
-          console.log("PDF generated with single page scaling for exercise detail.");
+          pdf.addImage(imgData, 'PNG', xOffset, yOffset, pdfImageWidth, pdfImageHeight);
           pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
           
           if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
@@ -220,7 +222,7 @@ export default function EjercicioDetallePage() {
       };
 
       img.onerror = (err) => {
-          console.error("Error loading image for PDF generation (exercise detail):", err);
+          console.error("Error loading image for PDF generation:", err);
           toast({
               title: "Error al Cargar Imagen",
               description: "No se pudo cargar la imagen capturada para generar el PDF.",
@@ -234,7 +236,7 @@ export default function EjercicioDetallePage() {
       img.src = imgData;
 
     } catch (error) {
-      console.error("Error generating PDF (exercise detail):", error);
+      console.error("Error generating PDF for exercise detail:", error);
       toast({
         title: "Error al Generar PDF",
         description: "Hubo un problema al crear el archivo PDF. " + (error instanceof Error ? error.message : String(error)),
@@ -355,8 +357,8 @@ export default function EjercicioDetallePage() {
 
         <div className="print-button-container mt-8 text-center">
             <Button onClick={handlePrint} variant="default" size="lg" disabled={isGeneratingPdf}>
-                {isGeneratingPdf ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Printer className="mr-2 h-5 w-5" />}
-                {isGeneratingPdf ? 'Generando PDF...' : 'Imprimir / Guardar PDF'}
+                {isGeneratingPdf ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+                {isGeneratingPdf ? 'Generando PDF...' : 'Guardar PDF'}
             </Button>
         </div>
       </div>
