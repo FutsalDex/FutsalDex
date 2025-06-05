@@ -67,25 +67,19 @@ function AdminPageContent() {
           </div>
           
           <div className="p-4 border rounded-md bg-muted/50">
-            <h4 className="font-semibold text-lg mb-2 text-foreground/90">Funcionalidad Detallada (En Desarrollo):</h4>
+            <h4 className="font-semibold text-lg mb-2 text-foreground/90">Funcionalidades Disponibles:</h4>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
               <li>
-                **Añadir Nuevo Ejercicio:** Un formulario permitirá ingresar todos los detalles de un nuevo ejercicio.
+                **Añadir Nuevo Ejercicio:** Formulario completo para ingresar todos los detalles de un nuevo ejercicio.
               </li>
                <li>
-                **Añadir Ejercicios por Lote:** Subir un archivo Excel para importar múltiples ejercicios a la vez.
+                **Añadir Ejercicios por Lote:** Sube un archivo Excel para importar múltiples ejercicios a la vez.
               </li>
               <li>
-                **Ver/Gestionar Ejercicios:** Listado de ejercicios con opciones para modificar y eliminar.
-              </li>
-              <li>
-                Se incluirán filtros y paginación para facilitar la búsqueda y gestión.
+                **Ver/Gestionar Ejercicios:** Listado de ejercicios con opciones para modificar, eliminar, filtrar y paginar los resultados.
               </li>
             </ul>
           </div>
-           <p className="mt-4 text-sm font-semibold text-accent text-center">
-            (Nota: La funcionalidad completa de gestión de ejercicios está en desarrollo).
-          </p>
         </CardContent>
       </Card>
 
