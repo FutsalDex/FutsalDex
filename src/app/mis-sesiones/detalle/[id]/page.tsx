@@ -73,42 +73,6 @@ interface SesionConDetallesEjercicio extends Omit<Sesion, 'warmUp' | 'mainExerci
   coolDown: string | EjercicioDetallado | null;
 }
 
-// SVG string for FutsalDex Icon
-const futsalDexIconSVGString = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M12 1.6a10.4 10.4 0 1 0 0 20.8 10.4 10.4 0 0 0 0-20.8z"/>
-  <path d="M12 1.6a10.4 10.4 0 0 0-7.35 3.05M12 1.6a10.4 10.4 0 0 1 7.35 3.05M1.6 12a10.4 10.4 0 0 0 3.05 7.35M1.6 12a10.4 10.4 0 0 1 3.05-7.35M22.4 12a10.4 10.4 0 0 0-3.05-7.35M22.4 12a10.4 10.4 0 0 1-3.05 7.35M12 22.4a10.4 10.4 0 0 0 7.35-3.05M12 22.4a10.4 10.4 0 0 1-7.35-3.05"/>
-  <path d="M5.75 5.75l3.5 3.5M14.75 5.75l-3.5 3.5M5.75 14.75l3.5-3.5M14.75 14.75l-3.5-3.5"/>
-</svg>`;
-
-// Helper to convert SVG string to PNG data URL
-const convertSvgStringToPngDataURL = (svgString: string, width: number, height: number): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined') {
-      reject(new Error('Window object not available'));
-      return;
-    }
-    const img = new window.Image();
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-
-    img.onload = () => {
-      if (ctx) {
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/png'));
-      } else {
-        reject(new Error('Could not get canvas context'));
-      }
-    };
-    img.onerror = (err) => {
-      reject(err);
-    };
-    img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
-  });
-};
-
 // Helper functions (copied from mis-sesiones/page.tsx or adapted)
 const formatDate = (dateValue: string | Timestamp | undefined): string => {
     if (!dateValue) return 'N/A';
@@ -314,14 +278,17 @@ function SesionDetallePageContent() {
     const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
     const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
     if (printButtonContainer) printButtonContainer.style.display = 'none';
+    
+    // Temporarily store original styles of the header and its children
+    const headerElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
+    const originalHeaderStyles: { element: HTMLElement; display: string; bgColor: string; textColor: string }[] = [];
 
-    const dialogHeader = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-    const originalHeaderStyles: { element: HTMLElement; bgColor: string; textColor: string }[] = [];
-    if (dialogHeader) {
-        originalHeaderStyles.push({ element: dialogHeader, bgColor: dialogHeader.style.backgroundColor, textColor: dialogHeader.style.color });
-        const children = dialogHeader.querySelectorAll<HTMLElement>('*');
-        children.forEach(child => { originalHeaderStyles.push({ element: child, bgColor: child.style.backgroundColor, textColor: child.style.color }); });
+    if (headerElement) {
+        originalHeaderStyles.push({ element: headerElement, display: headerElement.style.display, bgColor: headerElement.style.backgroundColor, textColor: headerElement.style.color });
+        const children = headerElement.querySelectorAll<HTMLElement>('*');
+        children.forEach(child => { originalHeaderStyles.push({ element: child, display: child.style.display, bgColor: child.style.backgroundColor, textColor: child.style.color }); });
     }
+
 
     try {
       const canvas = await html2canvas(printArea, {
@@ -329,51 +296,60 @@ function SesionDetallePageContent() {
         onclone: (document) => {
           const clonedPrintArea = document.querySelector('.session-print-area') as HTMLElement;
           if (clonedPrintArea) {
+            // Make all text black
             const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container)');
             textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
-            const headerClone = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-            if (headerClone) {
-                headerClone.style.backgroundColor = '#ffffff !important'; headerClone.style.color = '#000000 !important';
-                const headerChildren = headerClone.querySelectorAll<HTMLElement>('*');
-                headerChildren.forEach(child => { child.style.backgroundColor = 'transparent !important'; child.style.color = '#000000 !important'; });
+            
+            // Hide the HTML header for the PDF capture
+            const headerToHide = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
+            if (headerToHide) {
+                headerToHide.style.display = 'none !important';
             }
+            
             const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
-            badges.forEach(el => { (el as HTMLElement).style.backgroundColor = '#dddddd !important'; (el as HTMLElement).style.color = '#000000 !important'; (el as HTMLElement).style.borderColor = '#aaaaaa !important';});
-            if (clonedPrintArea.classList.contains('bg-card') || clonedPrintArea.classList.contains('bg-gray-50')) { clonedPrintArea.style.backgroundColor = '#ffffff !important';}
+            badges.forEach(el => { 
+              (el as HTMLElement).style.backgroundColor = '#dddddd !important'; 
+              (el as HTMLElement).style.color = '#000000 !important';
+              (el as HTMLElement).style.borderColor = '#aaaaaa !important';
+            });
+            
+            if (clonedPrintArea.classList.contains('bg-card') || clonedPrintArea.classList.contains('bg-gray-50') || clonedPrintArea.classList.contains('bg-white')) {
+              clonedPrintArea.style.backgroundColor = '#ffffff !important';
+            }
+
+            // Hide print button
             const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
             if (btnContainer) btnContainer.style.display = 'none';
+            
             document.body.style.backgroundColor = '#ffffff !important';
           }
         }
       });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      const PT_PER_CM = 28.346; const MARGIN_CM = 1.5; const HEADER_RESERVED_CM = 3; const LOGO_SIZE_CM = 1.5;
-      const margin = MARGIN_CM * PT_PER_CM; const headerReservedHeight = HEADER_RESERVED_CM * PT_PER_CM; const logoSize = LOGO_SIZE_CM * PT_PER_CM;
+      const PT_PER_CM = 28.346; const MARGIN_CM = 1.5;
+      const margin = MARGIN_CM * PT_PER_CM;
       const pdfPageWidth = pdf.internal.pageSize.getWidth(); const pdfPageHeight = pdf.internal.pageSize.getHeight();
-      const logoPngDataUrl = await convertSvgStringToPngDataURL(futsalDexIconSVGString, 100, 100);
-      pdf.addImage(logoPngDataUrl, 'PNG', margin, margin, logoSize, logoSize);
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(20);
-      const titleText = "Ficha de Sesión";
-      const titleTextWidth = pdf.getStringUnitWidth(titleText) * pdf.getFontSize() / pdf.internal.scaleFactor;
-      pdf.text(titleText, pdfPageWidth - margin - titleTextWidth, margin + logoSize / 1.5 , { align: 'left' });
-      const contentStartY = margin + headerReservedHeight;
+      
+      const contentStartY = margin; // Content starts from top margin as header is removed
       const contentPrintableWidth = pdfPageWidth - (margin * 2);
-      const contentPrintableHeight = pdfPageHeight - margin - contentStartY;
+      const contentPrintableHeight = pdfPageHeight - (margin * 2); // Full height minus top/bottom margins
+
       const img = new window.Image();
       img.onload = () => {
         const originalImgWidth = img.width; const originalImgHeight = img.height;
-        const scaleFactorWidth = contentPrintableWidth / originalImgWidth;
-        const finalScaleFactor = scaleFactorWidth; // Use width-based scaling
-        const pdfImageWidth = contentPrintableWidth;
-        const pdfImageHeight = originalImgHeight * finalScaleFactor;
-        const xOffset = margin;
         
-        // Check if scaled height fits, if not, it will be clipped as per single page requirement
+        // Scale to fit width
+        const finalScaleFactor = contentPrintableWidth / originalImgWidth;
+        const pdfImageWidth = contentPrintableWidth; // Use full printable width
+        const pdfImageHeight = originalImgHeight * finalScaleFactor;
+        
+        const xOffset = margin; // Align to left margin
+
+        // If scaled height is still too much for one page, it will be clipped as per single page requirement.
         // For true multi-page, different logic would be needed here.
-        // For now, it scales to width and if height is too much, it gets cut.
         pdf.addImage(imgData, 'PNG', xOffset, contentStartY, pdfImageWidth, pdfImageHeight);
-        const sessionDateStr = sessionData.fecha ? formatDate(sessionData.fecha).replace(/\s/g, '_') : 'sin_fecha';
+        const sessionDateStr = sessionData.fecha ? formatDate(sessionData.fecha).replace(/\s/g, '_').replace(/\//g, '-') : 'sin_fecha';
         const sessionNumStr = sessionData.numero_sesion || 'N';
         pdf.save(`sesion_${sessionNumStr}_${sessionDateStr}.pdf`);
       };
@@ -383,7 +359,12 @@ function SesionDetallePageContent() {
       console.error("Error PDF:", error); toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
     } finally {
       if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
-      originalHeaderStyles.forEach(s => { s.element.style.backgroundColor = s.bgColor; s.element.style.color = s.textColor; });
+      // Restore original styles of the header and its children
+      originalHeaderStyles.forEach(s => { 
+          s.element.style.display = s.display;
+          s.element.style.backgroundColor = s.bgColor;
+          s.element.style.color = s.textColor; 
+      });
       setIsGeneratingPdf(false);
     }
   };
@@ -429,6 +410,7 @@ function SesionDetallePageContent() {
 
         {/* Content to be rendered for PDF */}
         <div className="session-print-area bg-white text-gray-800 shadow-lg m-0 rounded-md border border-gray-700">
+            {/* This header will be hidden during PDF capture by the onclone logic */}
             <div className="dialog-header-print-override p-4 border-b bg-gray-800 text-white rounded-t-md">
                 <div className="flex justify-between items-start">
                     <h2 className="text-xl font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
@@ -535,6 +517,7 @@ function SesionDetallePageContent() {
                 {(sessionData as SesionAI).trainingGoals && sessionData.type === "AI" && (!sessionData.coachNotes?.includes((sessionData as SesionAI).trainingGoals!)) && <div><h4 className="font-semibold text-md">Objetivos (Input IA):</h4><p className="text-sm whitespace-pre-wrap">{(sessionData as SesionAI).trainingGoals}</p></div>}
               </div>
             )}
+            {/* This button will be hidden during PDF capture */}
             <div className="print-button-container p-4 mt-4 text-center border-t border-gray-300">
                 <Button onClick={handleSavePdf} className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isGeneratingPdf}>
                     {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
