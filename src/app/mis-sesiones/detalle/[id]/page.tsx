@@ -1,3 +1,4 @@
+
 // src/app/mis-sesiones/detalle/[id]/page.tsx
 "use client";
 
@@ -300,7 +301,7 @@ function SesionDetallePageContent() {
 
     const headerHtmlElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
     if(headerHtmlElement) {
-      setHeaderHtmlElementOriginalDisplay(headerHtmlElement.style.display); // Save original display state
+      setHeaderHtmlElementOriginalDisplay(headerHtmlElement.style.display); 
     }
 
     try {
@@ -343,7 +344,7 @@ function SesionDetallePageContent() {
       
       const contentStartY = margin;
       const contentPrintableWidth = pdfPageWidth - (margin * 2);
-      const contentPrintableHeight = pdfPageHeight - margin - contentStartY;
+      // const contentPrintableHeight = pdfPageHeight - margin - contentStartY; // Not strictly needed if content might overflow/get cut
 
       const img = new window.Image();
       img.onload = () => {
@@ -422,8 +423,12 @@ function SesionDetallePageContent() {
                     </div>
                 </div>
                 <div className="flex justify-between text-xs text-gray-300 mt-1">
-                    <p>EQUIPO: {sessionData.equipo || 'No especificado'}</p>
-                    <p>CLUB: {sessionData.club || 'No especificado'}</p>
+                    <div>
+                        <p>CLUB: {sessionData.club || 'No especificado'}</p>
+                        <p>EQUIPO: {sessionData.equipo || 'No especificado'}</p>
+                    </div>
+                    <div> {/* This div can be empty or removed if no content for the right side on this line */}
+                    </div>
                 </div>
             </div>
             
@@ -442,18 +447,14 @@ function SesionDetallePageContent() {
                 <h3 className="font-semibold text-lg">FASE INICIAL</h3>
                 <span className="text-sm">{getExerciseDuration(sessionData.warmUp)}</span>
               </div>
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                {sessionData.type === "Manual" && sessionData.warmUp && typeof sessionData.warmUp === 'object' && (
-                    <div className="md:w-1/4 flex-shrink-0">
-                        <Image src={getExerciseImage(sessionData.warmUp as EjercicioDetallado, "Calentamiento")} alt="Calentamiento" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal warmup"/>
-                    </div>
-                )}
-                <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-md font-semibold">{formatExerciseName(sessionData.warmUp)}</p>
-                      {/* Duration is in the section header, not repeated here unless design changes */}
-                    </div>
-                    <p className="text-sm mt-1 whitespace-pre-wrap">{sessionData.type === "AI" ? sessionData.warmUp : formatExerciseDescription(sessionData.warmUp as EjercicioDetallado)}</p>
+              <div> {/* Removed flex container for image+text as image is gone */}
+                <div className="flex-1"> 
+                  <p className="text-md font-semibold mb-1">{formatExerciseName(sessionData.warmUp)}</p>
+                  <p className="text-sm mt-1 whitespace-pre-wrap">
+                    {sessionData.type === "AI" 
+                      ? sessionData.warmUp 
+                      : formatExerciseDescription(sessionData.warmUp as EjercicioDetallado)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -490,20 +491,14 @@ function SesionDetallePageContent() {
                 <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
                 <span className="text-sm">{getExerciseDuration(sessionData.coolDown)}</span>
               </div>
-               <div className="flex flex-col md:flex-row gap-4 items-start">
-                 {/* Image for cool down removed */}
-                 <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-md font-semibold">{formatExerciseName(sessionData.coolDown)}</p>
-                      {/* Duration is in the section header */}
-                    </div>
+               <div className="flex-1">
+                    <p className="text-md font-semibold mb-1">{formatExerciseName(sessionData.coolDown)}</p>
                     <p className="text-sm mt-1 whitespace-pre-wrap">
                         {sessionData.type === "AI" 
                             ? sessionData.coolDown 
                             : formatExerciseDescription(sessionData.coolDown as EjercicioDetallado)}
                     </p>
                  </div>
-               </div>
             </div>
             
             <div className="p-4 mt-3 border-b border-gray-300 text-center">
@@ -543,5 +538,7 @@ export default function SesionDetallePage() {
         </AuthGuard>
     )
 }
+
+    
 
     
