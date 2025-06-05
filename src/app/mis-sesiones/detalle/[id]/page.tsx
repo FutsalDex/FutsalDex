@@ -1,3 +1,4 @@
+
 // src/app/mis-sesiones/detalle/[id]/page.tsx
 "use client";
 
@@ -149,47 +150,44 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
 const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): string[] => {
     if (!sesion) return ["No especificados"];
     
+    const objetivosUnicos = new Set<string>();
+
     if (sesion.type === "AI") {
         const goals = (sesion as SesionAI).trainingGoals;
         if (goals && typeof goals === 'string') {
-            // Split goals by common delimiters like '.', ';', or ','
-            // Trim whitespace and filter out empty strings
-            return goals.split(/[.;,]+/).map(g => g.trim()).filter(g => g.length > 0);
+            goals.split(/[.;,]+/)
+                 .map(g => g.trim())
+                 .filter(g => g.length > 0)
+                 .forEach(g => objetivosUnicos.add(g.endsWith('.') || g.endsWith(';') || g.endsWith(',') ? g : g + '.'));
         }
-        return ["No especificados"];
-    }
-    
-    // Manual session: extract first objective from each exercise part
-    const objetivosUnicos = new Set<string>();
-    const ejerciciosConsiderados: (string | EjercicioDetallado | null | undefined)[] = [];
-
-    if (sesion.warmUp && typeof sesion.warmUp === 'object' && sesion.warmUp.objetivos) {
-        ejerciciosConsiderados.push(sesion.warmUp);
-    }
-    if (sesion.mainExercises && sesion.mainExercises.length > 0) {
-        sesion.mainExercises.forEach(ex => {
-            if (typeof ex === 'object' && ex.objetivos) {
-                ejerciciosConsiderados.push(ex);
+    } else { // Manual session
+        const ejerciciosConsiderados: (string | EjercicioDetallado | null | undefined)[] = [];
+        if (sesion.warmUp && typeof sesion.warmUp === 'object' && sesion.warmUp.objetivos) {
+            ejerciciosConsiderados.push(sesion.warmUp);
+        }
+        if (sesion.mainExercises && sesion.mainExercises.length > 0) {
+            sesion.mainExercises.forEach(ex => {
+                if (typeof ex === 'object' && ex.objetivos) {
+                    ejerciciosConsiderados.push(ex);
+                }
+            });
+        }
+        if (sesion.coolDown && typeof sesion.coolDown === 'object' && sesion.coolDown.objetivos) {
+            ejerciciosConsiderados.push(sesion.coolDown);
+        }
+        
+        ejerciciosConsiderados.forEach(ex => {
+            if (typeof ex === 'object' && ex?.objetivos) {
+                const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
+                if (primerObjetivo && primerObjetivo.length > 0) {
+                    const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
+                                               ? primerObjetivo 
+                                               : primerObjetivo + '.';
+                    objetivosUnicos.add(formattedObjetivo);
+                }
             }
         });
     }
-    if (sesion.coolDown && typeof sesion.coolDown === 'object' && sesion.coolDown.objetivos) {
-        ejerciciosConsiderados.push(sesion.coolDown);
-    }
-    
-    ejerciciosConsiderados.forEach(ex => {
-        if (typeof ex === 'object' && ex?.objetivos) {
-            // Extract only the first objective (before first '.', ';', or ',')
-            const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
-            if (primerObjetivo && primerObjetivo.length > 0) {
-                // Add a period if not already ending with one (or other punctuation for consistency)
-                const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
-                                           ? primerObjetivo 
-                                           : primerObjetivo + '.';
-                objetivosUnicos.add(formattedObjetivo);
-            }
-        }
-    });
 
     return objetivosUnicos.size === 0 ? ["No especificados"] : Array.from(objetivosUnicos);
 };
@@ -304,8 +302,8 @@ function SesionDetallePageContent() {
     const headerHtmlElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
     if(headerHtmlElement) {
       const currentDisplay = headerHtmlElement.style.display;
-      setHeaderHtmlElementOriginalDisplay(currentDisplay); // Store original display
-      headerHtmlElement.style.display = 'none !important'; // Hide for print
+      setHeaderHtmlElementOriginalDisplay(currentDisplay); 
+      headerHtmlElement.style.display = 'none !important'; 
     }
 
 
@@ -423,22 +421,22 @@ function SesionDetallePageContent() {
 
         <div className="session-print-area bg-white text-gray-800 shadow-lg m-0 rounded-md border border-gray-700">
             <div className="dialog-header-print-override px-3 py-2 border-b bg-gray-800 text-white rounded-t-md">
-                <div className="text-center mb-1">
-                    <h2 className="text-lg font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
-                </div>
-                <div className="flex justify-between items-start text-xs text-gray-300">
-                    <div>
+                <div className="flex items-start">
+                    <div className="w-1/3 text-xs text-gray-300">
                         <p>CLUB: {sessionData.club || 'No especificado'}</p>
                         <p>EQUIPO: {sessionData.equipo || 'No especificado'}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="w-1/3 text-center">
+                        <h2 className="text-lg font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
+                    </div>
+                    <div className="w-1/3 text-xs text-gray-300 text-right">
                         <p>FECHA: {formatDate(sessionData.fecha)}</p>
                         <p>Nº SESIÓN: {sessionData.numero_sesion || 'N/A'}</p>
                     </div>
                 </div>
             </div>
             
-             <div className="p-4 border-b border-gray-300">
+            <div className="p-4 border-b border-gray-300">
                 <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
                     <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
                 </div>
@@ -556,3 +554,4 @@ export default function SesionDetallePage() {
         </AuthGuard>
     )
 }
+
