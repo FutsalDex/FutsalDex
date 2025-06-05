@@ -47,6 +47,30 @@ const futsalDexIconSVGString = `
   <path d="M5.75 5.75l3.5 3.5M14.75 5.75l-3.5 3.5M5.75 14.75l3.5-3.5M14.75 14.75l-3.5-3.5"/>
 </svg>`;
 
+const convertSvgStringToPngDataURL = (svgString: string, width: number, height: number): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    img.onload = () => {
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        reject(new Error('Could not get canvas context'));
+      }
+    };
+    img.onerror = (err) => {
+      reject(err);
+    };
+    img.src = `data:image/svg+xml;base64,${btoa(svgString)}`;
+  });
+};
+
+
 export default function EjercicioDetallePage() {
   const params = useParams();
   const router = useRouter();
@@ -148,33 +172,46 @@ export default function EjercicioDetallePage() {
 
     setIsGeneratingPdf(true);
     const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
-    const originalDisplay = printButtonContainer ? printButtonContainer.style.display : '';
+    const headerElement = printArea.querySelector('header'); // Assuming header is direct child for simplicity
+    
+    const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
+    const originalDisplayHeader = headerElement ? headerElement.style.display : '';
+
     if (printButtonContainer) printButtonContainer.style.display = 'none';
+    if (headerElement) headerElement.style.backgroundColor = '#ffffff'; // Ensure header bg is white for capture
+
 
     try {
       const canvas = await html2canvas(printArea, {
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#ffffff', // Capture with white background
         onclone: (document) => {
           const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
           if (clonedPrintArea) {
             const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container), td, th, a, button, label, [class*="text-"]');
             textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
+            
             const primaryElements = clonedPrintArea.querySelectorAll('.text-primary, .text-accent');
             primaryElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
+            
             const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
             badges.forEach(el => {
               (el as HTMLElement).style.backgroundColor = '#dddddd !important';
               (el as HTMLElement).style.color = '#000000 !important';
               (el as HTMLElement).style.borderColor = '#aaaaaa !important';
             });
+            
             if (clonedPrintArea.classList.contains('bg-card')) {
               clonedPrintArea.style.backgroundColor = '#ffffff !important';
             }
-             const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
+            const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
             if (btnContainer) btnContainer.style.display = 'none';
+
+            const headerClone = clonedPrintArea.querySelector('header');
+            if (headerClone) headerClone.style.backgroundColor = '#ffffff !important';
+            
             document.body.style.backgroundColor = '#ffffff !important';
           }
         }
@@ -182,39 +219,37 @@ export default function EjercicioDetallePage() {
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
-        orientation: 'portrait', // A4 Vertical
+        orientation: 'portrait',
         unit: 'pt',
         format: 'a4',
       });
 
       const PT_PER_CM = 28.346;
       const MARGIN_CM = 1;
-      const HEADER_HEIGHT_CM = 3; // Adjusted for better spacing, 4cm might be too much with logo
+      const HEADER_RESERVED_CM = 3; 
       const LOGO_SIZE_CM = 1.5;
 
       const margin = MARGIN_CM * PT_PER_CM;
-      const headerReservedHeight = HEADER_HEIGHT_CM * PT_PER_CM;
+      const headerReservedHeight = HEADER_RESERVED_CM * PT_PER_CM;
       const logoSize = LOGO_SIZE_CM * PT_PER_CM;
 
       const pdfPageWidth = pdf.internal.pageSize.getWidth();
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
 
-      // Add Header
-      const svgDataUrl = `data:image/svg+xml;base64,${btoa(futsalDexIconSVGString)}`;
-      pdf.addImage(svgDataUrl, 'SVG', margin, margin, logoSize, logoSize);
+      // Convert SVG logo to PNG data URL
+      const logoPngDataUrl = await convertSvgStringToPngDataURL(futsalDexIconSVGString, 100, 100); // Render SVG at 100x100px for quality
+      pdf.addImage(logoPngDataUrl, 'PNG', margin, margin, logoSize, logoSize);
+
 
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(24); // Prominent title font size
+      pdf.setFontSize(24);
       const titleText = "Ejercicios de futsal";
       const titleTextWidth = pdf.getStringUnitWidth(titleText) * pdf.getFontSize() / pdf.internal.scaleFactor;
-      // Position title text to the right of the logo, vertically centered with the logo or header area
       pdf.text(titleText, pdfPageWidth - margin - titleTextWidth, margin + logoSize / 1.5, { align: 'left' });
-
 
       const contentStartY = margin + headerReservedHeight;
       const contentPrintableWidth = pdfPageWidth - (margin * 2);
       const contentPrintableHeight = pdfPageHeight - margin - contentStartY;
-
 
       const img = new window.Image();
       img.onload = () => {
@@ -223,35 +258,38 @@ export default function EjercicioDetallePage() {
 
         const scaleFactorWidth = contentPrintableWidth / originalImgWidth;
         const scaleFactorHeight = contentPrintableHeight / originalImgHeight;
-        const finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight); // Fit entirely
+        const finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight);
 
         const pdfImageWidth = originalImgWidth * finalScaleFactor;
         const pdfImageHeight = originalImgHeight * finalScaleFactor;
-
-        const xOffset = (pdfPageWidth - pdfImageWidth) / 2; // Center horizontally
+        
+        const xOffset = (pdfPageWidth - pdfImageWidth) / 2; 
 
         pdf.addImage(imgData, 'PNG', xOffset, contentStartY, pdfImageWidth, pdfImageHeight);
         pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
 
-        if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
+        if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
+        if (headerElement) headerElement.style.display = originalDisplayHeader;
         setIsGeneratingPdf(false);
       };
-
       img.onerror = (err) => {
         console.error("Error loading image for PDF generation:", err);
         toast({ title: "Error al Cargar Imagen", description: "No se pudo cargar la imagen capturada.", variant: "destructive" });
-        if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
+        if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
+        if (headerElement) headerElement.style.display = originalDisplayHeader;
         setIsGeneratingPdf(false);
       };
       img.src = imgData;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating PDF:", error);
-      toast({ title: "Error al Generar PDF", description: "Hubo un problema al crear el archivo PDF.", variant: "destructive" });
-      if (printButtonContainer) printButtonContainer.style.display = originalDisplay;
+      toast({ title: "Error al Generar PDF", description: error.message || "Hubo un problema al crear el archivo PDF.", variant: "destructive" });
+      if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
+      if (headerElement) headerElement.style.display = originalDisplayHeader;
       setIsGeneratingPdf(false);
     }
   };
+
 
   const formatDuracion = (duracion: string | undefined) => duracion ? `${duracion} min` : 'N/A';
 
@@ -342,7 +380,7 @@ export default function EjercicioDetallePage() {
           )}
         </div>
 
-        <div className="mb-6 text-md space-y-2"> {/* Changed to space-y-2 for vertical stacking */}
+        <div className="mb-6 text-md space-y-2">
           <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ejercicio.fase}</p>
           <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</p>
           <p><strong className="font-semibold text-foreground/90">Nº Jugadores:</strong> {ejercicio.jugadores}</p>
@@ -370,3 +408,4 @@ export default function EjercicioDetallePage() {
     </div>
   );
 }
+
