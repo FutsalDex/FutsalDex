@@ -1,4 +1,3 @@
-
 // src/app/mis-sesiones/detalle/[id]/page.tsx
 "use client";
 
@@ -36,10 +35,10 @@ interface SesionBase {
   id: string;
   userId: string;
   type: "AI" | "Manual";
-  sessionTitle?: string; // Puede ser opcional si se genera dinámicamente
+  sessionTitle?: string; 
   coachNotes?: string;
   numero_sesion?: string;
-  fecha?: string; // Formato YYYY-MM-DD
+  fecha?: string; 
   temporada?: string;
   club?: string;
   equipo?: string;
@@ -146,23 +145,21 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
   return totalMinutes > 0 ? `${totalMinutes} min` : '0 min';
 };
 
-const getSessionCategorias = (sesion: SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return "No especificadas";
-    if (sesion.type === "AI") return (sesion as SesionAI).sessionFocus || "No especificadas";
-    const categorias = new Set<string>();
-    const exercises: (string | EjercicioDetallado | null | undefined)[] = [
-        sesion.warmUp, ...(sesion.mainExercises || []), sesion.coolDown,
-    ];
-    exercises.forEach(ex => {
-        if (typeof ex === 'object' && ex?.categoria) categorias.add(ex.categoria);
-    });
-    return categorias.size === 0 ? "No especificadas" : Array.from(categorias).join(', ');
-};
 
-const getSessionObjetivos = (sesion: SesionConDetallesEjercicio | null): string => {
-    if (!sesion) return "No especificados";
-    if (sesion.type === "AI") return (sesion as SesionAI).trainingGoals || "No especificados";
+const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): string[] => {
+    if (!sesion) return ["No especificados"];
     
+    if (sesion.type === "AI") {
+        const goals = (sesion as SesionAI).trainingGoals;
+        if (goals && typeof goals === 'string') {
+            // Split goals by common delimiters like '.', ';', or ','
+            // Trim whitespace and filter out empty strings
+            return goals.split(/[.;,]+/).map(g => g.trim()).filter(g => g.length > 0);
+        }
+        return ["No especificados"];
+    }
+    
+    // Manual session: extract first objective from each exercise part
     const objetivosUnicos = new Set<string>();
     const ejerciciosConsiderados: (string | EjercicioDetallado | null | undefined)[] = [];
 
@@ -182,14 +179,19 @@ const getSessionObjetivos = (sesion: SesionConDetallesEjercicio | null): string 
     
     ejerciciosConsiderados.forEach(ex => {
         if (typeof ex === 'object' && ex?.objetivos) {
-            const primerObjetivo = ex.objetivos.split(/[.;]+/)[0]?.trim();
+            // Extract only the first objective (before first '.', ';', or ',')
+            const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
             if (primerObjetivo && primerObjetivo.length > 0) {
-                objetivosUnicos.add(primerObjetivo + (primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') ? '' : '.'));
+                // Add a period if not already ending with one (or other punctuation for consistency)
+                const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
+                                           ? primerObjetivo 
+                                           : primerObjetivo + '.';
+                objetivosUnicos.add(formattedObjetivo);
             }
         }
     });
 
-    return objetivosUnicos.size === 0 ? "No especificados" : Array.from(objetivosUnicos).join(' ');
+    return objetivosUnicos.size === 0 ? ["No especificados"] : Array.from(objetivosUnicos);
 };
 
 
@@ -233,10 +235,10 @@ function SesionDetallePageContent() {
 
       if (baseSessionData.type === "Manual") {
         const exerciseIdsToFetch: string[] = [];
-        const manualSession = baseSessionData as SesionManual;
-        if (manualSession.warmUp?.id) exerciseIdsToFetch.push(manualSession.warmUp.id);
-        manualSession.mainExercises.forEach(ex => { if (ex?.id) exerciseIdsToFetch.push(ex.id); });
-        if (manualSession.coolDown?.id) exerciseIdsToFetch.push(manualSession.coolDown.id);
+        const manualSesion = baseSessionData as SesionManual;
+        if (manualSesion.warmUp?.id) exerciseIdsToFetch.push(manualSesion.warmUp.id);
+        manualSesion.mainExercises.forEach(ex => { if (ex?.id) exerciseIdsToFetch.push(ex.id); });
+        if (manualSesion.coolDown?.id) exerciseIdsToFetch.push(manualSesion.coolDown.id);
         
         const uniqueExerciseIds = Array.from(new Set(exerciseIdsToFetch));
         const exerciseDocs: Record<string, EjercicioDetallado> = {};
@@ -264,10 +266,10 @@ function SesionDetallePageContent() {
               }
           }
         }
-        enrichedSessionData.warmUp = manualSession.warmUp?.id && exerciseDocs[manualSession.warmUp.id] ? exerciseDocs[manualSession.warmUp.id] : manualSession.warmUp;
-        enrichedSessionData.mainExercises = manualSession.mainExercises.map(ex => ex?.id && exerciseDocs[ex.id] ? exerciseDocs[ex.id] : ex) as (string | EjercicioDetallado)[];
-        enrichedSessionData.coolDown = manualSession.coolDown?.id && exerciseDocs[manualSession.coolDown.id] ? exerciseDocs[manualSession.coolDown.id] : manualSession.coolDown;
-      } else { // AI Session
+        enrichedSessionData.warmUp = manualSesion.warmUp?.id && exerciseDocs[manualSesion.warmUp.id] ? exerciseDocs[manualSesion.warmUp.id] : manualSesion.warmUp;
+        enrichedSessionData.mainExercises = manualSesion.mainExercises.map(ex => ex?.id && exerciseDocs[ex.id] ? exerciseDocs[ex.id] : ex) as (string | EjercicioDetallado)[];
+        enrichedSessionData.coolDown = manualSesion.coolDown?.id && exerciseDocs[manualSesion.coolDown.id] ? exerciseDocs[manualSesion.coolDown.id] : manualSesion.coolDown;
+      } else { 
         enrichedSessionData.warmUp = (baseSessionData as SesionAI).warmUp;
         enrichedSessionData.mainExercises = (baseSessionData as SesionAI).mainExercises;
         enrichedSessionData.coolDown = (baseSessionData as SesionAI).coolDown;
@@ -301,8 +303,11 @@ function SesionDetallePageContent() {
 
     const headerHtmlElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
     if(headerHtmlElement) {
-      setHeaderHtmlElementOriginalDisplay(headerHtmlElement.style.display); 
+      const currentDisplay = headerHtmlElement.style.display;
+      setHeaderHtmlElementOriginalDisplay(currentDisplay); // Store original display
+      headerHtmlElement.style.display = 'none !important'; // Hide for print
     }
+
 
     try {
       const canvas = await html2canvas(printArea, {
@@ -340,7 +345,7 @@ function SesionDetallePageContent() {
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       const PT_PER_CM = 28.346; const MARGIN_CM = 1.5;
       const margin = MARGIN_CM * PT_PER_CM;
-      const pdfPageWidth = pdf.internal.pageSize.getWidth(); const pdfPageHeight = pdf.internal.pageSize.getHeight();
+      const pdfPageWidth = pdf.internal.pageSize.getWidth(); 
       
       const contentStartY = margin;
       const contentPrintableWidth = pdfPageWidth - (margin * 2);
@@ -372,6 +377,10 @@ function SesionDetallePageContent() {
       setIsGeneratingPdf(false);
     }
   };
+
+  const objetivosList = sessionData ? getSessionObjetivosList(sessionData) : [];
+  const col1Objetivos = objetivosList.slice(0, 3);
+  const col2Objetivos = objetivosList.slice(3, 6);
 
 
   if (isLoading) {
@@ -429,13 +438,27 @@ function SesionDetallePageContent() {
                 </div>
             </div>
             
-            <div className="p-4 border-b border-gray-300">
+             <div className="p-4 border-b border-gray-300">
                 <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
                     <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
                 </div>
-                <div className="text-sm space-y-1">
-                    <p><strong className="font-medium">CATEGORÍA(S)/ENFOQUE:</strong> {getSessionCategorias(sessionData)}</p>
-                    <p><strong className="font-medium">OBJETIVOS GENERALES:</strong> {getSessionObjetivos(sessionData)}</p>
+                <div className="text-sm">
+                  {objetivosList[0] !== "No especificados" && objetivosList.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                      <div>
+                        {col1Objetivos.map((objetivo, index) => (
+                          <p key={`obj-col1-${index}`} className="mb-1">- {objetivo}</p>
+                        ))}
+                      </div>
+                      <div>
+                        {col2Objetivos.map((objetivo, index) => (
+                          <p key={`obj-col2-${index}`} className="mb-1">- {objetivo}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p>No especificados</p>
+                  )}
                 </div>
             </div>
 
@@ -533,7 +556,3 @@ export default function SesionDetallePage() {
         </AuthGuard>
     )
 }
-
-    
-
-    
