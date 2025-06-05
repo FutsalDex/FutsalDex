@@ -30,6 +30,7 @@ interface Ejercicio {
   edad: string[];
   imagen: string;
   consejos_entrenador?: string;
+  isVisible?: boolean; // Added for filtering
 }
 
 
@@ -62,21 +63,45 @@ function FavoritosPageContent() {
       for (let i = 0; i < favoriteExerciseIds.length; i += CHUNK_SIZE) {
         const chunkIds = favoriteExerciseIds.slice(i, i + CHUNK_SIZE);
         if (chunkIds.length > 0) {
-            const exercisesQuery = firestoreQuery(firestoreCollection(db, "ejercicios_futsal"), where("__name__", "in", chunkIds));
+            // Only fetch exercises that are visible
+            const exercisesQuery = firestoreQuery(
+              firestoreCollection(db, "ejercicios_futsal"), 
+              where("__name__", "in", chunkIds),
+              where("isVisible", "==", true) // Added visibility filter
+            );
             const exercisesSnapshot = await firestoreGetDocs(exercisesQuery);
             exercisesSnapshot.forEach(docSnap => {
-            exercisesData.push({ id: docSnap.id, ...docSnap.data() } as Ejercicio);
+              const data = docSnap.data();
+              exercisesData.push({ 
+                id: docSnap.id, 
+                isVisible: data.isVisible === undefined ? true : data.isVisible, // Default to true if undefined
+                ...data 
+              } as Ejercicio);
             });
         }
       }
       setFavoriteExercises(exercisesData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching favorite exercises:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar tus ejercicios favoritos.",
-        variant: "destructive",
-      });
+      if (error.code === 'failed-precondition' && error.message.includes('isVisible')) {
+         toast({
+          title: "Índice Requerido por Firestore",
+          description: (
+            <div className="text-sm">
+              <p>La consulta para cargar tus favoritos, filtrando por visibilidad, necesita un índice en Firestore.</p>
+              <p className="mt-1">Abre la consola del desarrollador (F12), busca el error de Firebase y usa el enlace proporcionado para crear el índice.</p>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 30000,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar tus ejercicios favoritos.",
+          variant: "destructive",
+        });
+      }
       setFavoriteExercises([]);
     }
     setIsLoading(false);
@@ -130,7 +155,7 @@ function FavoritosPageContent() {
         </CardHeader>
         <CardContent>
           <CardDescription className="mb-6 text-foreground/80">
-            Aún no has marcado ningún ejercicio como favorito. ¡Explora la biblioteca y guarda los que más te gusten!
+            Aún no has marcado ningún ejercicio como favorito, o los que tenías ya no están visibles. ¡Explora la biblioteca y guarda los que más te gusten!
           </CardDescription>
           <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <Link href="/ejercicios">
