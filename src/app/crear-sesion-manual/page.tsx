@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
 import { manualSessionSchema } from "@/lib/schemas";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, limit, orderBy as firestoreOrderBy, serverTimestamp, DocumentData } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,7 @@ interface Ejercicio {
   fase: string;
   categoria: string;
   duracion: string; // Será "5", "10", "15", "20"
+  isVisible?: boolean;
 }
 
 function getMaxNumericSessionNumber(sessionNumbers: (string | undefined)[]): number {
@@ -108,35 +109,57 @@ function CrearSesionManualContent() {
   }, [user, isRegisteredUser]); // form.setValue no se añade para evitar bucles
 
 
-  const fetchEjerciciosPorFase = async (fase: string, setter: React.Dispatch<React.SetStateAction<Ejercicio[]>>, loadingKey: keyof typeof loadingEjercicios) => {
+  const fetchEjerciciosPorFase = useCallback(async (fase: string, setter: React.Dispatch<React.SetStateAction<Ejercicio[]>>, loadingKey: keyof typeof loadingEjercicios) => {
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: true }));
     try {
-      const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(150));
+      const q = query(
+        collection(db, 'ejercicios_futsal'), 
+        where('fase', '==', fase), 
+        where('isVisible', '==', true), // Solo ejercicios visibles
+        firestoreOrderBy('ejercicio'), 
+        limit(150)
+      );
       const snapshot = await getDocs(q);
-      const ejerciciosData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ejercicio: doc.data().ejercicio || "",
-        descripcion: doc.data().descripcion || "",
-        objetivos: doc.data().objetivos || "",
-        fase: doc.data().fase || "",
-        categoria: doc.data().categoria || "",
-        duracion: doc.data().duracion || "0",
-        ...(doc.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria' | 'duracion'>)
+      const ejerciciosData = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ejercicio: docSnap.data().ejercicio || "",
+        descripcion: docSnap.data().descripcion || "",
+        objetivos: docSnap.data().objetivos || "",
+        fase: docSnap.data().fase || "",
+        categoria: docSnap.data().categoria || "",
+        duracion: docSnap.data().duracion || "0",
+        isVisible: docSnap.data().isVisible === undefined ? true : docSnap.data().isVisible,
+        ...(docSnap.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria' | 'duracion' | 'isVisible'>)
       } as Ejercicio));
       setter(ejerciciosData);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error fetching ${fase} exercises:`, error);
-      toast({ title: `Error al cargar ejercicios de ${fase}`, variant: "destructive" });
+      if (error.code === 'failed-precondition' && error.message.includes('isVisible')) {
+         toast({
+          title: "Índice Requerido para Visibilidad",
+          description: (
+            <div className="text-sm">
+              <p>La nueva función de visibilidad de ejercicios necesita un índice en Firestore para funcionar correctamente con el filtro de fase.</p>
+              <p className="mt-1">Por favor, abre la consola de desarrollador del navegador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p>
+              <p className="mt-2 text-xs">Esto es necesario para optimizar la consulta que filtra por `fase` y `isVisible`.</p>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 30000,
+        });
+      } else {
+        toast({ title: `Error al cargar ejercicios de ${fase}`, description: error.message , variant: "destructive" });
+      }
     }
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: false }));
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchEjerciciosPorFase("Inicial", setCalentamientoEjercicios, "calentamiento");
     fetchEjerciciosPorFase("Principal", setPrincipalEjercicios, "principal");
     fetchEjerciciosPorFase("Final", setVueltaCalmaEjercicios, "vueltaCalma");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchEjerciciosPorFase]); // fetchEjerciciosPorFase ya está en useCallback
 
  const handleCategoryChange = (categoryLabel: string) => {
     let newSelectedCategorias: string[];
@@ -298,7 +321,7 @@ function CrearSesionManualContent() {
   ) => {
     if (loading) return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
     if (exercises.length === 0 && name === "mainExerciseIds" && selectedCategorias.length > 0) return <p className="text-sm text-muted-foreground py-4 text-center">No hay ejercicios que coincidan con las categorías seleccionadas.</p>;
-    if (exercises.length === 0) return <p className="text-sm text-muted-foreground py-4 text-center">No hay ejercicios disponibles para esta fase.</p>;
+    if (exercises.length === 0) return <p className="text-sm text-muted-foreground py-4 text-center">No hay ejercicios visibles disponibles para esta fase.</p>;
 
     if (isMultiSelect) {
       return (
@@ -370,7 +393,7 @@ function CrearSesionManualContent() {
                   <SelectContent>
                     {exercises.map((ej) => (
                       <SelectItem key={ej.id} value={ej.id}>
-                        {ej.ejercicio} ({ej.duracion ? `${ej.duracion} min` : 'N/A'})
+                        {ej.ejercicio} ({ej.duracion ? `${ej.ejercicio} min` : 'N/A'})
                       </SelectItem>
                     ))}
                   </SelectContent>
