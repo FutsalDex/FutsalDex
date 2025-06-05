@@ -165,12 +165,20 @@ const getSessionObjetivos = (sesion: SesionConDetallesEjercicio | null): string 
     const objetivosUnicos = new Set<string>();
     const ejerciciosConsiderados: (string | EjercicioDetallado | null | undefined)[] = [];
 
-    if (sesion.warmUp) ejerciciosConsiderados.push(sesion.warmUp);
-    if (sesion.mainExercises && sesion.mainExercises.length > 0) {
-        ejerciciosConsiderados.push(...sesion.mainExercises);
+    if (sesion.warmUp && typeof sesion.warmUp === 'object' && sesion.warmUp.objetivos) {
+        ejerciciosConsiderados.push(sesion.warmUp);
     }
-    if (sesion.coolDown) ejerciciosConsiderados.push(sesion.coolDown);
-
+    if (sesion.mainExercises && sesion.mainExercises.length > 0) {
+        sesion.mainExercises.forEach(ex => {
+            if (typeof ex === 'object' && ex.objetivos) {
+                ejerciciosConsiderados.push(ex);
+            }
+        });
+    }
+    if (sesion.coolDown && typeof sesion.coolDown === 'object' && sesion.coolDown.objetivos) {
+        ejerciciosConsiderados.push(sesion.coolDown);
+    }
+    
     ejerciciosConsiderados.forEach(ex => {
         if (typeof ex === 'object' && ex?.objetivos) {
             const primerObjetivo = ex.objetivos.split(/[.;]+/)[0]?.trim();
@@ -195,6 +203,8 @@ function SesionDetallePageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [headerHtmlElementOriginalDisplay, setHeaderHtmlElementOriginalDisplay] = useState('');
+
 
   const fetchSessionAndExerciseDetails = useCallback(async () => {
     if (!sessionId || !user) {
@@ -289,8 +299,9 @@ function SesionDetallePageContent() {
     if (printButtonContainer) printButtonContainer.style.display = 'none';
 
     const headerHtmlElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
-    const originalHeaderDisplay = headerHtmlElement ? headerHtmlElement.style.display : '';
-
+    if(headerHtmlElement) {
+      setHeaderHtmlElementOriginalDisplay(headerHtmlElement.style.display); // Save original display state
+    }
 
     try {
       const canvas = await html2canvas(printArea, {
@@ -356,7 +367,7 @@ function SesionDetallePageContent() {
     } finally {
       if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
        if (headerHtmlElement) { 
-         headerHtmlElement.style.display = originalHeaderDisplay;
+         headerHtmlElement.style.display = headerHtmlElementOriginalDisplay;
        }
       setIsGeneratingPdf(false);
     }
@@ -440,7 +451,7 @@ function SesionDetallePageContent() {
                 <div className="flex-1">
                     <div className="flex justify-between items-center mb-1">
                       <p className="text-md font-semibold">{formatExerciseName(sessionData.warmUp)}</p>
-                      <span className="text-sm font-medium">{getExerciseDuration(sessionData.warmUp)}</span>
+                      {/* Duration is in the section header, not repeated here unless design changes */}
                     </div>
                     <p className="text-sm mt-1 whitespace-pre-wrap">{sessionData.type === "AI" ? sessionData.warmUp : formatExerciseDescription(sessionData.warmUp as EjercicioDetallado)}</p>
                 </div>
@@ -480,17 +491,17 @@ function SesionDetallePageContent() {
                 <span className="text-sm">{getExerciseDuration(sessionData.coolDown)}</span>
               </div>
                <div className="flex flex-col md:flex-row gap-4 items-start">
-                 {sessionData.type === "Manual" && sessionData.coolDown && typeof sessionData.coolDown === 'object' && (
-                     <div className="md:w-1/4 flex-shrink-0">
-                         <Image src={getExerciseImage(sessionData.coolDown as EjercicioDetallado, "Vuelta a la Calma")} alt="Vuelta a la calma" width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal cooldown"/>
-                     </div>
-                 )}
+                 {/* Image for cool down removed */}
                  <div className="flex-1">
                     <div className="flex justify-between items-center mb-1">
                       <p className="text-md font-semibold">{formatExerciseName(sessionData.coolDown)}</p>
-                      <span className="text-sm font-medium">{getExerciseDuration(sessionData.coolDown)}</span>
+                      {/* Duration is in the section header */}
                     </div>
-                    <p className="text-sm mt-1 whitespace-pre-wrap">{sessionData.type === "AI" ? sessionData.coolDown : formatExerciseDescription(sessionData.coolDown as EjercicioDetallado)}</p>
+                    <p className="text-sm mt-1 whitespace-pre-wrap">
+                        {sessionData.type === "AI" 
+                            ? sessionData.coolDown 
+                            : formatExerciseDescription(sessionData.coolDown as EjercicioDetallado)}
+                    </p>
                  </div>
                </div>
             </div>
