@@ -118,8 +118,6 @@ export default function EjerciciosPage() {
         constraintsList.push(where('categoria', '==', currentThematicCat));
       }
 
-      // Always order by 'ejercicio' for consistent pagination and initial listing.
-      // This order is applied by Firestore before client-side search filtering.
       constraintsList.push(firestoreOrderBy('ejercicio'));
 
 
@@ -146,7 +144,8 @@ export default function EjerciciosPage() {
         if (lowerSearchTerms.length > 0) {
           fetchedEjercicios = fetchedEjercicios.filter(ej => {
             const lowerEjercicioName = ej.ejercicio.toLowerCase();
-            return lowerSearchTerms.every(term => lowerEjercicioName.includes(term));
+            // Change from .every to .some for OR logic
+            return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
           });
         }
       }
@@ -232,7 +231,7 @@ export default function EjerciciosPage() {
       }
     } catch (error) {
       console.error("Error updating favorite status:", error);
-      setFavorites(favorites);
+      setFavorites(favorites); // Revert to previous state on error
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de favorito. Inténtalo de nuevo.",
