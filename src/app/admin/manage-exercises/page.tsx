@@ -5,12 +5,12 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, ListChecks, Edit, Trash2, Loader2, PlusCircle, ChevronLeft, ChevronRight, ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ListChecks, Edit, Trash2, Loader2, PlusCircle, ChevronLeft, ChevronRight, ArrowDownUp, ArrowUp, ArrowDown, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { db } from "@/lib/firebase";
-import { collection, getDocs, deleteDoc, doc, query, orderBy as firestoreOrderBy, DocumentData, limit, startAfter, QueryDocumentSnapshot, getCountFromServer, QueryConstraint } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, query, orderBy as firestoreOrderBy, DocumentData, limit, startAfter, QueryDocumentSnapshot, getCountFromServer, QueryConstraint, updateDoc, serverTimestamp } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
 interface EjercicioAdmin {
@@ -39,10 +40,11 @@ interface EjercicioAdmin {
   fase: string;
   categoria: string;
   edad: string[] | string;
+  isVisible: boolean; // Nuevo campo
 }
 
 const ITEMS_PER_PAGE = 20;
-type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad';
+type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad'; // isVisible no será sortable por ahora
 type SortDirection = 'asc' | 'desc';
 
 function ManageExercisesPageContent() {
@@ -52,6 +54,7 @@ function ManageExercisesPageContent() {
   const [ejercicios, setEjercicios] = useState<EjercicioAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDeleteId, setExerciseToDeleteId] = useState<string | null>(null);
 
@@ -60,7 +63,7 @@ function ManageExercisesPageContent() {
   const [pageDocSnapshots, setPageDocSnapshots] = useState<{
     first: (QueryDocumentSnapshot<DocumentData> | null)[];
     last: (QueryDocumentSnapshot<DocumentData> | null)[];
-  }>({ first: [null], last: [] }); // last is 0-indexed for page N-1
+  }>({ first: [null], last: [] }); 
 
   const [sortField, setSortField] = useState<SortableField>('ejercicio');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -83,7 +86,7 @@ function ManageExercisesPageContent() {
 
       const qConstraints: QueryConstraint[] = [
         firestoreOrderBy(currentSortField, currentSortDirection),
-        firestoreOrderBy("__name__", currentSortDirection), // Tie-breaker
+        firestoreOrderBy("__name__", currentSortDirection), 
         limit(ITEMS_PER_PAGE)
       ];
       
@@ -93,10 +96,13 @@ function ManageExercisesPageContent() {
 
       const q = query(ejerciciosCollection, ...qConstraints);
       const querySnapshot = await getDocs(q);
-      let fetchedEjercicios = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as EjercicioAdmin));
+      let fetchedEjercicios = querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+        id: docSnap.id,
+        isVisible: data.isVisible === undefined ? true : data.isVisible, // Default a true si no existe
+        ...data
+      } as EjercicioAdmin});
 
       if (currentSortField === 'numero' && fetchedEjercicios.length > 0) {
         fetchedEjercicios.sort((a, b) => {
@@ -110,7 +116,7 @@ function ManageExercisesPageContent() {
       }
 
       setEjercicios(fetchedEjercicios);
-      setCurrentPage(newPage); // Update current page state
+      setCurrentPage(newPage); 
 
       if (querySnapshot.docs.length > 0) {
         const firstDoc = querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>;
@@ -123,10 +129,7 @@ function ManageExercisesPageContent() {
             newLast[newPage -1] = lastDoc;
             return { first: newFirst, last: newLast };
         });
-
       }
-
-
     } catch (error: any) {
       console.error("Error fetching exercises: ", error);
       if (error.code === 'failed-precondition') {
@@ -214,7 +217,6 @@ function ManageExercisesPageContent() {
           first: prev.first.slice(0, pageToFetchAfterDelete -1), 
           last: prev.last.slice(0, pageToFetchAfterDelete -1)
       }));
-      // No es necesario llamar a setCurrentPage aquí, fetchEjercicios lo hará.
       fetchEjercicios(pageToFetchAfterDelete, sortField, sortDirection);
 
     } catch (error) {
@@ -230,6 +232,40 @@ function ManageExercisesPageContent() {
   const handleModifyClick = (id: string) => {
     router.push(`/admin/edit-exercise/${id}`);
   };
+
+  const handleVisibilityChange = async (exerciseId: string, newVisibility: boolean) => {
+    setIsUpdatingVisibility(true);
+    const originalEjercicios = [...ejercicios];
+    // Optimistic update
+    setEjercicios(prevEjercicios =>
+      prevEjercicios.map(ej =>
+        ej.id === exerciseId ? { ...ej, isVisible: newVisibility } : ej
+      )
+    );
+
+    try {
+      const exerciseRef = doc(db, "ejercicios_futsal", exerciseId);
+      await updateDoc(exerciseRef, {
+        isVisible: newVisibility,
+        updatedAt: serverTimestamp()
+      });
+      toast({
+        title: "Visibilidad Actualizada",
+        description: `El ejercicio ahora es ${newVisibility ? "visible" : "oculto"}.`,
+      });
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      // Revert optimistic update
+      setEjercicios(originalEjercicios);
+      toast({
+        title: "Error al Actualizar",
+        description: "No se pudo cambiar la visibilidad del ejercicio.",
+        variant: "destructive",
+      });
+    }
+    setIsUpdatingVisibility(false);
+  };
+
 
   const formatEdad = (edad: string[] | string) => {
     if (Array.isArray(edad)) {
@@ -312,7 +348,7 @@ function ManageExercisesPageContent() {
               </p>
             )}
           </div>
-           {isLoading && <CardDescription>Actualizando ejercicios...</CardDescription>}
+           {(isLoading || isUpdatingVisibility) && <CardDescription>Actualizando ejercicios...</CardDescription>}
         </CardHeader>
         <CardContent>
           {isLoading && ejercicios.length === 0 && totalExercisesInDB > 0 && currentPage > 1 ? ( 
@@ -343,12 +379,32 @@ function ManageExercisesPageContent() {
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('edad')}>
                     <span className="flex items-center">Edad {renderSortIcon('edad')}</span>
                   </TableHead>
+                  <TableHead className="w-[80px] text-center">Visible</TableHead>
                   <TableHead className="text-right w-[150px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {ejercicios.map((ej) => (
-                <TableRow key={ej.id}><TableCell className="font-medium">{ej.numero || "N/A"}</TableCell><TableCell>{ej.ejercicio}</TableCell><TableCell>{ej.fase}</TableCell><TableCell>{ej.categoria}</TableCell><TableCell>{formatEdad(ej.edad)}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => handleModifyClick(ej.id)} className="hover:text-blue-600" title="Modificar"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ej.id)} className="hover:text-destructive" title="Eliminar"><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>
+                <TableRow key={ej.id}>
+                    <TableCell className="font-medium">{ej.numero || "N/A"}</TableCell>
+                    <TableCell>{ej.ejercicio}</TableCell>
+                    <TableCell>{ej.fase}</TableCell>
+                    <TableCell>{ej.categoria}</TableCell>
+                    <TableCell>{formatEdad(ej.edad)}</TableCell>
+                    <TableCell className="text-center">
+                        <Switch
+                            checked={ej.isVisible}
+                            onCheckedChange={(newVisibility) => handleVisibilityChange(ej.id, newVisibility)}
+                            disabled={isUpdatingVisibility}
+                            aria-label={ej.isVisible ? "Marcar como no visible" : "Marcar como visible"}
+                            className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-red-500"
+                         />
+                    </TableCell>
+                    <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleModifyClick(ej.id)} className="hover:text-blue-600" title="Modificar"><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ej.id)} className="hover:text-destructive" title="Eliminar"><Trash2 className="h-4 w-4" /></Button>
+                    </TableCell>
+                </TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -359,7 +415,7 @@ function ManageExercisesPageContent() {
                         variant="outline"
                         size="sm"
                         onClick={handlePreviousPage}
-                        disabled={currentPage === 1 || isLoading}
+                        disabled={currentPage === 1 || isLoading || isUpdatingVisibility}
                         aria-label="Página anterior"
                     >
                         <ChevronLeft className="h-4 w-4 mr-1" />
@@ -374,7 +430,7 @@ function ManageExercisesPageContent() {
                         variant="outline"
                         size="sm"
                         onClick={handleNextPage}
-                        disabled={ejercicios.length < ITEMS_PER_PAGE || isLoading || (totalExercisesInDB > 0 && endIndex >= totalExercisesInDB && ejercicios.length <= ITEMS_PER_PAGE) }
+                        disabled={ejercicios.length < ITEMS_PER_PAGE || isLoading || isUpdatingVisibility || (totalExercisesInDB > 0 && endIndex >= totalExercisesInDB && ejercicios.length <= ITEMS_PER_PAGE) }
                         aria-label="Página siguiente"
                     >
                         Siguiente
@@ -416,5 +472,3 @@ export default function ManageExercisesPage() {
     </AuthGuard>
   );
 }
-
-
