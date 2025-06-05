@@ -33,6 +33,7 @@ interface Ejercicio {
   edad: string[];
   imagen: string;
   consejos_entrenador?: string;
+  isVisible?: boolean;
 }
 
 interface FavoriteState {
@@ -96,7 +97,16 @@ export default function EjercicioDetallePage() {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setEjercicio({ id: docSnap.id, ...docSnap.data() } as Ejercicio);
+        const data = docSnap.data();
+        // If isVisible is explicitly false, treat as not found.
+        // If isVisible is undefined (older data), treat as visible.
+        if (data.isVisible === false) {
+          setNotFound(true);
+          toast({ title: "Ejercicio No Disponible", description: "Este ejercicio no está actualmente visible.", variant: "destructive" });
+          setIsLoading(false); 
+          return; 
+        }
+        setEjercicio({ id: docSnap.id, ...data } as Ejercicio);
         setNotFound(false);
       } else {
         setNotFound(true);
@@ -154,7 +164,7 @@ export default function EjercicioDetallePage() {
       }
     } catch (error) {
       console.error("Error updating favorite status:", error);
-      setFavorites(prev => ({ ...prev, [currentExerciseId]: isCurrentlyFavorite })); // Revert on error
+      setFavorites(prev => ({ ...prev, [currentExerciseId]: isCurrentlyFavorite })); 
       toast({ title: "Error", description: "No se pudo actualizar el estado de favorito.", variant: "destructive" });
     }
   };
@@ -172,13 +182,13 @@ export default function EjercicioDetallePage() {
 
     setIsGeneratingPdf(true);
     const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
-    const headerElement = printArea.querySelector('header'); // Assuming header is direct child for simplicity
+    const headerElement = printArea.querySelector('header'); 
     
     const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
     const originalDisplayHeader = headerElement ? headerElement.style.display : '';
 
     if (printButtonContainer) printButtonContainer.style.display = 'none';
-    if (headerElement) headerElement.style.backgroundColor = '#ffffff'; // Ensure header bg is white for capture
+    if (headerElement) headerElement.style.backgroundColor = '#ffffff'; 
 
 
     try {
@@ -186,7 +196,7 @@ export default function EjercicioDetallePage() {
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff', // Capture with white background
+        backgroundColor: '#ffffff', 
         onclone: (document) => {
           const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
           if (clonedPrintArea) {
@@ -236,8 +246,8 @@ export default function EjercicioDetallePage() {
       const pdfPageWidth = pdf.internal.pageSize.getWidth();
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
 
-      // Convert SVG logo to PNG data URL
-      const logoPngDataUrl = await convertSvgStringToPngDataURL(futsalDexIconSVGString, 100, 100); // Render SVG at 100x100px for quality
+      
+      const logoPngDataUrl = await convertSvgStringToPngDataURL(futsalDexIconSVGString, 100, 100); 
       pdf.addImage(logoPngDataUrl, 'PNG', margin, margin, logoSize, logoSize);
 
 
@@ -309,7 +319,7 @@ export default function EjercicioDetallePage() {
             <CardTitle className="text-2xl font-headline text-destructive">Ejercicio No Encontrado</CardTitle>
           </CardHeader>
           <CardContent>
-            <CardDescription>El ejercicio que buscas no existe o no se pudo encontrar.</CardDescription>
+            <CardDescription>El ejercicio que buscas no existe o no está disponible.</CardDescription>
             <Button asChild variant="outline" className="mt-4">
               <Link href="/ejercicios"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a Ejercicios</Link>
             </Button>
