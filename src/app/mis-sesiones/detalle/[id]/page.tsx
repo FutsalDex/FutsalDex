@@ -30,6 +30,7 @@ interface EjercicioDetallado extends EjercicioBase {
   objetivos?: string;
   categoria?: string;
   imagen?: string;
+  espacio_materiales?: string;
 }
 
 interface SesionBase {
@@ -59,9 +60,9 @@ interface SesionAI extends SesionBase {
 
 interface SesionManual extends SesionBase {
   type: "Manual";
-  warmUp: EjercicioBase | null;
-  mainExercises: EjercicioBase[];
-  coolDown: EjercicioBase | null;
+  warmUp: EjercicioDetallado | null; // Changed to EjercicioDetallado
+  mainExercises: EjercicioDetallado[]; // Changed to EjercicioDetallado
+  coolDown: EjercicioDetallado | null; // Changed to EjercicioDetallado
   duracionTotalManualEstimada?: number;
 }
 
@@ -119,7 +120,7 @@ const getSessionTotalDuration = (sesion: SesionConDetallesEjercicio | null): str
     if (sesion.type === "AI" && (sesion as SesionAI).preferredSessionLengthMinutes) {
         totalMinutes = (sesion as SesionAI).preferredSessionLengthMinutes!;
     } else if (sesion.type === "Manual") {
-        const manualSesion = sesion as SesionManual;
+        const manualSesion = sesion as SesionManual; // Cast to SesionManual to access detailed exercises
         if (manualSesion.warmUp && typeof manualSesion.warmUp === 'object' && manualSesion.warmUp.duracion) {
             totalMinutes += parseDurationToMinutes(manualSesion.warmUp.duracion);
         }
@@ -160,24 +161,15 @@ const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): str
                  .filter(g => g.length > 0)
                  .forEach(g => objetivosUnicos.add(g.endsWith('.') || g.endsWith(';') || g.endsWith(',') ? g : g + '.'));
         }
-    } else { // Manual session
-        const ejerciciosConsiderados: (string | EjercicioDetallado | null | undefined)[] = [];
-        if (sesion.warmUp && typeof sesion.warmUp === 'object' && sesion.warmUp.objetivos) {
-            ejerciciosConsiderados.push(sesion.warmUp);
-        }
-        if (sesion.mainExercises && sesion.mainExercises.length > 0) {
-            sesion.mainExercises.forEach(ex => {
-                if (typeof ex === 'object' && ex.objetivos) {
-                    ejerciciosConsiderados.push(ex);
-                }
-            });
-        }
-        if (sesion.coolDown && typeof sesion.coolDown === 'object' && sesion.coolDown.objetivos) {
-            ejerciciosConsiderados.push(sesion.coolDown);
-        }
+    } else { 
+        const manualSesion = sesion as SesionManual;
+        const ejerciciosConsiderados: (EjercicioDetallado | null)[] = [];
+        if (manualSesion.warmUp) ejerciciosConsiderados.push(manualSesion.warmUp);
+        if (manualSesion.mainExercises) ejerciciosConsiderados.push(...manualSesion.mainExercises);
+        if (manualSesion.coolDown) ejerciciosConsiderados.push(manualSesion.coolDown);
         
         ejerciciosConsiderados.forEach(ex => {
-            if (typeof ex === 'object' && ex?.objetivos) {
+            if (ex?.objetivos) {
                 const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
                 if (primerObjetivo && primerObjetivo.length > 0) {
                     const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
@@ -190,6 +182,31 @@ const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): str
     }
 
     return objetivosUnicos.size === 0 ? ["No especificados"] : Array.from(objetivosUnicos);
+};
+
+const getSessionMaterialsAndSpaceList = (sesion: SesionConDetallesEjercicio | null): string[] => {
+    if (!sesion || sesion.type === "AI") {
+        return ["Información no disponible para sesiones AI."];
+    }
+
+    const materialsSet = new Set<string>();
+    const manualSesion = sesion as SesionManual;
+
+    const processExercise = (ex: EjercicioDetallado | null | undefined) => {
+        if (ex && ex.espacio_materiales) {
+            materialsSet.add(ex.espacio_materiales.trim());
+        }
+    };
+
+    processExercise(manualSesion.warmUp);
+    manualSesion.mainExercises.forEach(processExercise);
+    processExercise(manualSesion.coolDown);
+
+    if (materialsSet.size === 0) {
+        return ["Materiales y espacio no especificados en los ejercicios."];
+    }
+    // Return each unique "espacio_materiales" string as a separate item
+    return Array.from(materialsSet).filter(item => item.length > 0);
 };
 
 
@@ -232,11 +249,12 @@ function SesionDetallePageContent() {
 
 
       if (baseSessionData.type === "Manual") {
+        const manualBase = baseSessionData as SesionManual; // Temporary cast to access original structure if needed
         const exerciseIdsToFetch: string[] = [];
-        const manualSesion = baseSessionData as SesionManual;
-        if (manualSesion.warmUp?.id) exerciseIdsToFetch.push(manualSesion.warmUp.id);
-        manualSesion.mainExercises.forEach(ex => { if (ex?.id) exerciseIdsToFetch.push(ex.id); });
-        if (manualSesion.coolDown?.id) exerciseIdsToFetch.push(manualSesion.coolDown.id);
+        
+        if (manualBase.warmUp?.id) exerciseIdsToFetch.push(manualBase.warmUp.id);
+        manualBase.mainExercises.forEach(ex => { if (ex?.id) exerciseIdsToFetch.push(ex.id); });
+        if (manualBase.coolDown?.id) exerciseIdsToFetch.push(manualBase.coolDown.id);
         
         const uniqueExerciseIds = Array.from(new Set(exerciseIdsToFetch));
         const exerciseDocs: Record<string, EjercicioDetallado> = {};
@@ -258,15 +276,16 @@ function SesionDetallePageContent() {
                       categoria: data.categoria || "Categoría no especificada.",
                       duracion: data.duracion, 
                       imagen: data.imagen || `https://placehold.co/300x200.png?text=${encodeURIComponent(data.ejercicio || 'Ejercicio')}`,
+                      espacio_materiales: data.espacio_materiales || "No especificado.",
                       ...data 
                     } as EjercicioDetallado;
                   });
               }
           }
         }
-        enrichedSessionData.warmUp = manualSesion.warmUp?.id && exerciseDocs[manualSesion.warmUp.id] ? exerciseDocs[manualSesion.warmUp.id] : manualSesion.warmUp;
-        enrichedSessionData.mainExercises = manualSesion.mainExercises.map(ex => ex?.id && exerciseDocs[ex.id] ? exerciseDocs[ex.id] : ex) as (string | EjercicioDetallado)[];
-        enrichedSessionData.coolDown = manualSesion.coolDown?.id && exerciseDocs[manualSesion.coolDown.id] ? exerciseDocs[manualSesion.coolDown.id] : manualSesion.coolDown;
+         enrichedSessionData.warmUp = manualBase.warmUp?.id && exerciseDocs[manualBase.warmUp.id] ? exerciseDocs[manualBase.warmUp.id] : null;
+         enrichedSessionData.mainExercises = manualBase.mainExercises.map(ex => ex?.id && exerciseDocs[ex.id] ? exerciseDocs[ex.id] : ex) as EjercicioDetallado[];
+         enrichedSessionData.coolDown = manualBase.coolDown?.id && exerciseDocs[manualBase.coolDown.id] ? exerciseDocs[manualBase.coolDown.id] : null;
       } else { 
         enrichedSessionData.warmUp = (baseSessionData as SesionAI).warmUp;
         enrichedSessionData.mainExercises = (baseSessionData as SesionAI).mainExercises;
@@ -427,7 +446,7 @@ function SesionDetallePageContent() {
                         <p>EQUIPO: {sessionData.equipo || 'No especificado'}</p>
                     </div>
                     <div className="w-1/3 text-center">
-                        <h2 className="text-lg font-bold uppercase text-white">SESIÓN DE ENTRENAMIENTO</h2>
+                        <h2 className="text-lg font-bold uppercase text-white mb-1">SESIÓN DE ENTRENAMIENTO</h2>
                     </div>
                     <div className="w-1/3 text-xs text-gray-300 text-right">
                         <p>FECHA: {formatDate(sessionData.fecha)}</p>
@@ -484,7 +503,7 @@ function SesionDetallePageContent() {
                 {sessionData.mainExercises.map((ex, index) => (
                   <div key={typeof ex === 'string' ? `ai-main-${index}` : ex.id || `manual-main-${index}`} className="p-3 border border-gray-400 rounded bg-white">
                     <div className="flex flex-col md:flex-row gap-4 items-start">
-                      {typeof ex === 'object' && (
+                      {typeof ex === 'object' && (ex as EjercicioDetallado).imagen && (
                           <div className="md:w-1/4 flex-shrink-0">
                               <Image src={getExerciseImage(ex as EjercicioDetallado, `Principal ${index + 1}`)} alt={`Ejercicio Principal ${index + 1}`} width={300} height={200} className="rounded border border-gray-400 object-contain w-full aspect-[3/2]" data-ai-hint="futsal exercise"/>
                           </div>
@@ -517,11 +536,23 @@ function SesionDetallePageContent() {
                  </div>
             </div>
             
-            <div className="p-4 mt-3 border-b border-gray-300 text-center">
-                <p className="font-semibold text-md">
-                    <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
-                    Tiempo total: {getSessionTotalDuration(sessionData)}
-                </p>
+            <div className="p-4 mt-3 border-b border-gray-300">
+              <div className="flex flex-col md:flex-row justify-between text-sm">
+                <div className="md:w-2/3 md:pr-4 mb-3 md:mb-0">
+                  <h4 className="font-semibold text-md mb-1 text-gray-800">Materiales y Espacio Necesarios:</h4>
+                  {getSessionMaterialsAndSpaceList(sessionData).map((item, index) => (
+                    item === "Información no disponible para sesiones AI." || item === "Materiales y espacio no especificados en los ejercicios." ?
+                    <p key={index} className="text-xs text-gray-600 italic">{item}</p> :
+                    <p key={index} className="text-xs text-gray-700">- {item}</p>
+                  ))}
+                </div>
+                <div className="md:w-1/3 text-left md:text-right">
+                  <p className="font-semibold text-md text-gray-800">
+                      <ClockIcon className="inline-block mr-1.5 h-5 w-5" />
+                      Tiempo total: {getSessionTotalDuration(sessionData)}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {(sessionData.coachNotes && sessionData.coachNotes.trim() !== "") && (
