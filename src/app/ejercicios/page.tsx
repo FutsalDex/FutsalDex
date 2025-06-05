@@ -36,18 +36,18 @@ interface Ejercicio {
   objetivos: string;
   espacio_materiales: string;
   jugadores: string;
-  duracion: string; 
+  duracion: string;
   variantes?: string;
   fase: string;
-  categoria: string; 
-  edad: string[]; 
+  categoria: string;
+  edad: string[];
   imagen: string;
   consejos_entrenador?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
 const GUEST_ITEM_LIMIT = 10;
-const ALL_FILTER_VALUE = "ALL"; 
+const ALL_FILTER_VALUE = "ALL";
 
 
 interface FavoriteState {
@@ -61,14 +61,15 @@ export default function EjerciciosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  
+  const [rawFetchedItemsCountOnPage, setRawFetchedItemsCountOnPage] = useState(0);
+
   const [firstVisibleDocsHistory, setFirstVisibleDocsHistory] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([null]);
 
 
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState(ALL_FILTER_VALUE);
   const [selectedAgeFilter, setSelectedAgeFilter] = useState<string>(ALL_FILTER_VALUE);
-  const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_FILTER_VALUE); 
+  const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_FILTER_VALUE);
   const [favorites, setFavorites] = useState<FavoriteState>({});
 
   const uniqueAgeCategories = useMemo(() => CATEGORIAS_EDAD_EJERCICIOS, []);
@@ -82,7 +83,7 @@ export default function EjerciciosPage() {
           const querySnapshot = await getDocs(favsRef);
           const userFavorites: FavoriteState = {};
           querySnapshot.forEach((docSnap) => {
-            userFavorites[docSnap.id] = true; 
+            userFavorites[docSnap.id] = true;
           });
           setFavorites(userFavorites);
         } catch (error) {
@@ -96,7 +97,7 @@ export default function EjerciciosPage() {
       };
       loadFavorites();
     } else {
-      setFavorites({}); 
+      setFavorites({});
     }
   }, [user, isRegisteredUser, toast]);
 
@@ -106,6 +107,7 @@ export default function EjerciciosPage() {
       const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
       let constraintsList: QueryConstraint[] = [];
 
+      // Apply filters
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
         constraintsList.push(where('fase', '==', currentPhase));
       }
@@ -116,35 +118,46 @@ export default function EjerciciosPage() {
         constraintsList.push(where('categoria', '==', currentThematicCat));
       }
 
-      if (currentSearch) {
-        constraintsList.push(where('ejercicio', '>=', currentSearch));
-        constraintsList.push(where('ejercicio', '<=', currentSearch + '\uf8ff'));
-        constraintsList.push(firestoreOrderBy('ejercicio')); 
-      } else {
-        constraintsList.push(firestoreOrderBy('ejercicio'));
-      }
-      
+      // Always order by 'ejercicio' for consistent pagination and initial listing.
+      // This order is applied by Firestore before client-side search filtering.
+      constraintsList.push(firestoreOrderBy('ejercicio'));
+
+
       if (isRegisteredUser && pageToFetch > 1 && isNextPage && lastVisible) {
           constraintsList.push(startAfter(lastVisible));
       }
-      
+
       const limitAmount = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
       constraintsList.push(limit(limitAmount));
-      
+
       const q = query(ejerciciosCollectionRef, ...constraintsList);
       const documentSnapshots = await getDocs(q);
 
-      const fetchedEjercicios = documentSnapshots.docs.map(docSnap => ({ 
-        id: docSnap.id, 
-        ...(docSnap.data() as Omit<Ejercicio, 'id'>) 
+      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
+
+      let fetchedEjercicios = documentSnapshots.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
+
+      // Client-side filtering for search term
+      if (currentSearch.trim() !== "") {
+        const lowerSearchTerms = currentSearch.toLowerCase().split(' ').filter(term => term.length > 0);
+        if (lowerSearchTerms.length > 0) {
+          fetchedEjercicios = fetchedEjercicios.filter(ej => {
+            const lowerEjercicioName = ej.ejercicio.toLowerCase();
+            return lowerSearchTerms.every(term => lowerEjercicioName.includes(term));
+          });
+        }
+      }
+
       setEjercicios(fetchedEjercicios);
       setCurrentPage(pageToFetch);
 
       if (isRegisteredUser) {
         if (documentSnapshots.docs.length > 0) {
           setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
-          if (isNextPage || pageToFetch === 1) { 
+          if (isNextPage || pageToFetch === 1) {
              setFirstVisibleDocsHistory(prev => {
               const newHistory = [...prev];
               newHistory[pageToFetch] = documentSnapshots.docs[0] as QueryDocumentSnapshot<DocumentData>;
@@ -152,7 +165,7 @@ export default function EjerciciosPage() {
             });
           }
         } else {
-          setLastVisible(null); 
+          setLastVisible(null);
         }
       }
 
@@ -177,11 +190,11 @@ export default function EjerciciosPage() {
     }
     setIsLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegisteredUser, toast]); 
+  }, [isRegisteredUser, toast]);
 
   useEffect(() => {
     setLastVisible(null);
-    setFirstVisibleDocsHistory([null]); 
+    setFirstVisibleDocsHistory([null]);
     fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]);
@@ -196,21 +209,21 @@ export default function EjerciciosPage() {
       });
       return;
     }
-  
+
     const isCurrentlyFavorite = !!favorites[exerciseId];
     const newFavoritesState = { ...favorites, [exerciseId]: !isCurrentlyFavorite };
-    
+
     setFavorites(newFavoritesState);
-  
+
     try {
       const favDocRef = doc(db, "users", user.uid, "user_favorites", exerciseId);
-      if (!isCurrentlyFavorite) { 
+      if (!isCurrentlyFavorite) {
         await setDoc(favDocRef, { addedAt: serverTimestamp() });
         toast({
           title: "Favorito Añadido",
           description: "El ejercicio se ha añadido a tus favoritos.",
         });
-      } else { 
+      } else {
         await deleteDoc(favDocRef);
         toast({
           title: "Favorito Eliminado",
@@ -219,7 +232,7 @@ export default function EjerciciosPage() {
       }
     } catch (error) {
       console.error("Error updating favorite status:", error);
-      setFavorites(favorites); 
+      setFavorites(favorites);
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de favorito. Inténtalo de nuevo.",
@@ -235,7 +248,7 @@ export default function EjerciciosPage() {
     const isNext = newPage > currentPage;
     fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isNext);
   };
-  
+
   const getAgeFilterButtonText = () => {
     if (selectedAgeFilter === ALL_FILTER_VALUE) return "Todas las Edades";
     return selectedAgeFilter;
@@ -244,6 +257,8 @@ export default function EjerciciosPage() {
   const formatDuracion = (duracion: string) => {
     return duracion ? `${duracion}` : 'N/A';
   }
+  
+  const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -299,7 +314,7 @@ export default function EjerciciosPage() {
                 {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
               </SelectContent>
             </Select>
-            
+
             <Select value={thematicCategoryFilter} onValueChange={setThematicCategoryFilter}>
               <SelectTrigger className="w-full sm:w-[220px]">
                 <ListFilter className="h-4 w-4 mr-2" />
@@ -395,13 +410,13 @@ export default function EjerciciosPage() {
             ))}
           </div>
 
-          {isRegisteredUser && (ejercicios.length === ITEMS_PER_PAGE || currentPage > 1 || lastVisible) && ( 
+          {isRegisteredUser && (rawFetchedItemsCountOnPage > 0 || currentPage > 1) && (
              <Pagination className="mt-8">
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
-                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(1);}} 
+                    onClick={(e) => { e.preventDefault(); if (currentPage > 1 && !isLoading) handlePageChange(1);}}
                     className={currentPage === 1 || isLoading ? "pointer-events-none opacity-50" : undefined}
                   />
                 </PaginationItem>
@@ -411,9 +426,9 @@ export default function EjerciciosPage() {
                   </PaginationLink>
                 </PaginationItem>
 
-                {(ejercicios.length === ITEMS_PER_PAGE && lastVisible) && ( 
+                {(rawFetchedItemsCountOnPage === currentLimit && lastVisible) && (
                   <PaginationItem>
-                    <PaginationNext href="#" onClick={(e) => { e.preventDefault(); if(!isLoading) handlePageChange(currentPage + 1);}} 
+                    <PaginationNext href="#" onClick={(e) => { e.preventDefault(); if(!isLoading) handlePageChange(currentPage + 1);}}
                     className={isLoading ? "pointer-events-none opacity-50" : undefined} />
                   </PaginationItem>
                 )}
@@ -426,4 +441,3 @@ export default function EjerciciosPage() {
   );
 }
     
-
