@@ -1,4 +1,5 @@
 
+// src/app/ejercicios/[id]/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,7 +11,7 @@ import { doc, getDoc, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Save, Heart } from 'lucide-react'; // Changed Printer to Save
+import { Loader2, ArrowLeft, Save, Heart } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
@@ -127,7 +128,7 @@ export default function EjercicioDetallePage() {
     }
   };
 
-  const handlePrint = async () => {
+ const handlePrint = async () => {
     const printArea = document.querySelector('.exercise-print-area') as HTMLElement;
     if (!printArea || !ejercicio) {
       toast({
@@ -144,37 +145,33 @@ export default function EjercicioDetallePage() {
     const originalDisplay = printButtonContainer ? printButtonContainer.style.display : '';
     if (printButtonContainer) printButtonContainer.style.display = 'none';
     
-    const headerElement = printArea.querySelector('header'); // Assuming header is a direct child or identifiable
+    const headerElement = printArea.querySelector('header');
     const originalHeaderBg = headerElement ? headerElement.style.backgroundColor : '';
-    if (headerElement) headerElement.style.backgroundColor = 'white'; // Ensure header bg is white for capture
+    if (headerElement) headerElement.style.backgroundColor = 'white';
 
     try {
       const canvas = await html2canvas(printArea, { 
-        scale: 2, // Improves resolution
+        scale: 2,
         useCORS: true,
         logging: false, 
-        backgroundColor: '#ffffff', // Ensure a white background for the capture
-         onclone: (document) => { // Style the cloned document for canvas rendering
+        backgroundColor: '#ffffff',
+         onclone: (document) => {
             const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
             if (clonedPrintArea) {
-                // Make text black
                 const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg), td, th, a, button, label, [class*="text-"]');
                 textElements.forEach(el => {
                     (el as HTMLElement).style.color = '#000000 !important'; 
                 });
-
                 const primaryElements = clonedPrintArea.querySelectorAll('.text-primary, .text-accent');
                  primaryElements.forEach(el => {
                     (el as HTMLElement).style.color = '#000000 !important';
                  });
-
-                 const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge'); // More general badge selector
+                 const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
                  badges.forEach(el => {
                     (el as HTMLElement).style.backgroundColor = '#dddddd !important'; 
                     (el as HTMLElement).style.color = '#000000 !important'; 
                     (el as HTMLElement).style.borderColor = '#aaaaaa !important';
                  });
-                
                 if (clonedPrintArea.classList.contains('bg-card')) {
                    clonedPrintArea.style.backgroundColor = '#ffffff !important';
                 }
@@ -185,8 +182,8 @@ export default function EjercicioDetallePage() {
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
-        orientation: 'landscape', // A4 Landscape: 29.7cm x 21cm
-        unit: 'pt', // Using points; A4 landscape points: ~841.89pt x ~595.28pt
+        orientation: 'portrait', // Changed to portrait
+        unit: 'pt',
         format: 'a4',
       });
 
@@ -201,7 +198,6 @@ export default function EjercicioDetallePage() {
           const originalImgWidth = img.width;
           const originalImgHeight = img.height;
 
-          // Calculate scale factor to fit within printable area, maintaining aspect ratio
           const scaleFactorWidth = pdfPrintableWidth / originalImgWidth;
           const scaleFactorHeight = pdfPrintableHeight / originalImgHeight;
           const finalScaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight);
@@ -209,7 +205,6 @@ export default function EjercicioDetallePage() {
           const pdfImageWidth = originalImgWidth * finalScaleFactor;
           const pdfImageHeight = originalImgHeight * finalScaleFactor;
           
-          // Center the image on the page, ensuring it doesn't go outside margins
           const xOffset = Math.max(margin, (pdfPageWidth - pdfImageWidth) / 2);
           const yOffset = Math.max(margin, (pdfPageHeight - pdfImageHeight) / 2);
           
@@ -232,7 +227,6 @@ export default function EjercicioDetallePage() {
           if (headerElement) headerElement.style.backgroundColor = originalHeaderBg;
           setIsGeneratingPdf(false);
       };
-
       img.src = imgData;
 
     } catch (error) {
@@ -338,10 +332,10 @@ export default function EjercicioDetallePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6 text-md">
-          <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ejercicio.fase}</p>
+          <p className="md:col-span-2"><strong className="font-semibold text-foreground/90">Fase:</strong> {ejercicio.fase}</p>
           <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</p>
-          <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ejercicio.duracion)}</p>
           <p><strong className="font-semibold text-foreground/90">Nº Jugadores:</strong> {ejercicio.jugadores}</p>
+          <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ejercicio.duracion)}</p>
           <p className="md:col-span-2"><strong className="font-semibold text-foreground/90">Materiales y Espacio:</strong> {ejercicio.espacio_materiales}</p>
         </div>
 
