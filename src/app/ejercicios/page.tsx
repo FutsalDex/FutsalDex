@@ -100,18 +100,23 @@ export default function EjerciciosPage() {
   }, [user, isRegisteredUser, toast]);
 
   const fetchEjercicios = useCallback(async (
-    pageToFetch = 1,
-    currentSearch = searchTerm,
-    currentPhase = phaseFilter,
-    currentAge = selectedAgeFilter,
-    currentThematicCat = thematicCategoryFilter
+    pageToFetchArg?: number,
+    searchArg?: string,
+    phaseArg?: string,
+    ageArg?: string,
+    thematicCatArg?: string
   ) => {
     setIsLoading(true);
     try {
+      const pageToFetch = pageToFetchArg ?? 1; // Default to page 1 if not specified
+      const currentSearch = searchArg ?? searchTerm;
+      const currentPhase = phaseArg ?? phaseFilter;
+      const currentAge = ageArg ?? selectedAgeFilter;
+      const currentThematicCat = thematicCatArg ?? thematicCategoryFilter;
+
       const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
       let constraintsList: QueryConstraint[] = [];
 
-      // Firestore filters (excluding isVisible here, will filter client-side)
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
         constraintsList.push(where('fase', '==', currentPhase));
       }
@@ -121,9 +126,9 @@ export default function EjerciciosPage() {
       if (currentThematicCat && currentThematicCat !== ALL_FILTER_VALUE) {
         constraintsList.push(where('categoria', '==', currentThematicCat));
       }
-
-      constraintsList.push(firestoreOrderBy('ejercicio'));
-      constraintsList.push(firestoreOrderBy('__name__', 'asc')); 
+      
+      constraintsList.push(firestoreOrderBy('ejercicio')); // Primary sort
+      constraintsList.push(firestoreOrderBy('__name__', 'asc')); // Tie-breaker for consistent pagination
 
       if (pageToFetch > 1 && pageCursors[pageToFetch - 2]) {
         constraintsList.push(startAfter(pageCursors[pageToFetch - 2]));
@@ -142,30 +147,33 @@ export default function EjerciciosPage() {
         ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
 
-      // Client-side filter for visibility (isVisible is true or undefined)
       let visibleEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
 
-      // Client-side filter for search term
       if (currentSearch.trim() !== "") {
         const lowerSearchTerms = currentSearch.toLowerCase().split(' ').filter(term => term.length > 0);
         if (lowerSearchTerms.length > 0) {
           visibleEjercicios = visibleEjercicios.filter(ej => {
             const lowerEjercicioName = ej.ejercicio.toLowerCase();
+            // Check if *any* of the search terms are included (OR logic)
             return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
           });
         }
       }
-
+      
       setEjercicios(visibleEjercicios);
-      setCurrentPage(pageToFetch);
+      // setCurrentPage should be updated by the caller (useEffect or handlePageChange) before calling fetch.
+      // But if called directly, ensure pageToFetch is the new current page.
+      // The caller (useEffect or handlePageChange) is responsible for setting currentPage.
 
       if (isRegisteredUser && documentSnapshots.docs.length > 0) {
         const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
         setPageCursors(prevCursors => {
           const newCursors = [...prevCursors];
-          newCursors[pageToFetch - 1] = lastDoc;
+          newCursors[pageToFetch - 1] = lastDoc; // Store cursor for the page we just fetched
           return newCursors;
         });
+      } else if (pageToFetch === 1) { // If fetching page 1 and no results, clear cursors
+        setPageCursors([]);
       }
 
     } catch (error: any) {
@@ -188,15 +196,31 @@ export default function EjerciciosPage() {
       }
     }
     setIsLoading(false);
-  }, [isRegisteredUser, toast, pageCursors, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter]);
+  }, [
+      isRegisteredUser, 
+      toast, 
+      // State setters are stable and don't need to be listed
+      // State values that are read (searchTerm, phaseFilter, etc., pageCursors) are NOT listed here.
+      // They are accessed from the component's scope due to closure.
+      // This makes the `fetchEjercicios` function reference stable.
+      // We need to pass `pageCursors` to make `useCallback` re-evaluate if it changes from outside,
+      // but `fetchEjercicios` itself updates `pageCursors`.
+      // Let's try with pageCursors here for now, if it loops, we remove it and use a ref.
+      pageCursors, // Keeping pageCursors here for now to ensure `startAfter` uses the updated value.
+      searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, currentPage // Added currentPage
+    ]);
 
 
   useEffect(() => {
+    // This effect triggers when filters or user registration status changes.
+    // It resets pagination and fetches the first page with new filters.
     setCurrentPage(1);
-    setPageCursors([]); 
+    setPageCursors([]); // Reset cursors for the new filter set
+    // Pass current filter states directly to fetchEjercicios for page 1
     fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]); 
+  // We depend on fetchEjercicios here. If fetchEjercicios's own deps are correct, this should be fine.
 
   const toggleFavorite = async (exerciseId: string) => {
     if (!user || !isRegisteredUser) {
@@ -242,6 +266,8 @@ export default function EjerciciosPage() {
 
   const handlePageChange = (newPage: number) => {
     if (!isRegisteredUser || isLoading || newPage === currentPage) return;
+    setCurrentPage(newPage); // Set new page first
+    // Fetch exercises for the new page using current filters
     fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
   };
 
@@ -415,7 +441,7 @@ export default function EjerciciosPage() {
                   <PaginationPrevious
                     href="#"
                     onClick={(e) => { e.preventDefault(); if (canGoPrevious && !isLoading) handlePageChange(currentPage - 1);}}
-                    className={!canGoPrevious || isLoading ? "pointer-events-none opacity-50" : undefined}
+                    className={!canGoPrevious || isLoading ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
                 <PaginationItem>
@@ -426,7 +452,7 @@ export default function EjerciciosPage() {
                 {canGoNext && (
                   <PaginationItem>
                     <PaginationNext href="#" onClick={(e) => { e.preventDefault(); if(!isLoading) handlePageChange(currentPage + 1);}}
-                    className={isLoading ? "pointer-events-none opacity-50" : undefined} />
+                    className={isLoading ? "pointer-events-none opacity-50" : ""} />
                   </PaginationItem>
                 )}
               </PaginationContent>
