@@ -111,9 +111,7 @@ export default function EjerciciosPage() {
       const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
       let constraintsList: QueryConstraint[] = [];
 
-      // Always filter for visible exercises
-      constraintsList.push(where('isVisible', '==', true));
-
+      // Firestore filters (excluding isVisible here, will filter client-side)
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
         constraintsList.push(where('fase', '==', currentPhase));
       }
@@ -125,7 +123,7 @@ export default function EjerciciosPage() {
       }
 
       constraintsList.push(firestoreOrderBy('ejercicio'));
-      constraintsList.push(firestoreOrderBy('__name__', 'asc')); // For consistent pagination
+      constraintsList.push(firestoreOrderBy('__name__', 'asc')); 
 
       if (pageToFetch > 1 && pageCursors[pageToFetch - 2]) {
         constraintsList.push(startAfter(pageCursors[pageToFetch - 2]));
@@ -139,29 +137,33 @@ export default function EjerciciosPage() {
 
       setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
 
-      let fetchedEjercicios = documentSnapshots.docs.map(docSnap => ({
+      let fetchedEjerciciosFromDB = documentSnapshots.docs.map(docSnap => ({
         id: docSnap.id,
         ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
 
+      // Client-side filter for visibility (isVisible is true or undefined)
+      let visibleEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
+
+      // Client-side filter for search term
       if (currentSearch.trim() !== "") {
         const lowerSearchTerms = currentSearch.toLowerCase().split(' ').filter(term => term.length > 0);
         if (lowerSearchTerms.length > 0) {
-          fetchedEjercicios = fetchedEjercicios.filter(ej => {
+          visibleEjercicios = visibleEjercicios.filter(ej => {
             const lowerEjercicioName = ej.ejercicio.toLowerCase();
             return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
           });
         }
       }
 
-      setEjercicios(fetchedEjercicios);
+      setEjercicios(visibleEjercicios);
       setCurrentPage(pageToFetch);
 
       if (isRegisteredUser && documentSnapshots.docs.length > 0) {
         const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
         setPageCursors(prevCursors => {
           const newCursors = [...prevCursors];
-          newCursors[pageToFetch -1] = lastDoc; // pageCursors[0] is last doc of page 1
+          newCursors[pageToFetch - 1] = lastDoc;
           return newCursors;
         });
       }
@@ -191,10 +193,10 @@ export default function EjerciciosPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-    setPageCursors([]); // Reset cursors when filters change
+    setPageCursors([]); 
     fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]); // fetchEjercicios is not a dependency here
+  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]); 
 
   const toggleFavorite = async (exerciseId: string) => {
     if (!user || !isRegisteredUser) {
@@ -240,7 +242,6 @@ export default function EjerciciosPage() {
 
   const handlePageChange = (newPage: number) => {
     if (!isRegisteredUser || isLoading || newPage === currentPage) return;
-    setCurrentPage(newPage);
     fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
   };
 
