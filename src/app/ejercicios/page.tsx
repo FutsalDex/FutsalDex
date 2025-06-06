@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+// Removing the numbered Pagination import, using a "Load More" button as in the original stable state
+// import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection as firestoreCollection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
@@ -43,7 +44,7 @@ interface Ejercicio {
   edad: string[];
   imagen: string;
   consejos_entrenador?: string;
-  isVisible?: boolean;
+  isVisible?: boolean; 
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -60,10 +61,11 @@ export default function EjerciciosPage() {
   const { toast } = useToast();
   const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([]);
+  const [currentPage, setCurrentPage] = useState(1); 
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [rawFetchedItemsCountOnPage, setRawFetchedItemsCountOnPage] = useState(0);
-
+  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([]);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState(ALL_FILTER_VALUE);
   const [selectedAgeFilter, setSelectedAgeFilter] = useState<string>(ALL_FILTER_VALUE);
@@ -72,6 +74,98 @@ export default function EjerciciosPage() {
 
   const uniqueAgeCategories = useMemo(() => CATEGORIAS_EDAD_EJERCICIOS, []);
   const uniqueFases = useMemo(() => FASES_SESION, []);
+
+  const fetchEjercicios = useCallback(async (
+    pageToFetch: number,
+    currentSearch: string,
+    currentPhase: string,
+    currentAge: string,
+    currentThematicCat: string
+  ) => {
+    setIsLoading(true);
+    try {
+      const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
+      let constraintsList: QueryConstraint[] = [];
+
+      if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
+        constraintsList.push(where('fase', '==', currentPhase));
+      }
+      if (currentAge && currentAge !== ALL_FILTER_VALUE) {
+        constraintsList.push(where('edad', 'array-contains', currentAge));
+      }
+      if (currentThematicCat && currentThematicCat !== ALL_FILTER_VALUE) {
+        constraintsList.push(where('categoria', '==', currentThematicCat));
+      }
+      
+      constraintsList.push(firestoreOrderBy('ejercicio'));
+      constraintsList.push(firestoreOrderBy('__name__', 'asc')); 
+
+      const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
+      constraintsList.push(limit(currentLimit));
+      
+      if (pageToFetch > 1 && pageCursors[pageToFetch - 2]) {
+         constraintsList.push(startAfter(pageCursors[pageToFetch - 2]!));
+      }
+
+
+      const q = query(ejerciciosCollectionRef, ...constraintsList);
+      const documentSnapshots = await getDocs(q);
+      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
+
+      let fetchedEjerciciosFromDB = documentSnapshots.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<Ejercicio, 'id'>)
+      } as Ejercicio));
+      
+      fetchedEjerciciosFromDB = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
+
+      if (currentSearch.trim() !== "") {
+        const lowerSearchTerms = currentSearch.toLowerCase().split(' ').filter(term => term.length > 0);
+        fetchedEjerciciosFromDB = fetchedEjerciciosFromDB.filter(ej => {
+          const lowerEjercicioName = ej.ejercicio.toLowerCase();
+          return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
+        });
+      }
+
+      setEjercicios(pageToFetch === 1 ? fetchedEjerciciosFromDB : prev => [...prev, ...fetchedEjerciciosFromDB]);
+      
+      const newLastVisible = documentSnapshots.docs[documentSnapshots.docs.length - 1] || null;
+      
+      if (pageToFetch === 1) {
+        setPageCursors(newLastVisible ? [newLastVisible] : []);
+      } else if (newLastVisible) {
+        setPageCursors(prev => [...prev.slice(0, pageToFetch - 1), newLastVisible]);
+      }
+
+
+    } catch (error: any) {
+      console.error("Error fetching exercises: ", error);
+      if (error.code === 'failed-precondition') {
+        toast({
+          title: "Índice Requerido por Firestore",
+          description: (
+            <div className="text-sm">
+              <p>La combinación actual de filtros y/o ordenación necesita un índice compuesto en Firestore que no existe.</p>
+              <p className="mt-1">Por favor, abre la consola de desarrollador del navegador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 30000,
+        });
+      } else {
+        toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
+      }
+    }
+    setIsLoading(false);
+  }, [isRegisteredUser, toast, pageCursors]);
+
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setPageCursors([]); 
+    fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]); 
 
   useEffect(() => {
     if (user && isRegisteredUser) {
@@ -99,129 +193,6 @@ export default function EjerciciosPage() {
     }
   }, [user, isRegisteredUser, toast]);
 
-  const fetchEjercicios = useCallback(async (
-    pageToFetchArg?: number,
-    searchArg?: string,
-    phaseArg?: string,
-    ageArg?: string,
-    thematicCatArg?: string
-  ) => {
-    setIsLoading(true);
-    try {
-      const pageToFetch = pageToFetchArg ?? 1; // Default to page 1 if not specified
-      const currentSearch = searchArg ?? searchTerm;
-      const currentPhase = phaseArg ?? phaseFilter;
-      const currentAge = ageArg ?? selectedAgeFilter;
-      const currentThematicCat = thematicCatArg ?? thematicCategoryFilter;
-
-      const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
-      let constraintsList: QueryConstraint[] = [];
-
-      if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
-        constraintsList.push(where('fase', '==', currentPhase));
-      }
-      if (currentAge && currentAge !== ALL_FILTER_VALUE) {
-        constraintsList.push(where('edad', 'array-contains', currentAge));
-      }
-      if (currentThematicCat && currentThematicCat !== ALL_FILTER_VALUE) {
-        constraintsList.push(where('categoria', '==', currentThematicCat));
-      }
-      
-      constraintsList.push(firestoreOrderBy('ejercicio')); // Primary sort
-      constraintsList.push(firestoreOrderBy('__name__', 'asc')); // Tie-breaker for consistent pagination
-
-      if (pageToFetch > 1 && pageCursors[pageToFetch - 2]) {
-        constraintsList.push(startAfter(pageCursors[pageToFetch - 2]));
-      }
-
-      const limitAmount = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
-      constraintsList.push(limit(limitAmount));
-
-      const q = query(ejerciciosCollectionRef, ...constraintsList);
-      const documentSnapshots = await getDocs(q);
-
-      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
-
-      let fetchedEjerciciosFromDB = documentSnapshots.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...(docSnap.data() as Omit<Ejercicio, 'id'>)
-      } as Ejercicio));
-
-      let visibleEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
-
-      if (currentSearch.trim() !== "") {
-        const lowerSearchTerms = currentSearch.toLowerCase().split(' ').filter(term => term.length > 0);
-        if (lowerSearchTerms.length > 0) {
-          visibleEjercicios = visibleEjercicios.filter(ej => {
-            const lowerEjercicioName = ej.ejercicio.toLowerCase();
-            // Check if *any* of the search terms are included (OR logic)
-            return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
-          });
-        }
-      }
-      
-      setEjercicios(visibleEjercicios);
-      // setCurrentPage should be updated by the caller (useEffect or handlePageChange) before calling fetch.
-      // But if called directly, ensure pageToFetch is the new current page.
-      // The caller (useEffect or handlePageChange) is responsible for setting currentPage.
-
-      if (isRegisteredUser && documentSnapshots.docs.length > 0) {
-        const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
-        setPageCursors(prevCursors => {
-          const newCursors = [...prevCursors];
-          newCursors[pageToFetch - 1] = lastDoc; // Store cursor for the page we just fetched
-          return newCursors;
-        });
-      } else if (pageToFetch === 1) { // If fetching page 1 and no results, clear cursors
-        setPageCursors([]);
-      }
-
-    } catch (error: any) {
-      console.error("Error fetching exercises: ", error);
-      if (error.code === 'failed-precondition') {
-        toast({
-          title: "Índice Requerido por Firestore",
-          description: (
-            <div className="text-sm">
-              <p>La combinación actual de filtros y/o ordenación necesita un índice compuesto en Firestore que no existe.</p>
-              <p className="mt-1">Por favor, abre la consola de desarrollador del navegador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p>
-              <p className="mt-2 text-xs">Ejemplo: "The query requires an index. You can create it here: [enlace]"</p>
-            </div>
-          ),
-          variant: "destructive",
-          duration: 30000,
-        });
-      } else {
-        toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
-      }
-    }
-    setIsLoading(false);
-  }, [
-      isRegisteredUser, 
-      toast, 
-      // State setters are stable and don't need to be listed
-      // State values that are read (searchTerm, phaseFilter, etc., pageCursors) are NOT listed here.
-      // They are accessed from the component's scope due to closure.
-      // This makes the `fetchEjercicios` function reference stable.
-      // We need to pass `pageCursors` to make `useCallback` re-evaluate if it changes from outside,
-      // but `fetchEjercicios` itself updates `pageCursors`.
-      // Let's try with pageCursors here for now, if it loops, we remove it and use a ref.
-      pageCursors, // Keeping pageCursors here for now to ensure `startAfter` uses the updated value.
-      searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, currentPage // Added currentPage
-    ]);
-
-
-  useEffect(() => {
-    // This effect triggers when filters or user registration status changes.
-    // It resets pagination and fetches the first page with new filters.
-    setCurrentPage(1);
-    setPageCursors([]); // Reset cursors for the new filter set
-    // Pass current filter states directly to fetchEjercicios for page 1
-    fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]); 
-  // We depend on fetchEjercicios here. If fetchEjercicios's own deps are correct, this should be fine.
-
   const toggleFavorite = async (exerciseId: string) => {
     if (!user || !isRegisteredUser) {
       toast({
@@ -235,7 +206,6 @@ export default function EjerciciosPage() {
 
     const isCurrentlyFavorite = !!favorites[exerciseId];
     const newFavoritesState = { ...favorites, [exerciseId]: !isCurrentlyFavorite };
-
     setFavorites(newFavoritesState);
 
     try {
@@ -265,24 +235,32 @@ export default function EjerciciosPage() {
   };
 
   const handlePageChange = (newPage: number) => {
-    if (!isRegisteredUser || isLoading || newPage === currentPage) return;
-    setCurrentPage(newPage); // Set new page first
-    // Fetch exercises for the new page using current filters
+    if ((newPage < currentPage && newPage < 1) || isLoading) return;
+    
+    const isGoingBack = newPage < currentPage;
+    if (isGoingBack && newPage > 0) {
+        // When going back, we need to ensure pageCursors is trimmed if we jump back multiple pages,
+        // but for a single step back, the cursor for the *target* page's start is pageCursors[newPage - 1]
+        // and to load page `newPage`, we'd need the cursor from page `newPage - 1`.
+        // The fetchEjercicios will use pageCursors[newPage - 2] if newPage > 1.
+    }
+    
+    setCurrentPage(newPage);
     fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
   };
-
+  
   const getAgeFilterButtonText = () => {
     if (selectedAgeFilter === ALL_FILTER_VALUE) return "Todas las Edades";
     return selectedAgeFilter;
   };
-
+  
   const formatDuracion = (duracion: string) => {
     return duracion ? `${duracion}` : 'N/A';
   }
-  
+
   const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
-  const canGoPrevious = isRegisteredUser && currentPage > 1;
-  const canGoNext = isRegisteredUser && rawFetchedItemsCountOnPage === currentLimit;
+  const canGoPrevious = currentPage > 1;
+  const canGoNext = rawFetchedItemsCountOnPage === currentLimit && pageCursors[currentPage -1] !== null;
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -379,11 +357,11 @@ export default function EjerciciosPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && ejercicios.length === 0 && currentPage === 1 ? ( 
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
-      ) : ejercicios.length === 0 ? (
+      ) : !isLoading && ejercicios.length === 0 ? (
         <p className="text-center text-lg text-muted-foreground py-10">No se encontraron ejercicios con los filtros actuales.</p>
       ) : (
         <>
@@ -392,7 +370,7 @@ export default function EjerciciosPage() {
               <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
                 <div className="relative h-48 w-full">
                   <Image
-                    src={ej.imagen || `https://placehold.co/400x300.png`}
+                    src={ej.imagen || 'https://placehold.co/400x300.png'}
                     alt={ej.ejercicio}
                     fill
                     style={{ objectFit: 'contain' }}
@@ -433,34 +411,29 @@ export default function EjerciciosPage() {
               </Card>
             ))}
           </div>
-
-          {isRegisteredUser && (ejercicios.length > 0 || currentPage > 1) && (
-             <Pagination className="mt-8">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(e) => { e.preventDefault(); if (canGoPrevious && !isLoading) handlePageChange(currentPage - 1);}}
-                    className={!canGoPrevious || isLoading ? "pointer-events-none opacity-50" : ""}
-                  />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#" isActive>
-                    {currentPage}
-                  </PaginationLink>
-                </PaginationItem>
-                {canGoNext && (
-                  <PaginationItem>
-                    <PaginationNext href="#" onClick={(e) => { e.preventDefault(); if(!isLoading) handlePageChange(currentPage + 1);}}
-                    className={isLoading ? "pointer-events-none opacity-50" : ""} />
-                  </PaginationItem>
-                )}
-              </PaginationContent>
-            </Pagination>
-          )}
+          
+          <div className="mt-8 flex justify-center">
+            <Button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={!canGoPrevious || isLoading}
+                variant="outline"
+                className="mr-2"
+            >
+                Anterior
+            </Button>
+            <Button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={!canGoNext || isLoading}
+                variant="outline"
+            >
+                {isLoading && currentPage > 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Siguiente"}
+            </Button>
+          </div>
         </>
       )}
     </div>
   );
 }
+    
+
     
