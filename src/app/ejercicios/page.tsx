@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection as firestoreCollection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection as firestoreCollection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot, doc, setDoc, deleteDoc, serverTimestamp, getCountFromServer } from 'firebase/firestore';
 import Image from 'next/image';
 import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -62,6 +62,7 @@ export default function EjerciciosPage() {
   const [currentPage, setCurrentPage] = useState(1); 
   const [rawFetchedItemsCountOnPage, setRawFetchedItemsCountOnPage] = useState(0);
   const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([]);
+  const [totalExercisesInDB, setTotalExercisesInDB] = useState(0);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState(ALL_FILTER_VALUE);
@@ -71,6 +72,23 @@ export default function EjerciciosPage() {
 
   const uniqueAgeCategories = useMemo(() => CATEGORIAS_EDAD_EJERCICIOS, []);
   const uniqueFases = useMemo(() => FASES_SESION, []);
+
+  const fetchTotalCount = useCallback(async () => {
+    try {
+      const coll = firestoreCollection(db, "ejercicios_futsal");
+      // Consider if you need to filter this count by isVisible for accuracy.
+      // For "total in catalog", this simple count is often sufficient.
+      const snapshot = await getCountFromServer(coll);
+      setTotalExercisesInDB(snapshot.data().count);
+    } catch (error) {
+      console.error("Error fetching total exercise count: ", error);
+      toast({ title: "Error", description: "No se pudo obtener el número total de ejercicios.", variant: "destructive" });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchTotalCount();
+  }, [fetchTotalCount]);
 
   const fetchEjercicios = useCallback(async (
     pageToFetch: number,
@@ -113,6 +131,7 @@ export default function EjerciciosPage() {
         ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
       
+      // Client-side filtering for isVisible and searchTerm
       let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
 
       if (currentSearchTerm.trim() !== "") {
@@ -123,9 +142,9 @@ export default function EjerciciosPage() {
         });
       }
       
-      setEjercicios(filteredAndSearchedEjercicios); // Replace exercises for the current page
+      setEjercicios(filteredAndSearchedEjercicios);
       newLastVisibleDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1] || null;
-      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
+      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length); // Count before client-side search term filter for pagination logic
 
     } catch (error: any) {
       console.error("Error fetching exercises: ", error);
@@ -138,11 +157,11 @@ export default function EjerciciosPage() {
       } else {
         toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
       }
-      setEjercicios([]); // Clear exercises on error
+      setEjercicios([]); 
       setRawFetchedItemsCountOnPage(0);
     }
     return newLastVisibleDoc;
-  }, [isRegisteredUser, toast, setEjercicios, setRawFetchedItemsCountOnPage]);
+  }, [isRegisteredUser, toast]);
 
 
   useEffect(() => {
@@ -159,32 +178,29 @@ export default function EjerciciosPage() {
         startAfterDoc
       );
       
-      if (currentPage === 1) {
-        setPageCursors(newLastVisibleDoc ? [newLastVisibleDoc] : []);
-      } else if (newLastVisibleDoc) {
-        setPageCursors(prev => {
-          const newCursors = [...prev];
-          newCursors[currentPage - 1] = newLastVisibleDoc;
-          return newCursors;
-        });
-      } else if (currentPage > 0) { 
-         setPageCursors(prev => {
-            const newCursors = [...prev];
-            if (newCursors.length >= currentPage) {
-                newCursors[currentPage - 1] = null; 
-                while (newCursors.length > 0 && newCursors[newCursors.length - 1] === null) {
-                    newCursors.pop();
-                }
-            }
-            return newCursors;
-        });
-      }
+      setPageCursors(prevCursors => {
+        const updatedCursors = [...prevCursors];
+        if (currentPage === 1) {
+          return newLastVisibleDoc ? [newLastVisibleDoc] : [];
+        }
+        if (newLastVisibleDoc) {
+          updatedCursors[currentPage - 1] = newLastVisibleDoc;
+        } else if (currentPage > 0 && updatedCursors.length >= currentPage) {
+          // If no new doc, it means this page is empty or last, clear cursor for this page
+          updatedCursors[currentPage - 1] = null; 
+           // Trim trailing nulls if any
+           while (updatedCursors.length > 0 && updatedCursors[updatedCursors.length - 1] === null) {
+            updatedCursors.pop();
+          }
+        }
+        return updatedCursors;
+      });
       setIsLoading(false);
     };
 
     fetchDataForCurrentPage();
-  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]); // Removed fetchEjercicios from here
 
   const resetPaginationAndFilters = () => {
     setCurrentPage(1);
@@ -274,7 +290,10 @@ export default function EjerciciosPage() {
 
   const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
   const canGoPrevious = currentPage > 1;
-  const canGoNext = rawFetchedItemsCountOnPage === currentLimit;
+  const canGoNext = rawFetchedItemsCountOnPage === currentLimit && ejercicios.length === currentLimit ; // Ensure full page was fetched for "next"
+
+  const startIndex = ejercicios.length > 0 ? (currentPage - 1) * currentLimit + 1 : 0;
+  const endIndex = ejercicios.length > 0 ? (currentPage - 1) * currentLimit + ejercicios.length : 0;
 
 
   return (
@@ -366,14 +385,27 @@ export default function EjerciciosPage() {
         </div>
       </div>
 
-      {isLoading && ejercicios.length === 0 && currentPage === 1 ? ( 
+      {/* Case 1: Loading initial data (or filters resulted in empty and now loading) */}
+      {isLoading && ejercicios.length === 0 && (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
-      ) : !isLoading && ejercicios.length === 0 ? (
-        <p className="text-center text-lg text-muted-foreground py-10">No se encontraron ejercicios con los filtros actuales.</p>
-      ) : (
+      )}
+
+      {/* Case 2: Not loading, and no exercises were found (either empty catalog or filters yield nothing) */}
+      {!isLoading && ejercicios.length === 0 && (
+         <p className="text-center text-lg text-muted-foreground py-10">
+           {totalExercisesInDB > 0 ? `No se encontraron ejercicios con los filtros actuales (de ${totalExercisesInDB} en total).` : "No hay ejercicios en el catálogo."}
+         </p>
+      )}
+
+      {/* Case 3: Exercises are present (either fully loaded or loading next page while current are shown) */}
+      {ejercicios.length > 0 && (
         <>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {isLoading && <Loader2 className="inline-block mr-2 h-4 w-4 animate-spin" />}
+            Mostrando {startIndex}-{endIndex} de {totalExercisesInDB} ejercicios.
+          </p>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {ejercicios.map((ej) => (
               <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
@@ -421,6 +453,7 @@ export default function EjerciciosPage() {
             ))}
           </div>
           
+          {/* Pagination Buttons */}
           <div className="mt-8 flex justify-center">
             <Button
                 onClick={() => handlePageChange(currentPage - 1)}
