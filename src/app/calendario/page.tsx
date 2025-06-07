@@ -13,9 +13,10 @@ import { Calendar as CalendarIconLucide, Loader2, CheckCircle } from "lucide-rea
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Link from "next/link";
-import { format, parseISO,isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { DayContentProps } from 'react-day-picker';
+import type { DayContentProps, DayPicker } from 'react-day-picker';
+import { cn } from "@/lib/utils";
 
 interface SesionEntry {
   id: string;
@@ -33,7 +34,7 @@ interface SessionsByDate {
 function CalendarPageContent() {
   const { user } = useAuth();
   const router = useRouter();
-  const [allUserSessions, setAllUserSessions] = useState<SesionEntry[]>([]);
+  // const [allUserSessions, setAllUserSessions] = useState<SesionEntry[]>([]); // Keep if needed for other summaries
   const [sessionsByDate, setSessionsByDate] = useState<SessionsByDate>({});
   const [isLoading, setIsLoading] = useState(true);
   const [currentDisplayMonth, setCurrentDisplayMonth] = useState<Date>(new Date());
@@ -51,19 +52,19 @@ function CalendarPageContent() {
       const q = query(
         collection(db, "mis_sesiones"),
         where("userId", "==", user.uid),
-        firestoreOrderBy("fecha", "asc") // Order by date to easily group
+        firestoreOrderBy("fecha", "asc")
       );
       const querySnapshot = await getDocs(q);
       const fetchedSessions = querySnapshot.docs.map(docSnap => ({
         id: docSnap.id,
         ...docSnap.data()
       } as SesionEntry));
-      setAllUserSessions(fetchedSessions);
+      // setAllUserSessions(fetchedSessions); // Keep if needed
 
       const groupedByDate: SessionsByDate = {};
       fetchedSessions.forEach(session => {
-        if (session.fecha) { // Ensure fecha exists
-          const dateKey = session.fecha; // fecha is already YYYY-MM-DD
+        if (session.fecha) {
+          const dateKey = session.fecha;
           if (!groupedByDate[dateKey]) {
             groupedByDate[dateKey] = [];
           }
@@ -74,7 +75,6 @@ function CalendarPageContent() {
 
     } catch (error) {
       console.error("Error fetching user sessions for calendar:", error);
-      // Consider adding a toast message here
     }
     setIsLoading(false);
   }, [user]);
@@ -83,39 +83,43 @@ function CalendarPageContent() {
     fetchUserSessions();
   }, [fetchUserSessions]);
 
-  const CustomDayContent = (props: DayContentProps) => {
-    const dateKey = format(props.date, 'yyyy-MM-dd');
-    const daySessions = sessionsByDate[dateKey];
+  const datesWithSessionsForModifier = useMemo(() => {
+    return Object.keys(sessionsByDate).map(dateKey => {
+      const [year, month, day] = dateKey.split('-').map(Number);
+      return new Date(year, month - 1, day, 12,0,0); // Use noon to avoid DST shifts affecting the date
+    });
+  }, [sessionsByDate]);
 
-    if (!daySessions || daySessions.length === 0) {
-      // Render for days without sessions (day number centered)
-      return <div className="flex items-center justify-center h-full w-full relative">{format(props.date, 'd')}</div>;
-    }
-    
-    // Sort sessions by creation time if multiple on the same day
-    const sortedDaySessions = [...daySessions].sort((a,b) => a.createdAt.toMillis() - b.createdAt.toMillis());
+  const CustomDayContent = (dayProps: DayContentProps) => {
+    const dateKey = format(dayProps.date, 'yyyy-MM-dd');
+    const dayHasSessions = sessionsByDate[dateKey] && sessionsByDate[dateKey].length > 0;
 
-    // Render for days with sessions
     return (
-        <PopoverTrigger asChild>
-            <button 
-                type="button" 
-                className="flex flex-col items-center justify-start h-full w-full p-1 text-left relative hover:bg-accent/50 rounded-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                onClick={() => {setSelectedDayForPopover(props.date); setIsPopoverOpen(true);}}
-            >
-                <span className="absolute top-1 right-1 text-xs font-medium">{format(props.date, 'd')}</span>
-                <div className="mt-4 space-y-0.5 w-full overflow-hidden"> {/* Increased mt to push indicators further down */}
-                {sortedDaySessions.slice(0, 2).map(session => ( // Show max 2 items, add ellipsis if more
-                    <div key={session.id} className="text-xs bg-primary/30 text-primary-foreground px-1 py-0.5 rounded-sm truncate w-full font-semibold"> {/* Adjusted background for better visibility */}
-                    S: {session.numero_sesion || 'N/A'}
-                    </div>
-                ))}
-                {sortedDaySessions.length > 2 && <div className="text-xs text-muted-foreground text-center">...</div>}
-                </div>
-            </button>
-        </PopoverTrigger>
+      <PopoverTrigger asChild disabled={!dayHasSessions}>
+        <button
+          type="button"
+          className={cn(
+            "flex items-center justify-center h-full w-full rounded-sm",
+             // Apply hover only if it has sessions and is not already styled by a high-priority modifier
+            dayHasSessions && !dayProps.selected && !dayProps.today && !(datesWithSessionsForModifier.some(d => d.getTime() === dayProps.date.getTime())) && "hover:bg-accent/30",
+            "focus:outline-none focus:ring-1 focus:ring-primary" // General focus style
+          )}
+          onClick={() => {
+            setSelectedDayForPopover(dayProps.date); // Always set for potential popover
+            if (dayHasSessions) {
+              setIsPopoverOpen(true);
+            } else {
+              setIsPopoverOpen(false); // Close if no sessions or day is clicked that shouldn't open it
+            }
+          }}
+          // aria-selected is handled by DayPicker itself
+        >
+          {format(dayProps.date, 'd')}
+        </button>
+      </PopoverTrigger>
     );
   };
+  
 
   const sessionsForSelectedDay = useMemo(() => {
     if (!selectedDayForPopover) return [];
@@ -140,38 +144,36 @@ function CalendarPageContent() {
           Calendario de Sesiones
         </h1>
         <p className="text-lg text-foreground/80">
-          Visualiza tus sesiones de entrenamiento programadas.
+          Visualiza tus sesiones de entrenamiento programadas. Las fechas con sesiones se marcan en naranja.
         </p>
       </header>
 
       <Card className="shadow-xl">
         <CardContent className="p-0 md:p-6 flex justify-center">
             <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                {/* Trigger is now part of CustomDayContent, Popover needs a non-rendering trigger here or handle focus management carefully */}
-                {/* This empty div acts as a placeholder for Popover context if needed, but CustomDayContent's button is the actual trigger */}
+                {/* Trigger is handled by CustomDayContent, Popover needs a non-rendering trigger or focus managed */}
                 <div/> 
                 <Calendar
                     mode="single"
-                    selected={selectedDayForPopover || undefined} // Keep selected day highlighted if popover is for it
-                    onSelect={(day) => { 
-                        // This onSelect is for direct calendar selection if needed outside popover logic
-                        // For triggering popover, the button inside CustomDayContent is used.
-                        // If a day is clicked that has no sessions, we might not want to do anything or just log it.
-                        if (day) {
-                            const dateKey = format(day, 'yyyy-MM-dd');
-                            if (sessionsByDate[dateKey] && sessionsByDate[dateKey].length > 0) {
-                                setSelectedDayForPopover(day);
-                                setIsPopoverOpen(true);
-                            } else {
-                                setSelectedDayForPopover(null); // Clear selection if day has no sessions
-                                setIsPopoverOpen(false);
-                            }
-                        }
+                    selected={selectedDayForPopover || undefined}
+                    onSelect={(date) => {
+                      setSelectedDayForPopover(date || null);
+                      if (date) {
+                        const dateKey = format(date, 'yyyy-MM-dd');
+                        const dayHasSessions = sessionsByDate[dateKey] && sessionsByDate[dateKey].length > 0;
+                        setIsPopoverOpen(dayHasSessions);
+                      } else {
+                        setIsPopoverOpen(false);
+                      }
                     }}
                     month={currentDisplayMonth}
                     onMonthChange={setCurrentDisplayMonth}
                     locale={es}
                     className="w-full max-w-2xl"
+                    modifiers={{ hasSessions: datesWithSessionsForModifier }}
+                    modifierClassNames={{
+                        hasSessions: '!bg-accent/70 !text-accent-foreground hover:!bg-accent/90', // Orange for days with sessions
+                    }}
                     classNames={{
                         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 p-2",
                         month: "space-y-4 w-full",
@@ -179,9 +181,9 @@ function CalendarPageContent() {
                         head_row: "flex mt-4 w-full",
                         head_cell: "text-muted-foreground rounded-md w-[14.28%] text-sm font-medium",
                         row: "flex w-full mt-2",
-                        cell: "h-20 md:h-28 w-[14.28%] text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 border border-transparent",
+                        cell: "h-20 md:h-28 w-[14.28%] text-center text-sm p-0 relative focus-within:relative focus-within:z-20 border border-transparent",
                         day: "h-full w-full p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded-sm",
-                        day_selected: "bg-accent text-accent-foreground rounded-sm",
+                        day_selected: "!bg-primary !text-primary-foreground rounded-sm", // Blue for selected day
                         day_today: "bg-primary/10 text-primary font-bold rounded-sm ring-1 ring-primary",
                         day_outside: "text-muted-foreground opacity-50",
                     }}
@@ -225,7 +227,7 @@ function CalendarPageContent() {
         </CardContent>
       </Card>
 
-       {allUserSessions.length === 0 && !isLoading && (
+       {Object.keys(sessionsByDate).length === 0 && !isLoading && ( // Check if sessionsByDate is empty
         <Card className="mt-8 text-center py-12 bg-card shadow-md">
           <CardHeader>
             <CheckCircle className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
