@@ -88,12 +88,14 @@ function CalendarPageContent() {
     const daySessions = sessionsByDate[dateKey];
 
     if (!daySessions || daySessions.length === 0) {
+      // Render for days without sessions (day number centered)
       return <div className="flex items-center justify-center h-full w-full relative">{format(props.date, 'd')}</div>;
     }
     
     // Sort sessions by creation time if multiple on the same day
     const sortedDaySessions = [...daySessions].sort((a,b) => a.createdAt.toMillis() - b.createdAt.toMillis());
 
+    // Render for days with sessions
     return (
         <PopoverTrigger asChild>
             <button 
@@ -102,9 +104,9 @@ function CalendarPageContent() {
                 onClick={() => {setSelectedDayForPopover(props.date); setIsPopoverOpen(true);}}
             >
                 <span className="absolute top-1 right-1 text-xs font-medium">{format(props.date, 'd')}</span>
-                <div className="mt-3 space-y-0.5 w-full overflow-hidden">
+                <div className="mt-4 space-y-0.5 w-full overflow-hidden"> {/* Increased mt to push indicators further down */}
                 {sortedDaySessions.slice(0, 2).map(session => ( // Show max 2 items, add ellipsis if more
-                    <div key={session.id} className="text-xs bg-primary/20 text-primary-foreground px-1 py-0.5 rounded-sm truncate w-full font-semibold">
+                    <div key={session.id} className="text-xs bg-primary/30 text-primary-foreground px-1 py-0.5 rounded-sm truncate w-full font-semibold"> {/* Adjusted background for better visibility */}
                     S: {session.numero_sesion || 'N/A'}
                     </div>
                 ))}
