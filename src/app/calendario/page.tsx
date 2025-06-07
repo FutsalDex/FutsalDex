@@ -82,10 +82,12 @@ function CalendarPageContent() {
   }, [fetchUserSessions]);
 
   const datesWithSessionsForModifier = useMemo(() => {
-    return Object.keys(sessionsByDate).map(dateKey => {
+    const dates = Object.keys(sessionsByDate).map(dateKey => {
       const [year, month, day] = dateKey.split('-').map(Number);
-      return new Date(year, month - 1, day, 12,0,0); // Use noon to avoid DST shifts affecting the date
+      return new Date(year, month - 1, day, 12,0,0); 
     });
+    // console.log("DEBUG: Dates with sessions for modifier:", dates); // Para depurar
+    return dates;
   }, [sessionsByDate]);
 
   const CustomDayContent = (dayProps: DayContentProps) => {
@@ -97,8 +99,8 @@ function CalendarPageContent() {
         <button
           type="button"
           className={cn(
-            "flex items-center justify-center h-full w-full rounded-sm",
-            "focus:outline-none focus:ring-1 focus:ring-primary" // General focus style
+            "relative flex items-center justify-center h-full w-full rounded-sm", // Añadido relative aquí
+            "focus:outline-none focus:ring-1 focus:ring-primary" 
           )}
           onClick={() => {
             setSelectedDayForPopover(dayProps.date);
@@ -110,6 +112,8 @@ function CalendarPageContent() {
           }}
         >
           {format(dayProps.date, 'd')}
+          {/* DEBUG: Pequeño punto rojo si el día tiene sesiones */}
+          {dayHasSessions && <span className="absolute bottom-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full" title="Tiene sesión"></span>}
         </button>
       </PopoverTrigger>
     );
@@ -166,7 +170,8 @@ function CalendarPageContent() {
                     className="w-full max-w-2xl"
                     modifiers={{ hasSessions: datesWithSessionsForModifier }}
                     modifierClassNames={{
-                        hasSessions: '!bg-accent !text-accent-foreground hover:!bg-accent/80', // Solid orange for days with sessions
+                        // Prueba con un color directo de Tailwind para el fondo
+                        hasSessions: 'bg-orange-400 text-white hover:bg-orange-500', 
                     }}
                     classNames={{
                         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 p-2",
@@ -259,3 +264,4 @@ export default function CalendarioPage() {
     </AuthGuard>
   );
 }
+
