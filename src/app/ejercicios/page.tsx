@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-// Removing the numbered Pagination import, using a "Load More" button as in the original stable state
-// import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection as firestoreCollection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
@@ -62,7 +60,6 @@ export default function EjerciciosPage() {
   const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1); 
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [rawFetchedItemsCountOnPage, setRawFetchedItemsCountOnPage] = useState(0);
   const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([]);
   
@@ -80,9 +77,11 @@ export default function EjerciciosPage() {
     currentSearch: string,
     currentPhase: string,
     currentAge: string,
-    currentThematicCat: string
-  ) => {
+    currentThematicCat: string,
+    startAfterDoc: QueryDocumentSnapshot<DocumentData> | null
+  ): Promise<QueryDocumentSnapshot<DocumentData> | null> => {
     setIsLoading(true);
+    let newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null = null;
     try {
       const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
       let constraintsList: QueryConstraint[] = [];
@@ -103,69 +102,95 @@ export default function EjerciciosPage() {
       const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
       constraintsList.push(limit(currentLimit));
       
-      if (pageToFetch > 1 && pageCursors[pageToFetch - 2]) {
-         constraintsList.push(startAfter(pageCursors[pageToFetch - 2]!));
+      if (startAfterDoc) {
+         constraintsList.push(startAfter(startAfterDoc));
       }
-
 
       const q = query(ejerciciosCollectionRef, ...constraintsList);
       const documentSnapshots = await getDocs(q);
-      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
-
+      
       let fetchedEjerciciosFromDB = documentSnapshots.docs.map(docSnap => ({
         id: docSnap.id,
         ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
       
-      fetchedEjerciciosFromDB = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
+      // Client-side filtering for isVisible and search term
+      let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
 
       if (currentSearch.trim() !== "") {
         const lowerSearchTerms = currentSearch.toLowerCase().split(' ').filter(term => term.length > 0);
-        fetchedEjerciciosFromDB = fetchedEjerciciosFromDB.filter(ej => {
+        filteredAndSearchedEjercicios = filteredAndSearchedEjercicios.filter(ej => {
           const lowerEjercicioName = ej.ejercicio.toLowerCase();
           return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
         });
       }
-
-      setEjercicios(pageToFetch === 1 ? fetchedEjerciciosFromDB : prev => [...prev, ...fetchedEjerciciosFromDB]);
       
-      const newLastVisible = documentSnapshots.docs[documentSnapshots.docs.length - 1] || null;
-      
-      if (pageToFetch === 1) {
-        setPageCursors(newLastVisible ? [newLastVisible] : []);
-      } else if (newLastVisible) {
-        setPageCursors(prev => [...prev.slice(0, pageToFetch - 1), newLastVisible]);
-      }
-
+      setEjercicios(pageToFetch === 1 ? filteredAndSearchedEjercicios : prev => [...prev, ...filteredAndSearchedEjercicios]);
+      newLastVisibleDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1] || null;
+      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
 
     } catch (error: any) {
       console.error("Error fetching exercises: ", error);
       if (error.code === 'failed-precondition') {
         toast({
           title: "Índice Requerido por Firestore",
-          description: (
-            <div className="text-sm">
-              <p>La combinación actual de filtros y/o ordenación necesita un índice compuesto en Firestore que no existe.</p>
-              <p className="mt-1">Por favor, abre la consola de desarrollador del navegador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p>
-            </div>
-          ),
-          variant: "destructive",
-          duration: 30000,
+          description: ( <div className="text-sm"> <p>La combinación actual de filtros y/o ordenación necesita un índice compuesto en Firestore que no existe.</p> <p className="mt-1">Por favor, abre la consola de desarrollador del navegador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p> </div> ),
+          variant: "destructive", duration: 30000,
         });
       } else {
         toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
       }
     }
     setIsLoading(false);
-  }, [isRegisteredUser, toast, pageCursors]);
+    return newLastVisibleDoc;
+  }, [isRegisteredUser, toast, setIsLoading, setEjercicios, setRawFetchedItemsCountOnPage]);
 
 
   useEffect(() => {
-    setCurrentPage(1);
-    setPageCursors([]); 
-    fetchEjercicios(1, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
+    const startAfterDoc = currentPage > 1 && pageCursors[currentPage - 2] ? pageCursors[currentPage - 2] : null;
+    
+    fetchEjercicios(currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, startAfterDoc)
+      .then(newLastVisibleDoc => {
+        if (currentPage === 1) {
+          setPageCursors(newLastVisibleDoc ? [newLastVisibleDoc] : []);
+        } else if (newLastVisibleDoc) {
+          setPageCursors(prev => {
+            const newCursors = [...prev]; // Create a new array
+            newCursors[currentPage - 1] = newLastVisibleDoc; // currentPage is 1-based, array is 0-based
+            return newCursors;
+          });
+        }
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]); 
+  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]); // fetchEjercicios is stable
+
+  const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+    setPageCursors([]);
+    setEjercicios([]);
+  };
+
+  const handlePhaseFilterChange = (value: string) => {
+    setPhaseFilter(value);
+    setCurrentPage(1);
+    setPageCursors([]);
+    setEjercicios([]);
+  };
+
+  const handleThematicCategoryFilterChange = (value: string) => {
+    setThematicCategoryFilter(value);
+    setCurrentPage(1);
+    setPageCursors([]);
+    setEjercicios([]);
+  };
+
+  const handleSelectedAgeFilterChange = (value: string) => {
+    setSelectedAgeFilter(value);
+    setCurrentPage(1);
+    setPageCursors([]);
+    setEjercicios([]);
+  };
 
   useEffect(() => {
     if (user && isRegisteredUser) {
@@ -180,11 +205,7 @@ export default function EjerciciosPage() {
           setFavorites(userFavorites);
         } catch (error) {
           console.error("Error loading favorites:", error);
-          toast({
-            title: "Error",
-            description: "No se pudieron cargar tus favoritos.",
-            variant: "destructive",
-          });
+          toast({ title: "Error", description: "No se pudieron cargar tus favoritos.", variant: "destructive" });
         }
       };
       loadFavorites();
@@ -195,58 +216,39 @@ export default function EjerciciosPage() {
 
   const toggleFavorite = async (exerciseId: string) => {
     if (!user || !isRegisteredUser) {
-      toast({
-        title: "Acción Requerida",
-        description: "Inicia sesión para guardar tus ejercicios favoritos.",
-        variant: "default",
-        action: <Button asChild variant="outline"><Link href="/login">Iniciar Sesión</Link></Button>
-      });
+      toast({ title: "Acción Requerida", description: "Inicia sesión para guardar tus ejercicios favoritos.", variant: "default", action: <Button asChild variant="outline"><Link href="/login">Iniciar Sesión</Link></Button> });
       return;
     }
-
     const isCurrentlyFavorite = !!favorites[exerciseId];
     const newFavoritesState = { ...favorites, [exerciseId]: !isCurrentlyFavorite };
     setFavorites(newFavoritesState);
-
     try {
       const favDocRef = doc(db, "users", user.uid, "user_favorites", exerciseId);
       if (!isCurrentlyFavorite) {
         await setDoc(favDocRef, { addedAt: serverTimestamp() });
-        toast({
-          title: "Favorito Añadido",
-          description: "El ejercicio se ha añadido a tus favoritos.",
-        });
+        toast({ title: "Favorito Añadido", description: "El ejercicio se ha añadido a tus favoritos." });
       } else {
         await deleteDoc(favDocRef);
-        toast({
-          title: "Favorito Eliminado",
-          description: "El ejercicio se ha eliminado de tus favoritos.",
-        });
+        toast({ title: "Favorito Eliminado", description: "El ejercicio se ha eliminado de tus favoritos." });
       }
     } catch (error) {
       console.error("Error updating favorite status:", error);
       setFavorites(favorites); 
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el estado de favorito. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "No se pudo actualizar el estado de favorito. Inténtalo de nuevo.", variant: "destructive" });
     }
   };
 
   const handlePageChange = (newPage: number) => {
-    if ((newPage < currentPage && newPage < 1) || isLoading) return;
+    if (isLoading) return;
+    if (newPage < 1 && currentPage === 1) return; // Prevent going to page 0 or negative
     
-    const isGoingBack = newPage < currentPage;
-    if (isGoingBack && newPage > 0) {
-        // When going back, we need to ensure pageCursors is trimmed if we jump back multiple pages,
-        // but for a single step back, the cursor for the *target* page's start is pageCursors[newPage - 1]
-        // and to load page `newPage`, we'd need the cursor from page `newPage - 1`.
-        // The fetchEjercicios will use pageCursors[newPage - 2] if newPage > 1.
-    }
-    
+    // If going back from page 1, do nothing (already handled by disabled state)
+    // If going to a page that doesn't make sense (e.g. beyond available data when already on last page),
+    // the `canGoNext` logic should prevent this, but as a safeguard:
+    if (newPage > currentPage && !canGoNext) return;
+
     setCurrentPage(newPage);
-    fetchEjercicios(newPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter);
+    // The main useEffect will now handle fetching for the new currentPage
   };
   
   const getAgeFilterButtonText = () => {
@@ -254,24 +256,19 @@ export default function EjerciciosPage() {
     return selectedAgeFilter;
   };
   
-  const formatDuracion = (duracion: string) => {
-    return duracion ? `${duracion}` : 'N/A';
-  }
+  const formatDuracion = (duracion: string) => duracion ? `${duracion}` : 'N/A';
 
   const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
   const canGoPrevious = currentPage > 1;
-  const canGoNext = rawFetchedItemsCountOnPage === currentLimit && pageCursors[currentPage -1] !== null;
+  const canGoNext = rawFetchedItemsCountOnPage === currentLimit && (pageCursors.length === 0 || pageCursors[currentPage -1] !== null) ;
+
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
       <header className="mb-8">
         <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Biblioteca de Ejercicios</h1>
-        <p className="text-lg text-foreground/80">
-          Explora nuestra colección de ejercicios de futsal.
-        </p>
-         <p className="text-lg text-foreground/80">
-          Filtra por nombre, fase, categoría o edad.
-        </p>
+        <p className="text-lg text-foreground/80">Explora nuestra colección de ejercicios de futsal.</p>
+        <p className="text-lg text-foreground/80">Filtra por nombre, fase, categoría o edad.</p>
       </header>
 
       {!isRegisteredUser && (
@@ -281,9 +278,7 @@ export default function EjerciciosPage() {
               <Lock className="h-8 w-8 text-accent mr-4" />
               <div>
                 <h3 className="text-lg font-semibold text-accent font-headline">Acceso Limitado</h3>
-                <p className="text-sm text-accent/80">
-                  Estás viendo una vista previa ({GUEST_ITEM_LIMIT} ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.
-                </p>
+                <p className="text-sm text-accent/80">Estás viendo una vista previa ({GUEST_ITEM_LIMIT} ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.</p>
               </div>
             </div>
             <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
@@ -300,13 +295,13 @@ export default function EjerciciosPage() {
               type="text"
               placeholder="Buscar ejercicio por nombre..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchTermChange}
               className="pl-10"
             />
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           </div>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Select value={phaseFilter} onValueChange={setPhaseFilter}>
+            <Select value={phaseFilter} onValueChange={handlePhaseFilterChange}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filtrar por Fase" />
@@ -317,7 +312,7 @@ export default function EjerciciosPage() {
               </SelectContent>
             </Select>
 
-            <Select value={thematicCategoryFilter} onValueChange={setThematicCategoryFilter}>
+            <Select value={thematicCategoryFilter} onValueChange={handleThematicCategoryFilterChange}>
               <SelectTrigger className="w-full sm:w-[220px]">
                 <ListFilter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Categoría" />
@@ -343,7 +338,7 @@ export default function EjerciciosPage() {
               <DropdownMenuContent className="w-[250px]">
                 <DropdownMenuLabel>Selecciona Edad</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={setSelectedAgeFilter}>
+                <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={handleSelectedAgeFilterChange}>
                   <DropdownMenuRadioItem value={ALL_FILTER_VALUE}>Todas las Edades</DropdownMenuRadioItem>
                   {uniqueAgeCategories.map(ageCat => (
                     <DropdownMenuRadioItem key={ageCat} value={ageCat}>
@@ -434,6 +429,4 @@ export default function EjerciciosPage() {
     </div>
   );
 }
-    
-
     
