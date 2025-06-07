@@ -74,13 +74,12 @@ export default function EjerciciosPage() {
 
   const fetchEjercicios = useCallback(async (
     pageToFetch: number,
-    currentSearch: string,
+    currentSearchTerm: string,
     currentPhase: string,
-    currentAge: string,
-    currentThematicCat: string,
-    startAfterDoc: QueryDocumentSnapshot<DocumentData> | null
+    currentAgeCategory: string,
+    currentThematicCategory: string,
+    docToStartAfter: QueryDocumentSnapshot<DocumentData> | null
   ): Promise<QueryDocumentSnapshot<DocumentData> | null> => {
-    setIsLoading(true);
     let newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null = null;
     try {
       const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
@@ -89,11 +88,11 @@ export default function EjerciciosPage() {
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
         constraintsList.push(where('fase', '==', currentPhase));
       }
-      if (currentAge && currentAge !== ALL_FILTER_VALUE) {
-        constraintsList.push(where('edad', 'array-contains', currentAge));
+      if (currentAgeCategory && currentAgeCategory !== ALL_FILTER_VALUE) {
+        constraintsList.push(where('edad', 'array-contains', currentAgeCategory));
       }
-      if (currentThematicCat && currentThematicCat !== ALL_FILTER_VALUE) {
-        constraintsList.push(where('categoria', '==', currentThematicCat));
+      if (currentThematicCategory && currentThematicCategory !== ALL_FILTER_VALUE) {
+        constraintsList.push(where('categoria', '==', currentThematicCategory));
       }
       
       constraintsList.push(firestoreOrderBy('ejercicio'));
@@ -102,8 +101,8 @@ export default function EjerciciosPage() {
       const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
       constraintsList.push(limit(currentLimit));
       
-      if (startAfterDoc) {
-         constraintsList.push(startAfter(startAfterDoc));
+      if (docToStartAfter) {
+         constraintsList.push(startAfter(docToStartAfter));
       }
 
       const q = query(ejerciciosCollectionRef, ...constraintsList);
@@ -114,18 +113,17 @@ export default function EjerciciosPage() {
         ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
       
-      // Client-side filtering for isVisible and search term
       let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
 
-      if (currentSearch.trim() !== "") {
-        const lowerSearchTerms = currentSearch.toLowerCase().split(' ').filter(term => term.length > 0);
+      if (currentSearchTerm.trim() !== "") {
+        const lowerSearchTerms = currentSearchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
         filteredAndSearchedEjercicios = filteredAndSearchedEjercicios.filter(ej => {
           const lowerEjercicioName = ej.ejercicio.toLowerCase();
           return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
         });
       }
       
-      setEjercicios(pageToFetch === 1 ? filteredAndSearchedEjercicios : prev => [...prev, ...filteredAndSearchedEjercicios]);
+      setEjercicios(filteredAndSearchedEjercicios); // Replace exercises for the current page
       newLastVisibleDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1] || null;
       setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
 
@@ -134,62 +132,84 @@ export default function EjerciciosPage() {
       if (error.code === 'failed-precondition') {
         toast({
           title: "Índice Requerido por Firestore",
-          description: ( <div className="text-sm"> <p>La combinación actual de filtros y/o ordenación necesita un índice compuesto en Firestore que no existe.</p> <p className="mt-1">Por favor, abre la consola de desarrollador del navegador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p> </div> ),
+          description: ( <div className="text-sm"> <p>La combinación actual de filtros y/o ordenación necesita un índice compuesto en Firestore que no existe.</p> <p className="mt-1">Por favor, abre la consola de desarrollador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p> </div> ),
           variant: "destructive", duration: 30000,
         });
       } else {
         toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
       }
+      setEjercicios([]); // Clear exercises on error
+      setRawFetchedItemsCountOnPage(0);
     }
-    setIsLoading(false);
     return newLastVisibleDoc;
-  }, [isRegisteredUser, toast, setIsLoading, setEjercicios, setRawFetchedItemsCountOnPage]);
+  }, [isRegisteredUser, toast, setEjercicios, setRawFetchedItemsCountOnPage]);
 
 
   useEffect(() => {
-    const startAfterDoc = currentPage > 1 && pageCursors[currentPage - 2] ? pageCursors[currentPage - 2] : null;
-    
-    fetchEjercicios(currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, startAfterDoc)
-      .then(newLastVisibleDoc => {
-        if (currentPage === 1) {
-          setPageCursors(newLastVisibleDoc ? [newLastVisibleDoc] : []);
-        } else if (newLastVisibleDoc) {
-          setPageCursors(prev => {
-            const newCursors = [...prev]; // Create a new array
-            newCursors[currentPage - 1] = newLastVisibleDoc; // currentPage is 1-based, array is 0-based
+    const fetchDataForCurrentPage = async () => {
+      setIsLoading(true);
+      const startAfterDoc = currentPage > 1 && pageCursors[currentPage - 2] ? pageCursors[currentPage - 2] : null;
+
+      const newLastVisibleDoc = await fetchEjercicios(
+        currentPage,
+        searchTerm,
+        phaseFilter,
+        selectedAgeFilter,
+        thematicCategoryFilter,
+        startAfterDoc
+      );
+      
+      if (currentPage === 1) {
+        setPageCursors(newLastVisibleDoc ? [newLastVisibleDoc] : []);
+      } else if (newLastVisibleDoc) {
+        setPageCursors(prev => {
+          const newCursors = [...prev];
+          newCursors[currentPage - 1] = newLastVisibleDoc;
+          return newCursors;
+        });
+      } else if (currentPage > 0) { 
+         setPageCursors(prev => {
+            const newCursors = [...prev];
+            if (newCursors.length >= currentPage) {
+                newCursors[currentPage - 1] = null; 
+                while (newCursors.length > 0 && newCursors[newCursors.length - 1] === null) {
+                    newCursors.pop();
+                }
+            }
             return newCursors;
-          });
-        }
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]); // fetchEjercicios is stable
+        });
+      }
+      setIsLoading(false);
+    };
+
+    fetchDataForCurrentPage();
+  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]);
+
+
+  const resetPaginationAndFilters = () => {
+    setCurrentPage(1);
+    setPageCursors([]);
+    setEjercicios([]); 
+  };
 
   const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1);
-    setPageCursors([]);
-    setEjercicios([]);
+    resetPaginationAndFilters();
   };
 
   const handlePhaseFilterChange = (value: string) => {
     setPhaseFilter(value);
-    setCurrentPage(1);
-    setPageCursors([]);
-    setEjercicios([]);
+    resetPaginationAndFilters();
   };
 
   const handleThematicCategoryFilterChange = (value: string) => {
     setThematicCategoryFilter(value);
-    setCurrentPage(1);
-    setPageCursors([]);
-    setEjercicios([]);
+    resetPaginationAndFilters();
   };
 
   const handleSelectedAgeFilterChange = (value: string) => {
     setSelectedAgeFilter(value);
-    setCurrentPage(1);
-    setPageCursors([]);
-    setEjercicios([]);
+    resetPaginationAndFilters();
   };
 
   useEffect(() => {
@@ -237,18 +257,12 @@ export default function EjerciciosPage() {
       toast({ title: "Error", description: "No se pudo actualizar el estado de favorito. Inténtalo de nuevo.", variant: "destructive" });
     }
   };
-
+  
   const handlePageChange = (newPage: number) => {
     if (isLoading) return;
-    if (newPage < 1 && currentPage === 1) return; // Prevent going to page 0 or negative
-    
-    // If going back from page 1, do nothing (already handled by disabled state)
-    // If going to a page that doesn't make sense (e.g. beyond available data when already on last page),
-    // the `canGoNext` logic should prevent this, but as a safeguard:
+    if (newPage < 1 && currentPage === 1) return;
     if (newPage > currentPage && !canGoNext) return;
-
     setCurrentPage(newPage);
-    // The main useEffect will now handle fetching for the new currentPage
   };
   
   const getAgeFilterButtonText = () => {
@@ -260,7 +274,7 @@ export default function EjerciciosPage() {
 
   const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
   const canGoPrevious = currentPage > 1;
-  const canGoNext = rawFetchedItemsCountOnPage === currentLimit && (pageCursors.length === 0 || pageCursors[currentPage -1] !== null) ;
+  const canGoNext = rawFetchedItemsCountOnPage === currentLimit;
 
 
   return (
