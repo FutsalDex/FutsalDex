@@ -54,6 +54,7 @@ interface Sesion {
   sessionFocus?: string;
 }
 
+const ALL_MONTHS = "ALL";
 
 const MESES = [
   { value: 1, label: "Enero" }, { value: 2, label: "Febrero" }, { value: 3, label: "Marzo" },
@@ -91,39 +92,43 @@ function MisSesionesContent() {
   const [sessionToDeleteId, setSessionToDeleteId] = useState<string | null>(null);
 
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
-  const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
-  const [activeFilter, setActiveFilter] = useState<{ year: number; month: number } | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>(ALL_MONTHS);
+  const [activeFilter, setActiveFilter] = useState<{ year: number; month: number | 'ALL' } | null>(null);
 
-  const fetchSesiones = useCallback(async (filter?: { year: number; month: number } | null) => {
+  const fetchSesiones = useCallback(async (filter?: { year: number; month: number | 'ALL' } | null) => {
     if (!user) return;
     setIsLoading(true);
 
-    let targetYear: number, targetMonth: number;
-
-    if (filter) {
-        targetYear = filter.year;
-        targetMonth = filter.month;
-    } else {
-        const now = new Date();
-        targetYear = now.getFullYear();
-        targetMonth = now.getMonth() + 1;
-    }
-
-    const monthString = targetMonth < 10 ? `0${targetMonth}` : `${targetMonth}`;
-    const startDateString = `${targetYear}-${monthString}-01`;
-
-    let nextMonth = targetMonth === 12 ? 1 : targetMonth + 1;
-    let nextYear = targetMonth === 12 ? targetYear + 1 : targetYear;
-    const nextMonthString = nextMonth < 10 ? `0${nextMonth}` : `${nextMonth}`;
-    const startOfNextMonthString = `${nextYear}-${nextMonthString}-01`;
-
     let q_constraints = [
         where("userId", "==", user.uid),
-        where("fecha", ">=", startDateString),
-        where("fecha", "<", startOfNextMonthString),
-        firestoreOrderBy("fecha", "asc"),
-        firestoreOrderBy("createdAt", "asc")
     ];
+
+    if (filter) {
+        const { year, month } = filter;
+        let startDateString: string;
+        let endDateString: string;
+
+        if (month === ALL_MONTHS) {
+            // Filter for the whole year
+            startDateString = `${year}-01-01`;
+            endDateString = `${year + 1}-01-01`;
+        } else {
+            // Filter for a specific month
+            const monthString = month < 10 ? `0${month}` : `${month}`;
+            startDateString = `${year}-${monthString}-01`;
+            
+            let nextMonth = month === 12 ? 1 : month + 1;
+            let nextYear = month === 12 ? year + 1 : year;
+            const nextMonthString = nextMonth < 10 ? `0${nextMonth}` : `${nextMonth}`;
+            endDateString = `${nextYear}-${nextMonthString}-01`;
+        }
+        
+        q_constraints.push(where("fecha", ">=", startDateString));
+        q_constraints.push(where("fecha", "<", endDateString));
+    }
+    
+    q_constraints.push(firestoreOrderBy("fecha", "asc"));
+    q_constraints.push(firestoreOrderBy("createdAt", "asc"));
 
     try {
       const finalQuery = query(collection(db, "mis_sesiones"), ...q_constraints);
@@ -158,18 +163,18 @@ function MisSesionesContent() {
 
   useEffect(() => {
     const now = new Date();
-    const initialFilter = { year: now.getFullYear(), month: now.getMonth() + 1 };
+    const initialFilter = { year: now.getFullYear(), month: ALL_MONTHS as 'ALL' };
     setActiveFilter(initialFilter);
     setSelectedYear(initialFilter.year.toString());
-    setSelectedMonth((initialFilter.month).toString());
+    setSelectedMonth(initialFilter.month);
     fetchSesiones(initialFilter);
   }, [fetchSesiones]);
 
   const handleApplyFilter = () => {
     if (selectedYear && selectedMonth) {
       const yearNum = parseInt(selectedYear, 10);
-      const monthNum = parseInt(selectedMonth, 10);
-      const newFilter = { year: yearNum, month: monthNum };
+      const monthValue = selectedMonth === ALL_MONTHS ? ALL_MONTHS : parseInt(selectedMonth, 10);
+      const newFilter = { year: yearNum, month: monthValue };
       setActiveFilter(newFilter);
       fetchSesiones(newFilter);
     }
@@ -238,7 +243,7 @@ function MisSesionesContent() {
         fetchSesiones(activeFilter);
       } else {
         const now = new Date();
-        fetchSesiones({ year: now.getFullYear(), month: now.getMonth() + 1 });
+        fetchSesiones({ year: now.getFullYear(), month: ALL_MONTHS as 'ALL' });
       }
       toast({
         title: "Sesión Eliminada",
@@ -292,7 +297,7 @@ function MisSesionesContent() {
         <CardHeader>
           <CardTitle className="text-xl font-headline flex items-center">
             <FilterIcon className="mr-2 h-5 w-5 text-primary" />
-            Filtrar Sesiones por Mes
+            Filtrar Sesiones
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-4 items-center">
@@ -309,6 +314,7 @@ function MisSesionesContent() {
               <SelectValue placeholder="Mes" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={ALL_MONTHS}>Todos los meses</SelectItem>
               {MESES.map(mes => <SelectItem key={mes.value} value={mes.value.toString()}>{mes.label}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -326,14 +332,14 @@ function MisSesionesContent() {
           <CardHeader>
             <CalendarDays className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
             <CardTitle className="text-2xl font-headline text-primary">
-              {activeFilter ? "No Hay Sesiones para este Mes" : "No Tienes Sesiones este Mes"}
+              {activeFilter ? "No Hay Sesiones para este Periodo" : "No Tienes Sesiones"}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <CardDescription className="mb-6 text-foreground/80">
               {activeFilter
-                ? `No se encontraron sesiones para ${MESES.find(m=>m.value === activeFilter.month)?.label} de ${activeFilter.year}.`
-                : "Parece que aún no has creado ninguna sesión de entrenamiento este mes."}
+                ? `No se encontraron sesiones para tu selección. Prueba con otro periodo.`
+                : "Parece que aún no has creado ninguna sesión de entrenamiento."}
               <br/>
               ¡Empieza ahora o ajusta los filtros!
             </CardDescription>
@@ -451,5 +457,3 @@ function MisSesionesContent() {
     </div>
   );
 }
-
-    
