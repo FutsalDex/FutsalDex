@@ -80,20 +80,12 @@ export default function EjerciciosPage() {
       setIsCounting(true);
       try {
         const coll = firestoreCollection(db, "ejercicios_futsal");
-        let countConstraints: QueryConstraint[];
+        let countConstraints: QueryConstraint[] = [
+          where('isVisible', '==', true)
+        ];
         
-        // Firestore limitation: '!=' and 'array-contains' cannot be used in the same query.
-        // So, we use a more inclusive filter when 'All Ages' is selected.
         if (selectedAgeFilter && selectedAgeFilter !== ALL_FILTER_VALUE) {
-            // This will only count exercises that are explicitly visible and match the age.
-            // Old exercises without the isVisible flag will be missed.
-            countConstraints = [
-                where('isVisible', '==', true),
-                where('edad', 'array-contains', selectedAgeFilter)
-            ];
-        } else {
-            // This will count all exercises that are not explicitly hidden (isVisible is true or does not exist).
-            countConstraints = [where('isVisible', '!=', false)];
+            countConstraints.push(where('edad', 'array-contains', selectedAgeFilter));
         }
 
         if (phaseFilter && phaseFilter !== ALL_FILTER_VALUE) {
@@ -128,19 +120,13 @@ export default function EjerciciosPage() {
     let newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null = null;
     try {
       const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
-      let constraintsList: QueryConstraint[];
+      
+      let constraintsList: QueryConstraint[] = [
+        where('isVisible', '==', true)
+      ];
 
-      // Firestore limitation: '!=' and 'array-contains' cannot be used in the same query.
-      // So, we use a more inclusive filter when 'All Ages' is selected.
       if (currentAgeCategory && currentAgeCategory !== ALL_FILTER_VALUE) {
-        // This will only fetch exercises that are explicitly visible and match the age.
-        constraintsList = [
-            where('isVisible', '==', true),
-            where('edad', 'array-contains', currentAgeCategory)
-        ];
-      } else {
-        // This will fetch all exercises that are not explicitly hidden.
-        constraintsList = [where('isVisible', '!=', false)];
+        constraintsList.push(where('edad', 'array-contains', currentAgeCategory));
       }
 
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
@@ -151,7 +137,6 @@ export default function EjerciciosPage() {
       }
       
       constraintsList.push(firestoreOrderBy('ejercicio'));
-      constraintsList.push(firestoreOrderBy('__name__', 'asc')); 
 
       const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
       constraintsList.push(limit(currentLimit));
