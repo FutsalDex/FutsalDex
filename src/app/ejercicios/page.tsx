@@ -334,80 +334,77 @@ export default function EjerciciosPage() {
       )}
 
       <div className="mb-6 space-y-4">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                <div className="relative flex-grow w-full sm:w-auto">
-                    <Input
-                    type="text"
-                    placeholder="Buscar ejercicio por nombre..."
-                    value={searchTerm}
-                    onChange={handleSearchTermChange}
-                    className="pl-10"
-                    />
-                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                </div>
-                <Select value={phaseFilter} onValueChange={handlePhaseFilterChange}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+            <div className="relative flex-grow w-full md:w-auto">
+                <Input
+                type="text"
+                placeholder="Buscar ejercicio por nombre..."
+                value={searchTerm}
+                onChange={handleSearchTermChange}
+                className="pl-10"
+                />
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            </div>
+            <Select value={phaseFilter} onValueChange={handlePhaseFilterChange}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filtrar por Fase" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value={ALL_FILTER_VALUE}>Todas las Fases</SelectItem>
+                    {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
+                </SelectContent>
+            </Select>
+
+            <Select value={thematicCategoryFilter} onValueChange={handleThematicCategoryFilterChange}>
+                <SelectTrigger className="w-full md:w-[220px]">
+                    <ListFilter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value={ALL_FILTER_VALUE}>Todas las Categorías</SelectItem>
+                    {CATEGORIAS_TEMATICAS_EJERCICIOS.map(category => (
+                    <SelectItem key={category.id} value={category.label}>{category.label}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full md:w-[200px] justify-between">
+                    <div className="flex items-center">
                         <Filter className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Filtrar por Fase" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value={ALL_FILTER_VALUE}>Todas las Fases</SelectItem>
-                        {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-
-                <Select value={thematicCategoryFilter} onValueChange={handleThematicCategoryFilterChange}>
-                    <SelectTrigger className="w-full sm:w-[220px]">
-                        <ListFilter className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value={ALL_FILTER_VALUE}>Todas las Categorías</SelectItem>
-                        {CATEGORIAS_TEMATICAS_EJERCICIOS.map(category => (
-                        <SelectItem key={category.id} value={category.label}>{category.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full sm:w-[200px] justify-between">
-                        <div className="flex items-center">
-                            <Filter className="h-4 w-4 mr-2" />
-                            {getAgeFilterButtonText()}
-                        </div>
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-[250px]">
-                        <DropdownMenuLabel>Selecciona Edad</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={handleSelectedAgeFilterChange}>
-                        <DropdownMenuRadioItem value={ALL_FILTER_VALUE}>Todas las Edades</DropdownMenuRadioItem>
-                        {uniqueAgeCategories.map(ageCat => (
-                            <DropdownMenuRadioItem key={ageCat} value={ageCat}>
-                            {ageCat}
-                            </DropdownMenuRadioItem>
-                        ))}
-                        </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-
-             <div className="text-right text-sm text-muted-foreground w-full md:w-auto shrink-0">
-                {searchTerm.trim() === '' ? (
-                <>
-                    {isCounting ? (
-                    <Loader2 className="inline-block h-4 w-4 animate-spin" />
-                    ) : (
-                    <span className='font-medium'>{filteredCount ?? 0} ejercicios</span>
-                    )}
-                </>
+                        {getAgeFilterButtonText()}
+                    </div>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[250px]">
+                    <DropdownMenuLabel>Selecciona Edad</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={handleSelectedAgeFilterChange}>
+                    <DropdownMenuRadioItem value={ALL_FILTER_VALUE}>Todas las Edades</DropdownMenuRadioItem>
+                    {uniqueAgeCategories.map(ageCat => (
+                        <DropdownMenuRadioItem key={ageCat} value={ageCat}>
+                        {ageCat}
+                        </DropdownMenuRadioItem>
+                    ))}
+                    </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+        <div className="text-left text-sm text-muted-foreground pt-2">
+            {searchTerm.trim() === '' ? (
+            <>
+                {isCounting ? (
+                <Loader2 className="inline-block h-4 w-4 animate-spin" />
                 ) : (
-                <span className='italic'>Buscando por: "{searchTerm}"</span>
+                <span>Total de ejercicios: <span className='font-bold text-foreground'>{filteredCount ?? 0}</span></span>
                 )}
-            </div>
+            </>
+            ) : (
+            <span className='italic'>Buscando por: "{searchTerm}"</span>
+            )}
         </div>
       </div>
 
