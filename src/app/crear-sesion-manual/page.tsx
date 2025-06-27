@@ -115,41 +115,30 @@ function CrearSesionManualContent() {
       const q = query(
         collection(db, 'ejercicios_futsal'), 
         where('fase', '==', fase), 
-        where('isVisible', '==', true), // Solo ejercicios visibles
         firestoreOrderBy('ejercicio'), 
         limit(150)
       );
       const snapshot = await getDocs(q);
-      const ejerciciosData = snapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ejercicio: docSnap.data().ejercicio || "",
-        descripcion: docSnap.data().descripcion || "",
-        objetivos: docSnap.data().objetivos || "",
-        fase: docSnap.data().fase || "",
-        categoria: docSnap.data().categoria || "",
-        duracion: docSnap.data().duracion || "0",
-        isVisible: docSnap.data().isVisible === undefined ? true : docSnap.data().isVisible,
-        ...(docSnap.data() as Omit<Ejercicio, 'id' | 'ejercicio' | 'descripcion' | 'objetivos' | 'fase' | 'categoria' | 'duracion' | 'isVisible'>)
-      } as Ejercicio));
-      setter(ejerciciosData);
+      const ejerciciosData = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            ejercicio: data.ejercicio || "",
+            descripcion: data.descripcion || "",
+            objetivos: data.objetivos || "",
+            fase: data.fase || "",
+            categoria: data.categoria || "",
+            duracion: data.duracion || "0",
+            isVisible: data.isVisible, // Keep original value (true, false, or undefined)
+        } as Ejercicio;
+      });
+
+      const visibleEjercicios = ejerciciosData.filter(ej => ej.isVisible !== false);
+      setter(visibleEjercicios);
+
     } catch (error: any) {
       console.error(`Error fetching ${fase} exercises:`, error);
-      if (error.code === 'failed-precondition' && error.message.includes('isVisible')) {
-         toast({
-          title: "Índice Requerido para Visibilidad",
-          description: (
-            <div className="text-sm">
-              <p>La nueva función de visibilidad de ejercicios necesita un índice en Firestore para funcionar correctamente con el filtro de fase.</p>
-              <p className="mt-1">Por favor, abre la consola de desarrollador del navegador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p>
-              <p className="mt-2 text-xs">Esto es necesario para optimizar la consulta que filtra por `fase` y `isVisible`.</p>
-            </div>
-          ),
-          variant: "destructive",
-          duration: 30000,
-        });
-      } else {
-        toast({ title: `Error al cargar ejercicios de ${fase}`, description: error.message , variant: "destructive" });
-      }
+      toast({ title: `Error al cargar ejercicios de ${fase}`, description: error.message , variant: "destructive" });
     }
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: false }));
   }, [toast]);
@@ -537,5 +526,3 @@ function CrearSesionManualContent() {
     </div>
   );
 }
-
-    
