@@ -434,7 +434,7 @@ function SesionDetallePageContent() {
             <CardTitle className="text-2xl font-headline text-destructive">Sesión No Encontrada</CardTitle>
           </CardHeader>
           <CardContent>
-            <CardDescription>La sesión que buscas no existe o no se pudo encontrar.</CardDescription>
+            <CardDescription>La sesión que buscas no existe o no tienes permiso para verla.</CardDescription>
             <Button asChild variant="outline" className="mt-4">
               <Link href="/mis-sesiones"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a Mis Sesiones</Link>
             </Button>
@@ -473,8 +473,8 @@ function SesionDetallePageContent() {
                 </div>
             </div>
             
-            <div className="p-4 border-b border-gray-300">
-                <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+            <div className="p-3 border-b border-gray-300">
+                <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-2 rounded">
                     <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
                 </div>
                 <div className="text-sm">
@@ -497,8 +497,8 @@ function SesionDetallePageContent() {
                 </div>
             </div>
 
-            <div className="p-4 border-b border-gray-300">
-              <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+            <div className="p-3 border-b border-gray-300">
+              <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-2 rounded">
                 <h3 className="font-semibold text-lg">FASE INICIAL</h3>
                 <span className="text-sm">{getExerciseDuration(sessionData.warmUp)}</span>
               </div>
@@ -512,14 +512,14 @@ function SesionDetallePageContent() {
               </div>
             </div>
 
-            <div className="p-4 border-b border-gray-300">
-              <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+            <div className="p-3 border-b border-gray-300">
+              <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-2 rounded">
                 <h3 className="font-semibold text-lg text-left">FASE PRINCIPAL</h3>
                 <span className="text-sm text-right">{getMainExercisesTotalDuration(sessionData.mainExercises)}</span>
               </div>
               <div className="space-y-1">
                 {sessionData.mainExercises.map((ex, index) => (
-                  <div key={typeof ex === 'string' ? `ai-main-${index}` : ex.id || `manual-main-${index}`} className="p-3 border border-gray-400 rounded bg-white">
+                  <div key={typeof ex === 'string' ? `ai-main-${index}` : ex.id || `manual-main-${index}`} className="p-2 border border-gray-400 rounded bg-white">
                     <div className="flex flex-col md:flex-row gap-4 items-start">
                       {typeof ex === 'object' && (ex as EjercicioDetallado).imagen && (
                           <div className="md:w-1/4 flex-shrink-0">
@@ -539,8 +539,8 @@ function SesionDetallePageContent() {
               </div>
             </div>
             
-            <div className="px-4 pt-4 pb-2 border-b border-gray-300">
-              <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
+            <div className="px-3 pt-3 pb-2 border-b border-gray-300">
+              <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-2 rounded">
                 <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
                 <span className="text-sm">{getExerciseDuration(sessionData.coolDown)}</span>
               </div>
@@ -554,11 +554,11 @@ function SesionDetallePageContent() {
                  </div>
             </div>
             
-            <div className="px-4 pt-2 pb-4 border-b border-gray-300">
+            <div className="px-3 pt-2 pb-3 border-b border-gray-300">
               <div className="flex flex-col md:flex-row justify-between text-sm">
                 <div className="md:w-2/3 md:pr-4 mb-3 md:mb-0">
                   <h4 className="font-semibold text-md mb-1 text-gray-800">Materiales y Espacio Necesarios:</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4">
                     {getSessionMaterialsAndSpaceList(sessionData).map((item, index) => (
                       item === "Información no disponible para sesiones AI." || item === "Materiales y espacio no especificados en los ejercicios." ?
                       <p key={index} className="text-xs text-gray-600 italic sm:col-span-2 lg:col-span-3">{item}</p> :
@@ -576,18 +576,18 @@ function SesionDetallePageContent() {
             </div>
 
             {(sessionData.coachNotes && sessionData.coachNotes.trim() !== "") && (
-              <div className="p-4">
+              <div className="p-3">
                 <h3 className="font-semibold mb-1 text-lg uppercase">OBSERVACIONES:</h3>
                 <p className="text-md whitespace-pre-wrap">{sessionData.coachNotes}</p>
               </div>
             )}
             {sessionData.type === "AI" && (
-              <div className="p-4 space-y-2 border-t border-gray-300 mt-2">
+              <div className="p-3 space-y-2 border-t border-gray-300 mt-2">
                 {(sessionData as SesionAI).teamDescription && <div><h4 className="font-semibold text-md">Descripción del Equipo (IA):</h4><p className="text-sm whitespace-pre-wrap">{(sessionData as SesionAI).teamDescription}</p></div>}
                 {(sessionData as SesionAI).trainingGoals && sessionData.type === "AI" && (!sessionData.coachNotes?.includes((sessionData as SesionAI).trainingGoals!)) && <div><h4 className="font-semibold text-md">Objetivos (Input IA):</h4><p className="text-sm whitespace-pre-wrap">{(sessionData as SesionAI).trainingGoals}</p></div>}
               </div>
             )}
-            <div className="print-button-container p-4 mt-4 text-center border-t border-gray-300">
+            <div className="print-button-container p-3 mt-3 text-center border-t border-gray-300">
                 <Button onClick={handleSavePdf} className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isGeneratingPdf}>
                     {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     {isGeneratingPdf ? 'Generando PDF...' : 'Guardar PDF'}
