@@ -21,7 +21,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 import { CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, FASES_SESION } from '@/lib/constants';
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +62,6 @@ export default function EjerciciosPage() {
   const [currentPage, setCurrentPage] = useState(1); 
   const [rawFetchedItemsCountOnPage, setRawFetchedItemsCountOnPage] = useState(0);
   const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([]);
-  const [totalExercisesInDB, setTotalExercisesInDB] = useState(0);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState(ALL_FILTER_VALUE);
@@ -70,25 +69,42 @@ export default function EjerciciosPage() {
   const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_FILTER_VALUE);
   const [favorites, setFavorites] = useState<FavoriteState>({});
 
+  const [filteredCount, setFilteredCount] = useState<number | null>(null);
+  const [isCounting, setIsCounting] = useState(true);
+
   const uniqueAgeCategories = useMemo(() => CATEGORIAS_EDAD_EJERCICIOS, []);
   const uniqueFases = useMemo(() => FASES_SESION, []);
 
-  const fetchTotalCount = useCallback(async () => {
-    try {
-      const coll = firestoreCollection(db, "ejercicios_futsal");
-      // Consider if you need to filter this count by isVisible for accuracy.
-      // For "total in catalog", this simple count is often sufficient.
-      const snapshot = await getCountFromServer(coll);
-      setTotalExercisesInDB(snapshot.data().count);
-    } catch (error) {
-      console.error("Error fetching total exercise count: ", error);
-      toast({ title: "Error", description: "No se pudo obtener el número total de ejercicios.", variant: "destructive" });
-    }
-  }, [toast]);
-
   useEffect(() => {
-    fetchTotalCount();
-  }, [fetchTotalCount]);
+    const fetchFilteredCount = async () => {
+      setIsCounting(true);
+      try {
+        const coll = firestoreCollection(db, "ejercicios_futsal");
+        const countConstraints: QueryConstraint[] = [where('isVisible', '==', true)];
+
+        if (phaseFilter && phaseFilter !== ALL_FILTER_VALUE) {
+          countConstraints.push(where('fase', '==', phaseFilter));
+        }
+        if (selectedAgeFilter && selectedAgeFilter !== ALL_FILTER_VALUE) {
+          countConstraints.push(where('edad', 'array-contains', selectedAgeFilter));
+        }
+        if (thematicCategoryFilter && thematicCategoryFilter !== ALL_FILTER_VALUE) {
+          countConstraints.push(where('categoria', '==', thematicCategoryFilter));
+        }
+
+        const countQuery = query(coll, ...countConstraints);
+        const snapshot = await getCountFromServer(countQuery);
+        setFilteredCount(snapshot.data().count);
+      } catch (error) {
+        console.error("Error fetching filtered exercise count: ", error);
+        setFilteredCount(0);
+      }
+      setIsCounting(false);
+    };
+
+    fetchFilteredCount();
+  }, [phaseFilter, selectedAgeFilter, thematicCategoryFilter]);
+
 
   const fetchEjercicios = useCallback(async (
     pageToFetch: number,
@@ -101,7 +117,7 @@ export default function EjerciciosPage() {
     let newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null = null;
     try {
       const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
-      let constraintsList: QueryConstraint[] = [];
+      let constraintsList: QueryConstraint[] = [where('isVisible', '==', true)];
 
       if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
         constraintsList.push(where('fase', '==', currentPhase));
@@ -131,8 +147,7 @@ export default function EjerciciosPage() {
         ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
       
-      // Client-side filtering for isVisible and searchTerm
-      let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
+      let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB;
 
       if (currentSearchTerm.trim() !== "") {
         const lowerSearchTerms = currentSearchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
@@ -144,7 +159,7 @@ export default function EjerciciosPage() {
       
       setEjercicios(filteredAndSearchedEjercicios);
       newLastVisibleDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1] || null;
-      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length); // Count before client-side search term filter for pagination logic
+      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
 
     } catch (error: any) {
       console.error("Error fetching exercises: ", error);
@@ -186,9 +201,7 @@ export default function EjerciciosPage() {
         if (newLastVisibleDoc) {
           updatedCursors[currentPage - 1] = newLastVisibleDoc;
         } else if (currentPage > 0 && updatedCursors.length >= currentPage) {
-          // If no new doc, it means this page is empty or last, clear cursor for this page
           updatedCursors[currentPage - 1] = null; 
-           // Trim trailing nulls if any
            while (updatedCursors.length > 0 && updatedCursors[updatedCursors.length - 1] === null) {
             updatedCursors.pop();
           }
@@ -199,8 +212,7 @@ export default function EjerciciosPage() {
     };
 
     fetchDataForCurrentPage();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]); // Removed fetchEjercicios from here
+  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]);
 
   const resetPaginationAndFilters = () => {
     setCurrentPage(1);
@@ -290,10 +302,7 @@ export default function EjerciciosPage() {
 
   const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
   const canGoPrevious = currentPage > 1;
-  const canGoNext = rawFetchedItemsCountOnPage === currentLimit && ejercicios.length === currentLimit ; // Ensure full page was fetched for "next"
-
-  const startIndex = ejercicios.length > 0 ? (currentPage - 1) * currentLimit + 1 : 0;
-  const endIndex = ejercicios.length > 0 ? (currentPage - 1) * currentLimit + ejercicios.length : 0;
+  const canGoNext = rawFetchedItemsCountOnPage === currentLimit;
 
 
   return (
@@ -322,90 +331,97 @@ export default function EjerciciosPage() {
       )}
 
       <div className="mb-6 space-y-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center">
-          <div className="relative flex-grow">
-            <Input
-              type="text"
-              placeholder="Buscar ejercicio por nombre..."
-              value={searchTerm}
-              onChange={handleSearchTermChange}
-              className="pl-10"
-            />
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Select value={phaseFilter} onValueChange={handlePhaseFilterChange}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filtrar por Fase" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_FILTER_VALUE}>Todas las Fases</SelectItem>
-                {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                <div className="relative flex-grow w-full sm:w-auto">
+                    <Input
+                    type="text"
+                    placeholder="Buscar ejercicio por nombre..."
+                    value={searchTerm}
+                    onChange={handleSearchTermChange}
+                    className="pl-10"
+                    />
+                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                </div>
+                <Select value={phaseFilter} onValueChange={handlePhaseFilterChange}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <Filter className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Filtrar por Fase" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value={ALL_FILTER_VALUE}>Todas las Fases</SelectItem>
+                        {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
+                    </SelectContent>
+                </Select>
 
-            <Select value={thematicCategoryFilter} onValueChange={handleThematicCategoryFilterChange}>
-              <SelectTrigger className="w-full sm:w-[220px]">
-                <ListFilter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_FILTER_VALUE}>Todas las Categorías</SelectItem>
-                {CATEGORIAS_TEMATICAS_EJERCICIOS.map(category => (
-                  <SelectItem key={category.id} value={category.label}>{category.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <Select value={thematicCategoryFilter} onValueChange={handleThematicCategoryFilterChange}>
+                    <SelectTrigger className="w-full sm:w-[220px]">
+                        <ListFilter className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value={ALL_FILTER_VALUE}>Todas las Categorías</SelectItem>
+                        {CATEGORIAS_TEMATICAS_EJERCICIOS.map(category => (
+                        <SelectItem key={category.id} value={category.label}>{category.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-[200px] justify-between">
-                  <div className="flex items-center">
-                    <Filter className="h-4 w-4 mr-2" />
-                    {getAgeFilterButtonText()}
-                  </div>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[250px]">
-                <DropdownMenuLabel>Selecciona Edad</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={handleSelectedAgeFilterChange}>
-                  <DropdownMenuRadioItem value={ALL_FILTER_VALUE}>Todas las Edades</DropdownMenuRadioItem>
-                  {uniqueAgeCategories.map(ageCat => (
-                    <DropdownMenuRadioItem key={ageCat} value={ageCat}>
-                      {ageCat}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-[200px] justify-between">
+                        <div className="flex items-center">
+                            <Filter className="h-4 w-4 mr-2" />
+                            {getAgeFilterButtonText()}
+                        </div>
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[250px]">
+                        <DropdownMenuLabel>Selecciona Edad</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={handleSelectedAgeFilterChange}>
+                        <DropdownMenuRadioItem value={ALL_FILTER_VALUE}>Todas las Edades</DropdownMenuRadioItem>
+                        {uniqueAgeCategories.map(ageCat => (
+                            <DropdownMenuRadioItem key={ageCat} value={ageCat}>
+                            {ageCat}
+                            </DropdownMenuRadioItem>
+                        ))}
+                        </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
+             <div className="text-right text-sm text-muted-foreground w-full md:w-auto shrink-0">
+                {searchTerm.trim() === '' ? (
+                <>
+                    {isCounting ? (
+                    <Loader2 className="inline-block h-4 w-4 animate-spin" />
+                    ) : (
+                    <span className='font-medium'>{filteredCount ?? 0} ejercicios</span>
+                    )}
+                </>
+                ) : (
+                <span className='italic'>Buscando por: "{searchTerm}"</span>
+                )}
+            </div>
         </div>
       </div>
 
-      {/* Case 1: Loading initial data (or filters resulted in empty and now loading) */}
-      {isLoading && ejercicios.length === 0 && (
+      {isLoading && (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
       )}
 
-      {/* Case 2: Not loading, and no exercises were found (either empty catalog or filters yield nothing) */}
       {!isLoading && ejercicios.length === 0 && (
          <p className="text-center text-lg text-muted-foreground py-10">
-           {totalExercisesInDB > 0 ? `No se encontraron ejercicios con los filtros actuales (de ${totalExercisesInDB} en total).` : "No hay ejercicios en el catálogo."}
+           {filteredCount === 0 ? "No se encontraron ejercicios con los filtros actuales." : "No se encontraron ejercicios."}
          </p>
       )}
 
-      {/* Case 3: Exercises are present (either fully loaded or loading next page while current are shown) */}
       {ejercicios.length > 0 && (
         <>
-          <p className="mb-4 text-sm text-muted-foreground">
-            {isLoading && <Loader2 className="inline-block mr-2 h-4 w-4 animate-spin" />}
-            Mostrando {startIndex}-{endIndex} de {totalExercisesInDB} ejercicios.
-          </p>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {ejercicios.map((ej) => (
               <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
@@ -453,7 +469,6 @@ export default function EjerciciosPage() {
             ))}
           </div>
           
-          {/* Pagination Buttons */}
           <div className="mt-8 flex justify-center">
             <Button
                 onClick={() => handlePageChange(currentPage - 1)}
@@ -476,4 +491,6 @@ export default function EjerciciosPage() {
     </div>
   );
 }
+    
+
     
