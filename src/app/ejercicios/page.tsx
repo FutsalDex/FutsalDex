@@ -59,7 +59,7 @@ export default function EjerciciosPage() {
   const { toast } = useToast();
   const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1); 
+  const [currentPage, setCurrentPage] = useState(1);
   const [rawFetchedItemsCountOnPage, setRawFetchedItemsCountOnPage] = useState(0);
   const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([]);
   
@@ -80,9 +80,7 @@ export default function EjerciciosPage() {
       setIsCounting(true);
       try {
         const coll = firestoreCollection(db, "ejercicios_futsal");
-        let countConstraints: QueryConstraint[] = [
-          where('isVisible', '==', true)
-        ];
+        let countConstraints: QueryConstraint[] = [];
         
         if (selectedAgeFilter && selectedAgeFilter !== ALL_FILTER_VALUE) {
             countConstraints.push(where('edad', 'array-contains', selectedAgeFilter));
@@ -121,9 +119,7 @@ export default function EjerciciosPage() {
     try {
       const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
       
-      let constraintsList: QueryConstraint[] = [
-        where('isVisible', '==', true)
-      ];
+      let constraintsList: QueryConstraint[] = [];
 
       if (currentAgeCategory && currentAgeCategory !== ALL_FILTER_VALUE) {
         constraintsList.push(where('edad', 'array-contains', currentAgeCategory));
