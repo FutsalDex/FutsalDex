@@ -212,7 +212,8 @@ export default function EjerciciosPage() {
     };
 
     fetchDataForCurrentPage();
-  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser, fetchEjercicios]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]);
 
   const resetPaginationAndFilters = () => {
     setCurrentPage(1);
@@ -491,6 +492,5 @@ export default function EjerciciosPage() {
     </div>
   );
 }
-    
 
     
