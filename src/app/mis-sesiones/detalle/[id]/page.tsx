@@ -539,7 +539,7 @@ function SesionDetallePageContent() {
               </div>
             </div>
             
-            <div className="p-4 border-b border-gray-300">
+            <div className="px-4 pt-4 pb-2 border-b border-gray-300">
               <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-3 rounded">
                 <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
                 <span className="text-sm">{getExerciseDuration(sessionData.coolDown)}</span>
@@ -554,11 +554,11 @@ function SesionDetallePageContent() {
                  </div>
             </div>
             
-            <div className="p-4 mt-3 border-b border-gray-300">
+            <div className="px-4 pt-2 pb-4 border-b border-gray-300">
               <div className="flex flex-col md:flex-row justify-between text-sm">
                 <div className="md:w-2/3 md:pr-4 mb-3 md:mb-0">
                   <h4 className="font-semibold text-md mb-1 text-gray-800">Materiales y Espacio Necesarios:</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4">
                     {getSessionMaterialsAndSpaceList(sessionData).map((item, index) => (
                       item === "Información no disponible para sesiones AI." || item === "Materiales y espacio no especificados en los ejercicios." ?
                       <p key={index} className="text-xs text-gray-600 italic sm:col-span-2 lg:col-span-3">{item}</p> :
