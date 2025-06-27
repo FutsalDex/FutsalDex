@@ -189,24 +189,42 @@ const getSessionMaterialsAndSpaceList = (sesion: SesionConDetallesEjercicio | nu
         return ["Información no disponible para sesiones AI."];
     }
 
-    const materialsSet = new Set<string>();
+    const individualMaterialsSet = new Set<string>();
     const manualSesion = sesion as SesionManual;
 
-    const processExercise = (ex: EjercicioDetallado | null | undefined) => {
+    const allExercises: (EjercicioDetallado | null)[] = [
+        manualSesion.warmUp,
+        ...manualSesion.mainExercises,
+        manualSesion.coolDown
+    ];
+
+    allExercises.forEach(ex => {
         if (ex && ex.espacio_materiales) {
-            materialsSet.add(ex.espacio_materiales.trim());
+            // Normalize the string: lowercase, remove parentheticals, replace 'y'/'o' with commas
+            const normalizedString = ex.espacio_materiales
+                .toLowerCase()
+                .replace(/\s*\(.*\)\s*/g, '') // Remove content in parentheses
+                .replace(/\s+(y|o)\s+/g, ', '); // Replace " y " or " o " with a comma
+
+            // Split by comma and process each item
+            const items = normalizedString.split(',').map(item => 
+                item.trim().replace(/[.,]$/, '').trim() // Trim whitespace and trailing punctuation
+            ).filter(item => item); // Filter out empty strings
+
+            items.forEach(item => individualMaterialsSet.add(item));
         }
-    };
+    });
 
-    processExercise(manualSesion.warmUp);
-    manualSesion.mainExercises.forEach(processExercise);
-    processExercise(manualSesion.coolDown);
-
-    if (materialsSet.size === 0) {
+    if (individualMaterialsSet.size === 0) {
         return ["Materiales y espacio no especificados en los ejercicios."];
     }
-    // Return each unique "espacio_materiales" string as a separate item
-    return Array.from(materialsSet).filter(item => item.length > 0);
+    
+    // Sort and capitalize
+    const uniqueMaterials = Array.from(individualMaterialsSet)
+      .sort()
+      .map(material => material.charAt(0).toUpperCase() + material.slice(1));
+
+    return uniqueMaterials;
 };
 
 
