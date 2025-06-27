@@ -38,8 +38,6 @@ function CalendarPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDisplayMonth, setCurrentDisplayMonth] = useState<Date>(new Date());
   const [selectedDayForPopover, setSelectedDayForPopover] = useState<Date | null>(null);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-
 
   const fetchUserSessions = useCallback(async () => {
     if (!user) {
@@ -86,7 +84,6 @@ function CalendarPageContent() {
       const [year, month, day] = dateKey.split('-').map(Number);
       return new Date(year, month - 1, day, 12,0,0); 
     });
-    // console.log("DEBUG: Dates with sessions for modifier:", dates); // Para depurar
     return dates;
   }, [sessionsByDate]);
 
@@ -96,25 +93,14 @@ function CalendarPageContent() {
 
     return (
       <PopoverTrigger asChild disabled={!dayHasSessions}>
-        <button
-          type="button"
+        <span
           className={cn(
-            "relative flex items-center justify-center h-full w-full rounded-sm", // Añadido relative aquí
-            "focus:outline-none focus:ring-1 focus:ring-primary" 
+            "relative flex items-center justify-center h-full w-full rounded-sm"
           )}
-          onClick={() => {
-            setSelectedDayForPopover(dayProps.date);
-            if (dayHasSessions) {
-              setIsPopoverOpen(true);
-            } else {
-              setIsPopoverOpen(false);
-            }
-          }}
         >
           {format(dayProps.date, 'd')}
-          {/* DEBUG: Pequeño punto rojo si el día tiene sesiones */}
           {dayHasSessions && <span className="absolute bottom-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full" title="Tiene sesión"></span>}
-        </button>
+        </span>
       </PopoverTrigger>
     );
   };
@@ -149,28 +135,17 @@ function CalendarPageContent() {
 
       <Card className="shadow-xl">
         <CardContent className="p-0 md:p-6 flex justify-center">
-            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                <div/> 
+            <Popover>
                 <Calendar
                     mode="single"
                     selected={selectedDayForPopover || undefined}
-                    onSelect={(date) => {
-                      setSelectedDayForPopover(date || null);
-                      if (date) {
-                        const dateKey = format(date, 'yyyy-MM-dd');
-                        const dayHasSessions = sessionsByDate[dateKey] && sessionsByDate[dateKey].length > 0;
-                        setIsPopoverOpen(dayHasSessions);
-                      } else {
-                        setIsPopoverOpen(false);
-                      }
-                    }}
+                    onSelect={setSelectedDayForPopover}
                     month={currentDisplayMonth}
                     onMonthChange={setCurrentDisplayMonth}
                     locale={es}
                     className="w-full max-w-2xl"
                     modifiers={{ hasSessions: datesWithSessionsForModifier }}
                     modifierClassNames={{
-                        // Prueba con un color directo de Tailwind para el fondo
                         hasSessions: 'bg-orange-400 text-white hover:bg-orange-500', 
                     }}
                     classNames={{
@@ -264,4 +239,3 @@ export default function CalendarioPage() {
     </AuthGuard>
   );
 }
-
