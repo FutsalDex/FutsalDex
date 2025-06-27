@@ -558,11 +558,13 @@ function SesionDetallePageContent() {
               <div className="flex flex-col md:flex-row justify-between text-sm">
                 <div className="md:w-2/3 md:pr-4 mb-3 md:mb-0">
                   <h4 className="font-semibold text-md mb-1 text-gray-800">Materiales y Espacio Necesarios:</h4>
-                  {getSessionMaterialsAndSpaceList(sessionData).map((item, index) => (
-                    item === "Información no disponible para sesiones AI." || item === "Materiales y espacio no especificados en los ejercicios." ?
-                    <p key={index} className="text-xs text-gray-600 italic">{item}</p> :
-                    <p key={index} className="text-xs text-gray-700">- {item}</p>
-                  ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4">
+                    {getSessionMaterialsAndSpaceList(sessionData).map((item, index) => (
+                      item === "Información no disponible para sesiones AI." || item === "Materiales y espacio no especificados en los ejercicios." ?
+                      <p key={index} className="text-xs text-gray-600 italic sm:col-span-2 lg:col-span-3">{item}</p> :
+                      <p key={index} className="text-xs text-gray-700">- {item}</p>
+                    ))}
+                  </div>
                 </div>
                 <div className="md:w-1/3 text-left md:text-right">
                   <p className="font-semibold text-md text-gray-800">
