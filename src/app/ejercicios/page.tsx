@@ -151,16 +151,31 @@ export default function EjerciciosPage() {
       const q = query(ejerciciosCollectionRef, ...constraintsList);
       const documentSnapshots = await getDocs(q);
       
-      let fetchedEjerciciosFromDB = documentSnapshots.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...(docSnap.data() as Omit<Ejercicio, 'id'>)
-      } as Ejercicio));
+      const fetchedEjerciciosFromDB = documentSnapshots.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+            id: docSnap.id,
+            ejercicio: data.ejercicio || '',
+            descripcion: data.descripcion || '',
+            objetivos: data.objetivos || '',
+            espacio_materiales: data.espacio_materiales || '',
+            jugadores: data.jugadores || '',
+            duracion: data.duracion || '0',
+            variantes: data.variantes || '',
+            fase: data.fase || '',
+            categoria: data.categoria || '',
+            edad: data.edad || [],
+            imagen: data.imagen || '',
+            consejos_entrenador: data.consejos_entrenador || '',
+            isVisible: data.isVisible,
+        } as Ejercicio;
+      });
       
       let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB;
 
       if (currentSearchTerm.trim() !== "") {
         const lowerSearchTerms = currentSearchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
-        filteredAndSearchedEjercicios = filteredAndSearchedEjercicios.filter(ej => {
+        filteredAndSearchedEjercicios = fetchedEjerciciosFromDB.filter(ej => {
           const lowerEjercicioName = ej.ejercicio.toLowerCase();
           return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
         });
@@ -481,26 +496,29 @@ export default function EjerciciosPage() {
             ))}
           </div>
           
-          <div className="mt-8 flex justify-center">
-            <Button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={!canGoPrevious || isLoading}
-                variant="outline"
-                className="mr-2"
-            >
-                Anterior
-            </Button>
-            <Button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={!canGoNext || isLoading}
-                variant="outline"
-            >
-                {isLoading && currentPage > 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Siguiente"}
-            </Button>
-          </div>
+          {isRegisteredUser && (
+             <div className="mt-8 flex justify-center">
+              <Button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={!canGoPrevious || isLoading}
+                  variant="outline"
+                  className="mr-2"
+              >
+                  Anterior
+              </Button>
+              <Button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!canGoNext || isLoading}
+                  variant="outline"
+              >
+                  {isLoading && currentPage > 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Siguiente"}
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>
   );
 }
 
+    
