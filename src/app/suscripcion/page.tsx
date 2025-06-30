@@ -2,19 +2,24 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, ArrowRight, Star, CreditCard, Wallet, Landmark } from "lucide-react";
-import Image from "next/image";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { CheckCircle, ArrowRight, Star, CreditCard, Wallet, Landmark, Percent } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
+import { Badge } from "@/components/ui/badge";
 
-const features = [
-  "Acceso a +500 ejercicios (y creciendo)",
+const basicFeatures = [
+  "Acceso completo a +500 ejercicios",
   "Creación de sesiones ilimitadas",
-  "Generador de sesiones con IA (próximamente)",
-  "Calendario para planificar entrenamientos",
+  "Planificación en el calendario",
   "Guardado de ejercicios favoritos",
   "Exportación de sesiones a PDF",
+];
+
+const topFeatures = [
+  ...basicFeatures,
+  "Generador de sesiones con IA",
+  "Estadísticas avanzadas de equipo (Próximamente)",
   "Soporte técnico prioritario",
 ];
 
@@ -26,125 +31,148 @@ export default function SuscripcionPage() {
       <header className="text-center mb-12">
         <Star className="mx-auto h-16 w-16 text-accent mb-4" />
         <h1 className="text-4xl md:text-5xl font-bold text-primary font-headline">
-          Desbloquea FutsalDex Pro
+          Elige tu Plan FutsalDex
         </h1>
         <p className="mt-4 text-lg text-foreground/80 max-w-3xl mx-auto">
-          Lleva tu planificación al siguiente nivel. Acceso ilimitado a todas las herramientas, ejercicios y futuras actualizaciones.
+          Acceso anual a todas las herramientas que necesitas para llevar tu equipo al siguiente nivel. Escoge el plan que mejor se adapte a ti.
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
-        {/* Columna Izquierda */}
-        <div className="md:col-span-2 bg-primary text-primary-foreground rounded-lg p-8 flex flex-col justify-between shadow-2xl">
-          <div>
-            <h2 className="text-3xl font-bold font-headline mb-6">Tu Plan Incluye:</h2>
-            <ul className="space-y-4">
-              {features.map((feature, index) => (
+      {/* Plan Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+        {/* Basic Plan */}
+        <Card className="flex flex-col shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-2xl font-headline text-primary">
+              Suscripción Básica
+            </CardTitle>
+            <CardDescription>Ideal para empezar a organizar tus entrenamientos de forma profesional.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-grow space-y-6">
+            <div className="text-center">
+              <p className="text-4xl font-bold text-foreground">
+                0,99€
+                <span className="text-xl font-normal text-muted-foreground">/mes</span>
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Facturado anualmente (11,88€/año)
+              </p>
+            </div>
+            <ul className="space-y-3 text-sm">
+              {basicFeatures.map((feature, index) => (
                 <li key={index} className="flex items-start">
-                  <CheckCircle className="h-6 w-6 mr-3 mt-0.5 text-green-300 shrink-0" />
+                  <CheckCircle className="h-5 w-5 mr-2 mt-0.5 text-green-500 shrink-0" />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="mt-8">
-             <Image
-                src="https://placehold.co/600x400.png"
-                width={600}
-                height={400}
-                alt="Futsal action"
-                className="rounded-lg object-cover"
-                data-ai-hint="futsal game"
-            />
-          </div>
-        </div>
+          </CardContent>
+          <CardFooter>
+            <Button asChild size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg">
+              <Link href={isRegisteredUser ? "#" : "/register"}>
+                {isRegisteredUser ? "Seleccionar Plan" : "Empezar con Básica"}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-        {/* Columna Derecha */}
-        <div className="md:col-span-3">
-          <Card className="shadow-xl mb-6">
-            <CardHeader>
-              <CardTitle className="text-2xl font-headline text-accent">
-                Oferta de Lanzamiento
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        {/* Top Plan */}
+        <Card className="flex flex-col shadow-xl border-accent border-2 relative">
+           <Badge variant="default" className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-accent-foreground">
+            Más Popular
+          </Badge>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-2xl font-headline text-accent">
+              Suscripción Top
+            </CardTitle>
+            <CardDescription>La experiencia completa con herramientas de IA y análisis avanzado.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-grow space-y-6">
+             <div className="text-center">
               <p className="text-4xl font-bold text-foreground">
-                19,99€ <span className="text-xl font-normal text-muted-foreground">/ primer año</span>
+                1,99€
+                <span className="text-xl font-normal text-muted-foreground">/mes</span>
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                Incluye 9,99€ de cuota anual + 10€ de inscripción única.
+                Facturado anualmente (23,88€/año)
               </p>
-              <p className="mt-4 text-foreground/90">
-                Al suscribirte a FutsalDex Pro, obtendrás acceso inmediato a todos nuestros contenidos y herramientas. Además, disfrutarás de todas las actualizaciones y nuevos ejercicios que se publiquen durante los 12 meses de tu suscripción.
-              </p>
-              {!isRegisteredUser && (
-                <Button asChild size="lg" className="w-full mt-6 bg-accent hover:bg-accent/90 text-accent-foreground text-lg">
-                  <Link href="/register">
-                    ¡Empieza Ahora! <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-2xl font-headline text-primary">
-                Renovación Anual
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-4xl font-bold text-foreground">
-                9,99€ <span className="text-xl font-normal text-muted-foreground">/ años sucesivos</span>
-              </p>
-               <p className="text-sm text-muted-foreground mt-1">
-                Renueva y ahorra el coste de inscripción.
-              </p>
-              <p className="mt-4 text-foreground/90">
-                A partir del segundo año, renueva tu suscripción por solo 9,99€ para mantener tu acceso completo a todas las herramientas y contenidos sin interrupciones.
-              </p>
-               {isRegisteredUser && (
-                 <Button size="lg" className="w-full mt-6" disabled>
-                    Gestionar Renovación (Próximamente)
-                  </Button>
-               )}
-            </CardContent>
-          </Card>
-
-           <Card className="shadow-xl mt-6">
-            <CardHeader>
-                <CardTitle className="text-2xl font-headline text-primary">
-                Formas de Pago
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="text-sm text-foreground/90">
-                <p>Elige el método de pago que prefieras. Ofrecemos varias opciones para tu comodidad.</p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                    <li>Las opciones de pago con Tarjeta y PayPal son <strong>inmediatas</strong>.</li>
-                    <li>Con la opción de pago mediante transferencia bancaria recibirás el acceso en <strong>menos de 24 horas</strong>.</li>
-                </ul>
-                 <p className="mt-2">Cualquier duda o consulta, puedes escribirnos a <strong className="text-accent">suscripciones@futsaldex.com</strong></p>
-                </div>
-                <div className="space-y-3 pt-2">
-                    <div className="flex items-center">
-                        <CreditCard className="h-6 w-6 mr-3 text-primary" />
-                        <span className="font-medium">Tarjeta de Crédito o Débito</span>
-                    </div>
-                     <div className="flex items-center">
-                        <Wallet className="h-6 w-6 mr-3 text-primary" />
-                        <span className="font-medium">PayPal</span>
-                    </div>
-                    <div className="flex items-center">
-                        <Landmark className="h-6 w-6 mr-3 text-primary" />
-                        <span className="font-medium">Transferencia Bancaria</span>
-                    </div>
-                </div>
-            </CardContent>
-          </Card>
-
-        </div>
+            </div>
+             <ul className="space-y-3 text-sm">
+              {topFeatures.map((feature, index) => (
+                <li key={index} className="flex items-start">
+                  <CheckCircle className="h-5 w-5 mr-2 mt-0.5 text-green-500 shrink-0" />
+                  <span className={!basicFeatures.includes(feature) ? 'font-bold text-accent' : ''}>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button asChild size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-lg">
+              <Link href={isRegisteredUser ? "#" : "/register"}>
+                {isRegisteredUser ? "Seleccionar Plan Top" : "Empezar con Top"}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
+
+      {/* Discount Section */}
+       <Card className="shadow-lg mt-12 bg-primary/5 border-primary/20">
+        <CardHeader className="text-center">
+            <Percent className="mx-auto h-10 w-10 text-primary mb-2" />
+            <CardTitle className="text-2xl font-headline text-primary">
+            ¡Oferta Especial 2025!
+            </CardTitle>
+        </CardHeader>
+        <CardContent className="text-center max-w-2xl mx-auto">
+            <p className="text-foreground/90">
+                Durante todo el 2025, disfruta de un <strong className="text-primary">descuento del 50%</strong> en tu primer año de suscripción, tanto en el plan Básico como en el Top.
+            </p>
+             <p className="mt-4">
+                Usa el código <code className="font-bold bg-primary/20 text-primary p-1 rounded-md">futsaldex25</code> al momento de pagar para aplicar la bonificación.
+            </p>
+            <div className="mt-4 text-sm text-muted-foreground">
+                <p>Plan Básico por solo <strong>5,94€/año</strong>. Plan Top por solo <strong>11,94€/año</strong>.</p>
+            </div>
+        </CardContent>
+      </Card>
+
+
+      {/* Payment methods - kept from before */}
+      <Card className="shadow-xl mt-12">
+        <CardHeader>
+            <CardTitle className="text-2xl font-headline text-primary">
+            Formas de Pago
+            </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div className="text-sm text-foreground/90">
+            <p>Elige el método de pago que prefieras. Ofrecemos varias opciones para tu comodidad.</p>
+            <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Las opciones de pago con Tarjeta y PayPal son <strong>inmediatas</strong>.</li>
+                <li>Con la opción de pago mediante transferencia bancaria recibirás el acceso en <strong>menos de 24 horas</strong>.</li>
+            </ul>
+             <p className="mt-2">Cualquier duda o consulta, puedes escribirnos a <strong className="text-accent">suscripciones@futsaldex.com</strong></p>
+            </div>
+            <div className="space-y-3 pt-2">
+                <div className="flex items-center">
+                    <CreditCard className="h-6 w-6 mr-3 text-primary" />
+                    <span className="font-medium">Tarjeta de Crédito o Débito</span>
+                </div>
+                 <div className="flex items-center">
+                    <Wallet className="h-6 w-6 mr-3 text-primary" />
+                    <span className="font-medium">PayPal</span>
+                </div>
+                <div className="flex items-center">
+                    <Landmark className="h-6 w-6 mr-3 text-primary" />
+                    <span className="font-medium">Transferencia Bancaria</span>
+                </div>
+            </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
