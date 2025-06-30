@@ -3,14 +3,14 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, ArrowRight, Star } from "lucide-react";
+import { CheckCircle, ArrowRight, Star, CreditCard, Wallet, Landmark } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 
 const features = [
   "Acceso a +500 ejercicios (y creciendo)",
-  "Creación de sesiones manuales ilimitadas",
+  "Creación de sesiones ilimitadas",
   "Generador de sesiones con IA (próximamente)",
   "Calendario para planificar entrenamientos",
   "Guardado de ejercicios favoritos",
@@ -33,7 +33,7 @@ export default function SuscripcionPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
         {/* Columna Izquierda */}
         <div className="md:col-span-2 bg-primary text-primary-foreground rounded-lg p-8 flex flex-col justify-between shadow-2xl">
           <div>
@@ -69,10 +69,10 @@ export default function SuscripcionPage() {
             </CardHeader>
             <CardContent>
               <p className="text-4xl font-bold text-foreground">
-                39€ <span className="text-xl font-normal text-muted-foreground">/ primer año</span>
+                19,99€ <span className="text-xl font-normal text-muted-foreground">/ primer año</span>
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                Incluye 29€ de cuota anual + 10€ de inscripción única.
+                Incluye 9,99€ de cuota anual + 10€ de inscripción única.
               </p>
               <p className="mt-4 text-foreground/90">
                 Con tu suscripción a FutsalDex Pro, tendrás acceso inmediato a todos los contenidos y herramientas de la plataforma, más todas las actualizaciones y nuevos ejercicios que se publiquen durante los 12 meses de tu suscripción.
@@ -95,13 +95,13 @@ export default function SuscripcionPage() {
             </CardHeader>
             <CardContent>
               <p className="text-4xl font-bold text-foreground">
-                29€ <span className="text-xl font-normal text-muted-foreground">/ años sucesivos</span>
+                9,99€ <span className="text-xl font-normal text-muted-foreground">/ años sucesivos</span>
               </p>
                <p className="text-sm text-muted-foreground mt-1">
                 Renueva y ahorra el coste de inscripción.
               </p>
               <p className="mt-4 text-foreground/90">
-                A partir del segundo año, tu suscripción se renueva por solo 29€, manteniendo tu acceso completo a todas las herramientas y contenidos sin interrupciones.
+                A partir del segundo año, tu suscripción se renueva por solo 9,99€, manteniendo tu acceso completo a todas las herramientas y contenidos sin interrupciones.
               </p>
                {isRegisteredUser && (
                  <Button size="lg" className="w-full mt-6" disabled>
@@ -110,6 +110,39 @@ export default function SuscripcionPage() {
                )}
             </CardContent>
           </Card>
+
+           <Card className="shadow-xl mt-6">
+            <CardHeader>
+                <CardTitle className="text-2xl font-headline text-primary">
+                Formas de Pago
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="text-sm text-foreground/90">
+                <p>Para tu comodidad, dispones de diferentes formas de pago.</p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Las opciones de pago con Tarjeta y PayPal son <strong>inmediatas</strong>.</li>
+                    <li>Con la opción de pago mediante transferencia bancaria recibirás el acceso en <strong>menos de 24 horas</strong>.</li>
+                </ul>
+                 <p className="mt-2">Cualquier duda o consulta, puedes escribirnos a <strong className="text-accent">suscripciones@futsaldex.com</strong></p>
+                </div>
+                <div className="space-y-3 pt-2">
+                    <div className="flex items-center">
+                        <CreditCard className="h-6 w-6 mr-3 text-primary" />
+                        <span className="font-medium">Tarjeta de Crédito o Débito</span>
+                    </div>
+                     <div className="flex items-center">
+                        <Wallet className="h-6 w-6 mr-3 text-primary" />
+                        <span className="font-medium">PayPal</span>
+                    </div>
+                    <div className="flex items-center">
+                        <Landmark className="h-6 w-6 mr-3 text-primary" />
+                        <span className="font-medium">Transferencia Bancaria</span>
+                    </div>
+                </div>
+            </CardContent>
+          </Card>
+
         </div>
       </div>
     </div>
