@@ -3,49 +3,40 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the current user has an 'admin' role.
-    function isAdmin() {
-      // Check the 'role' field in the user's document in the 'usuarios' collection.
-      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Rules for the 'usuarios' collection
-    match /usuarios/{userId} {
-      // Users can create their own document upon registration.
-      // They can only read or update their own document afterwards.
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+    // Allow public read access to exercises, but only admins can write.
+    match /ejercicios_futsal/{exerciseId} {
+      allow read: if true;
+      allow write: if request.auth.token.email == 'futsaldex@gmail.com';
+    }
 
-      // Rules for the 'user_favorites' subcollection
-      match /user_favorites/{favoriteId} {
-        // Users can fully manage their own list of favorites.
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    // Users can manage their own sessions.
+    match /mis_sesiones/{sessionId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
+    }
+
+    // Users can read/update their own user document.
+    // Admin can read/write any user document.
+    match /usuarios/{userId} {
+      allow read, update: if request.auth.uid == userId || request.auth.token.email == 'futsaldex@gmail.com';
+      allow create: if request.auth.uid == userId;
+      
+      // Users can manage their own favorites list.
+      match /user_favorites/{exerciseId} {
+         allow read, write: if request.auth.uid == userId;
       }
     }
-
-    // Rules for the 'ejercicios_futsal' collection
-    match /ejercicios_futsal/{exerciseId} {
-      // Any authenticated user can read the exercises.
-      allow read: if request.auth != null;
-      // Only admins can create, update, or delete exercises.
-      allow write: if request.auth != null && isAdmin();
-    }
-
-    // Rules for the 'mis_sesiones' (user sessions) collection
-    match /mis_sesiones/{sessionId} {
-      // Users can only read, update, or delete their own sessions.
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      // Users can only create sessions for themselves.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-
-    // Rules for the 'partidos_estadisticas' (match statistics) collection
+    
+    // Users can manage their own match statistics.
     match /partidos_estadisticas/{matchId} {
-      // Users can only read, update, or delete their own match stats.
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      // Users can only create match stats for themselves.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow read, update, delete: if request.auth.uid == resource.data.userId;
+        allow create: if request.auth.uid == request.resource.data.userId;
     }
   }
 }
