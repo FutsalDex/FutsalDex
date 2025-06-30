@@ -52,6 +52,7 @@ interface MatchData {
     jornada?: string;
     myTeamStats: TeamStats;
     opponentTeamStats: TeamStats;
+    myTeamPlayers: Player[];
     opponentPlayers: Player[];
     userId: string;
     createdAt: Timestamp;
@@ -63,9 +64,9 @@ const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | Te
     const renderRow = (label: string, data: HalfStats) => (
         <TableRow key={label}>
             <TableCell className="font-medium">{label}</TableCell>
-            <TableCell className="text-center">{data.firstHalf}</TableCell>
-            <TableCell className="text-center">{data.secondHalf}</TableCell>
-            <TableCell className="text-center font-semibold">{data.firstHalf + data.secondHalf}</TableCell>
+            <TableCell className="text-center">{data.firstHalf || 0}</TableCell>
+            <TableCell className="text-center">{data.secondHalf || 0}</TableCell>
+            <TableCell className="text-center font-semibold">{(data.firstHalf || 0) + (data.secondHalf || 0)}</TableCell>
         </TableRow>
     );
 
@@ -90,6 +91,39 @@ const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | Te
                         {type === 'shots' && renderRow("Bloqueados", (stats as TeamStats['shots']).blocked)}
                         {type === 'shots' && renderRow("Goles", (stats as TeamStats['shots']).goals)}
                         {type === 'events' && renderRow("Eventos", stats as HalfStats)}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+};
+
+const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
+    if (!players || players.length === 0) return <p className="text-sm text-muted-foreground p-4">No hay datos de jugadores.</p>;
+    return (
+        <Card>
+            <CardHeader><CardTitle className="text-lg">Estadísticas de Jugadores</CardTitle></CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[40px]">Nº</TableHead>
+                            <TableHead>Jugador</TableHead>
+                            <TableHead className="text-center w-[40px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
+                            <TableHead className="text-center w-[40px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
+                            <TableHead className="text-center w-[60px]">Goles</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {players.map((player) => (
+                            <TableRow key={player.id}>
+                                <TableCell className="font-semibold">{player.id}</TableCell>
+                                <TableCell>{player.name || `Jugador ${player.id}`}</TableCell>
+                                <TableCell className="text-center">{player.yellowCards || 0}</TableCell>
+                                <TableCell className="text-center">{player.redCards || 0}</TableCell>
+                                <TableCell className="text-center font-bold">{player.goals || 0}</TableCell>
+                            </TableRow>
+                        ))}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -136,8 +170,8 @@ function HistorialDetallePageContent() {
     }
     
     const calculateScore = (matchData: MatchData) => {
-        const myGoals = (matchData.myTeamStats.shots.goals.firstHalf || 0) + (matchData.myTeamStats.shots.goals.secondHalf || 0);
-        const opponentGoals = matchData.opponentPlayers.reduce((total, player) => total + (player.goals || 0), 0);
+        const myGoals = matchData.myTeamPlayers?.reduce((total, player) => total + (player.goals || 0), 0) || 0;
+        const opponentGoals = matchData.opponentPlayers?.reduce((total, player) => total + (player.goals || 0), 0) || 0;
         return `${myGoals} - ${opponentGoals}`;
     };
 
@@ -202,6 +236,7 @@ function HistorialDetallePageContent() {
                 {/* My Team Column */}
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold font-headline text-center text-primary">{match.myTeamName}</h2>
+                    <PlayerStatTable players={match.myTeamPlayers} />
                     <StatDisplayTable title="Tiros a Puerta" stats={match.myTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={match.myTeamStats.turnovers} type="events" />
                     <StatDisplayTable title="Robos" stats={match.myTeamStats.steals} type="events" />
@@ -222,34 +257,23 @@ function HistorialDetallePageContent() {
                 {/* Opponent Team Column */}
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold font-headline text-center text-accent">{match.opponentTeamName}</h2>
+                    <PlayerStatTable players={match.opponentPlayers} />
+                    <StatDisplayTable title="Tiros a Puerta" stats={match.opponentTeamStats.shots} type="shots" />
+                    <StatDisplayTable title="Pérdidas" stats={match.opponentTeamStats.turnovers} type="events" />
+                    <StatDisplayTable title="Robos" stats={match.opponentTeamStats.steals} type="events" />
                     <Card>
-                        <CardHeader><CardTitle className="text-lg">Estadísticas de Jugadores</CardTitle></CardHeader>
-                        <CardContent>
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[40px]">Nº</TableHead>
-                                        <TableHead>Jugador</TableHead>
-                                        <TableHead className="text-center w-[40px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
-                                        <TableHead className="text-center w-[40px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
-                                        <TableHead className="text-center w-[60px]">Goles</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {match.opponentPlayers.map((player) => (
-                                        <TableRow key={player.id}>
-                                            <TableCell className="font-semibold">{player.id}</TableCell>
-                                            <TableCell>{player.name}</TableCell>
-                                            <TableCell className="text-center">{player.yellowCards}</TableCell>
-                                            <TableCell className="text-center">{player.redCards}</TableCell>
-                                            <TableCell className="text-center font-bold">{player.goals}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                        <CardHeader><CardTitle className="text-lg">Portero Jugador</CardTitle></CardHeader>
+                        <CardContent className="flex justify-around text-center">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">A Favor</p>
+                                <p className="text-2xl font-bold">{match.opponentTeamStats.flyingGoalkeeper.for || '0'} min</p>
+                            </div>
+                             <div>
+                                <p className="text-sm font-medium text-muted-foreground">En Contra</p>
+                                <p className="text-2xl font-bold">{match.opponentTeamStats.flyingGoalkeeper.against || '0'} min</p>
+                            </div>
                         </CardContent>
                     </Card>
-                     <StatDisplayTable title="Tiros a Puerta (Equipo)" stats={match.opponentTeamStats.shots} type="shots" />
                 </div>
             </div>
         </div>
