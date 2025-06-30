@@ -95,7 +95,7 @@ function CalendarPageContent() {
       <PopoverTrigger asChild disabled={!dayHasSessions}>
         <span
           className={cn(
-            "relative flex items-center justify-center h-full w-full rounded-sm"
+            "relative flex items-center justify-center h-full w-full"
           )}
         >
           {format(dayProps.date, 'd')}
@@ -153,12 +153,12 @@ function CalendarPageContent() {
                         month: "space-y-4 w-full",
                         caption_label: "text-xl font-bold text-primary font-headline",
                         head_row: "flex mt-4 w-full",
-                        head_cell: "text-muted-foreground rounded-md w-[14.28%] text-sm font-medium",
+                        head_cell: "text-muted-foreground w-[14.28%] text-sm font-medium",
                         row: "flex w-full mt-2",
-                        cell: "h-20 md:h-28 w-[14.28%] text-center text-sm p-0 relative focus-within:relative focus-within:z-20 border border-transparent",
-                        day: "h-full w-full p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded-sm",
-                        day_selected: "!bg-primary !text-primary-foreground rounded-sm", 
-                        day_today: "bg-primary/10 text-primary font-bold rounded-sm ring-1 ring-primary",
+                        cell: "h-20 md:h-28 w-[14.28%] text-center text-sm p-0 relative focus-within:relative focus-within:z-20 border",
+                        day: "h-full w-full p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+                        day_selected: "!bg-primary !text-primary-foreground", 
+                        day_today: "bg-primary/10 text-primary font-bold ring-1 ring-primary",
                         day_outside: "text-muted-foreground opacity-50",
                     }}
                     components={{
