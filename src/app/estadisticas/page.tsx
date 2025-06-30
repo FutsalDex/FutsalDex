@@ -3,284 +3,344 @@
 
 import { AuthGuard } from "@/components/auth-guard";
 import { SubscriptionGuard } from "@/components/subscription-guard";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart2, Calendar, Construction, FileText, Bot, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useAuth } from "@/contexts/auth-context";
-import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp } from "firebase/firestore";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
-import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell } from "recharts";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical } from "lucide-react";
+import React, { useState } from "react";
+import { produce } from "immer";
 
+// --- Helper Components ---
 
-interface EjercicioInfo {
-  id: string;
-  ejercicio: string;
-  duracion?: string;
+interface StatCounterProps {
+  value: number;
+  onIncrement: () => void;
+  onDecrement: () => void;
 }
 
-interface Sesion {
-  id: string;
-  userId: string;
-  type: "AI" | "Manual";
-  fecha?: string;
-  warmUp: string | EjercicioInfo;
-  mainExercises: (string | EjercicioInfo)[];
-  coolDown: string | EjercicioInfo;
-  createdAt: Timestamp;
+const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecrement }) => (
+  <div className="flex items-center justify-center gap-1">
+    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDecrement} disabled={value <= 0}>
+      <Minus className="h-4 w-4" />
+    </Button>
+    <span className="w-6 text-center font-mono text-lg">{value}</span>
+    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onIncrement}>
+      <Plus className="h-4 w-4" />
+    </Button>
+  </div>
+);
+
+// --- State and Types ---
+
+interface Player {
+  id: number;
+  name: string;
+  yellowCards: number;
+  redCards: number;
+  goals: number;
 }
 
-const chartConfig: ChartConfig = {
-  sessions: {
-    label: "Sesiones",
+interface HalfStats {
+  firstHalf: number;
+  secondHalf: number;
+}
+
+interface TeamStats {
+  shots: {
+    onTarget: HalfStats;
+    offTarget: HalfStats;
+    blocked: HalfStats;
+    goals: HalfStats;
+  };
+  turnovers: HalfStats;
+  steals: HalfStats;
+  flyingGoalkeeper: {
+    for: string; // Store minutes
+    against: string;
+  };
+}
+
+const initialHalfStats: HalfStats = { firstHalf: 0, secondHalf: 0 };
+
+const createInitialTeamStats = (): TeamStats => ({
+  shots: {
+    onTarget: { ...initialHalfStats },
+    offTarget: { ...initialHalfStats },
+    blocked: { ...initialHalfStats },
+    goals: { ...initialHalfStats },
   },
-  manual: {
-    label: "Manuales",
-    color: "hsl(var(--chart-1))",
-  },
-  ai: {
-    label: "IA",
-    color: "hsl(var(--chart-2))",
-  },
-};
+  turnovers: { ...initialHalfStats },
+  steals: { ...initialHalfStats },
+  flyingGoalkeeper: { for: '', against: '' },
+});
+
+const createInitialPlayers = (count: number): Player[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    name: '',
+    yellowCards: 0,
+    redCards: 0,
+    goals: 0,
+  }));
+
 
 function EstadisticasPageContent() {
-  const { user } = useAuth();
-  const [sessions, setSessions] = useState<Sesion[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [myTeamName, setMyTeamName] = useState("Mi Equipo");
+  const [opponentTeamName, setOpponentTeamName] = useState("Equipo Contrario");
+  
+  const [myTeamStats, setMyTeamStats] = useState<TeamStats>(createInitialTeamStats());
+  const [opponentTeamStats, setOpponentTeamStats] = useState<TeamStats>(createInitialTeamStats());
+  const [opponentPlayers, setOpponentPlayers] = useState<Player[]>(createInitialPlayers(17));
 
-  const fetchUserSessions = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const q = query(
-        collection(db, "mis_sesiones"),
-        where("userId", "==", user.uid),
-        firestoreOrderBy("fecha", "desc")
-      );
-      const querySnapshot = await getDocs(q);
-      const fetchedSessions = querySnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      } as Sesion));
-      setSessions(fetchedSessions);
-    } catch (error) {
-      console.error("Error fetching sessions for stats:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchUserSessions();
-  }, [fetchUserSessions]);
-
-  const stats = useMemo(() => {
-    if (sessions.length === 0) {
-      return {
-        totalSessions: 0,
-        sessionsByType: [],
-        sessionsByMonth: [],
-        topExercises: [],
-      };
-    }
-
-    const sessionsByType = sessions.reduce(
-      (acc, session) => {
-        if (session.type === "AI") acc.ai++;
-        else if (session.type === "Manual") acc.manual++;
-        return acc;
-      },
-      { ai: 0, manual: 0 }
-    );
-    const sessionsByTypeChartData = [
-      { name: 'Manuales', value: sessionsByType.manual, fill: 'hsl(var(--chart-1))' },
-      { name: 'IA', value: sessionsByType.ai, fill: 'hsl(var(--chart-2))' },
-    ];
-    
-    const sessionsByMonth = Array(12).fill(0).map((_, i) => ({ month: i + 1, count: 0 }));
-    const currentYear = new Date().getFullYear();
-    sessions.forEach(session => {
-        if (session.fecha) {
-            const sessionDate = new Date(session.fecha);
-            if (sessionDate.getFullYear() === currentYear) {
-                const monthIndex = sessionDate.getMonth();
-                sessionsByMonth[monthIndex].count++;
-            }
+  const handleStatChange = (
+    team: 'myTeam' | 'opponentTeam',
+    statPath: (string | number)[],
+    delta: number
+  ) => {
+    const setter = team === 'myTeam' ? setMyTeamStats : setOpponentTeamStats;
+    setter(
+      produce(draft => {
+        let current = draft as any;
+        for (let i = 0; i < statPath.length - 1; i++) {
+          current = current[statPath[i]];
         }
-    });
-
-    const monthLabels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-    const sessionsByMonthChartData = sessionsByMonth.map((data, index) => ({
-      name: monthLabels[index],
-      sessions: data.count,
-    }));
-    
-    const exerciseCounts: { [name: string]: number } = {};
-    sessions.forEach(session => {
-        if(session.type === "Manual") {
-            const allExercises = [session.warmUp, ...session.mainExercises, session.coolDown];
-            allExercises.forEach(ex => {
-                if (typeof ex === 'object' && ex?.ejercicio) {
-                    exerciseCounts[ex.ejercicio] = (exerciseCounts[ex.ejercicio] || 0) + 1;
-                }
-            });
-        }
-    });
-    const topExercises = Object.entries(exerciseCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, count]) => ({ name, count }));
-
-    return {
-      totalSessions: sessions.length,
-      sessionsByType: sessionsByTypeChartData,
-      sessionsByMonth: sessionsByMonthChartData,
-      topExercises,
-    };
-  }, [sessions]);
-
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8 md:px-6 flex justify-center items-center min-h-[calc(100vh-8rem)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-lg">Cargando estadísticas...</p>
-      </div>
+        const finalKey = statPath[statPath.length - 1];
+        current[finalKey] = Math.max(0, current[finalKey] + delta);
+      })
     );
+  };
+  
+  const handleOpponentPlayerChange = (index: number, field: keyof Player, value: string | number) => {
+      setOpponentPlayers(produce(draft => {
+          (draft[index] as any)[field] = value;
+      }));
+  };
+
+  const handleOpponentPlayerStatChange = (index: number, field: 'goals' | 'yellowCards' | 'redCards', delta: number) => {
+      setOpponentPlayers(produce(draft => {
+          draft[index][field] = Math.max(0, draft[index][field] + delta);
+      }));
   }
 
-  if (sessions.length === 0) {
-    return (
-       <div className="container mx-auto px-4 py-8 md:px-6">
-        <header className="mb-8">
-            <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center"><BarChart2 className="mr-3 h-8 w-8"/>Estadísticas Avanzadas</h1>
-            <p className="text-lg text-foreground/80">Analiza el rendimiento de tu equipo y el progreso de tus sesiones.</p>
-        </header>
-        <Card className="text-center py-12 shadow-lg">
-            <CardHeader>
-                <FileText className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-                <CardTitle className="text-2xl font-headline text-primary">No hay datos para mostrar</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <CardDescription className="mb-6 text-foreground/80">
-                Aún no has creado ninguna sesión. ¡Crea tu primera sesión para empezar a ver tus estadísticas aquí!
-                </CardDescription>
-                <Button asChild>
-                <Link href="/crear-sesion-manual">Crear una Sesión</Link>
-                </Button>
-            </CardContent>
-        </Card>
-      </div>
+  const handleStringStatChange = (
+    team: 'myTeam' | 'opponentTeam',
+    statPath: string[],
+    value: string
+  ) => {
+    const setter = team === 'myTeam' ? setMyTeamStats : setOpponentTeamStats;
+    setter(
+      produce(draft => {
+        let current = draft as any;
+        for (let i = 0; i < statPath.length - 1; i++) {
+          current = current[statPath[i]];
+        }
+        current[statPath[statPath.length - 1]] = value;
+      })
     );
-  }
+  };
 
+  const resetAllStats = () => {
+      setMyTeamStats(createInitialTeamStats());
+      setOpponentTeamStats(createInitialTeamStats());
+      setOpponentPlayers(createInitialPlayers(17));
+      setMyTeamName("Mi Equipo");
+      setOpponentTeamName("Equipo Contrario");
+  };
+  
+  const renderStatRow = (label: string, statKey: keyof TeamStats['shots'], team: 'myTeam' | 'opponentTeam') => (
+    <TableRow>
+        <TableHead className="font-semibold">{label}</TableHead>
+        <TableCell>
+            <StatCounter 
+                value={team === 'myTeam' ? myTeamStats.shots[statKey].firstHalf : opponentTeamStats.shots[statKey].firstHalf}
+                onIncrement={() => handleStatChange(team, ['shots', statKey, 'firstHalf'], 1)}
+                onDecrement={() => handleStatChange(team, ['shots', statKey, 'firstHalf'], -1)}
+            />
+        </TableCell>
+        <TableCell>
+             <StatCounter 
+                value={team === 'myTeam' ? myTeamStats.shots[statKey].secondHalf : opponentTeamStats.shots[statKey].secondHalf}
+                onIncrement={() => handleStatChange(team, ['shots', statKey, 'secondHalf'], 1)}
+                onDecrement={() => handleStatChange(team, ['shots', statKey, 'secondHalf'], -1)}
+            />
+        </TableCell>
+    </TableRow>
+  );
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
-            <BarChart2 className="mr-3 h-8 w-8"/>
-            Estadísticas Avanzadas
-        </h1>
-        <p className="text-lg text-foreground/80">
-            Analiza el rendimiento de tu equipo y el progreso de tus sesiones.
-        </p>
+      <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
+                <BarChart2 className="mr-3 h-8 w-8"/>
+                Estadísticas de Partido
+            </h1>
+            <p className="text-lg text-foreground/80">
+                Registra las estadísticas de tu equipo durante un partido en tiempo real.
+            </p>
+        </div>
+        <Button onClick={resetAllStats} variant="outline">
+            <RotateCcw className="mr-2 h-4 w-4"/>
+            Reiniciar Estadísticas
+        </Button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total de Sesiones</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{stats.totalSessions}</p>
-            <p className="text-xs text-muted-foreground">Sesiones creadas en total</p>
-          </CardContent>
-        </Card>
-        <Card className="md:col-span-2">
-            <CardHeader>
-                <CardTitle>Sesiones por Tipo</CardTitle>
-                <CardDescription>Distribución de sesiones manuales vs. generadas por IA.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
-                <PieChart>
-                    <ChartTooltip content={<ChartTooltipContent nameKey="value" hideLabel />} />
-                    <Pie data={stats.sessionsByType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                      {stats.sessionsByType.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                </PieChart>
-                </ChartContainer>
-            </CardContent>
-        </Card>
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Input value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} className="text-lg font-bold" />
+        <Input value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} className="text-lg font-bold" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <Card className="lg:col-span-3">
-            <CardHeader>
-                <CardTitle>Actividad Mensual ({new Date().getFullYear()})</CardTitle>
-                <CardDescription>Número de sesiones creadas cada mes en el año actual.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                 <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                    <BarChart data={stats.sessionsByMonth} accessibilityLayer>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                        dataKey="name"
-                        tickLine={false}
-                        tickMargin={10}
-                        axisLine={false}
-                        tickFormatter={(value) => value}
-                        />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="sessions" fill="hsl(var(--chart-1))" radius={4} />
-                    </BarChart>
-                </ChartContainer>
-            </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
-            <CardHeader>
-                <CardTitle>Top 5 Ejercicios Más Usados</CardTitle>
-                <CardDescription>En tus sesiones manuales.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                 {stats.topExercises.length > 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* MY TEAM STATS */}
+        <div className="space-y-6">
+            <Card>
+                <CardHeader className="p-0">
+                    <CardTitle className="bg-primary text-primary-foreground p-3 rounded-t-lg text-lg">TIROS A PUERTA - {myTeamName}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead>Ejercicio</TableHead>
-                            <TableHead className="text-right">Usos</TableHead>
+                                <TableHead>Tipo</TableHead>
+                                <TableHead className="text-center w-[120px]">1º Tiempo</TableHead>
+                                <TableHead className="text-center w-[120px]">2º Tiempo</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {stats.topExercises.map((ex) => (
-                            <TableRow key={ex.name}>
-                                <TableCell className="font-medium truncate" title={ex.name}>{ex.name}</TableCell>
-                                <TableCell className="text-right font-bold">{ex.count}</TableCell>
-                            </TableRow>
-                            ))}
+                            {renderStatRow("Portería", 'onTarget', 'myTeam')}
+                            {renderStatRow("Fuera", 'offTarget', 'myTeam')}
+                            {renderStatRow("Defectuosos", 'blocked', 'myTeam')}
+                            {renderStatRow("Goles", 'goals', 'myTeam')}
                         </TableBody>
                     </Table>
-                ) : (
-                    <p className="text-sm text-muted-foreground text-center py-10">No has usado ejercicios en sesiones manuales todavía.</p>
-                )}
-            </CardContent>
-        </Card>
-      </div>
+                </CardContent>
+            </Card>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <Card>
+                    <CardHeader><CardTitle className="text-base font-semibold">PÉRDIDAS</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">1º Tiempo</p>
+                             <StatCounter 
+                                value={myTeamStats.turnovers.firstHalf}
+                                onIncrement={() => handleStatChange('myTeam', ['turnovers', 'firstHalf'], 1)}
+                                onDecrement={() => handleStatChange('myTeam', ['turnovers', 'firstHalf'], -1)}
+                            />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">2º Tiempo</p>
+                             <StatCounter 
+                                value={myTeamStats.turnovers.secondHalf}
+                                onIncrement={() => handleStatChange('myTeam', ['turnovers', 'secondHalf'], 1)}
+                                onDecrement={() => handleStatChange('myTeam', ['turnovers', 'secondHalf'], -1)}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader><CardTitle className="text-base font-semibold">ROBOS</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">1º Tiempo</p>
+                             <StatCounter 
+                                value={myTeamStats.steals.firstHalf}
+                                onIncrement={() => handleStatChange('myTeam', ['steals', 'firstHalf'], 1)}
+                                onDecrement={() => handleStatChange('myTeam', ['steals', 'firstHalf'], -1)}
+                            />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">2º Tiempo</p>
+                             <StatCounter 
+                                value={myTeamStats.steals.secondHalf}
+                                onIncrement={() => handleStatChange('myTeam', ['steals', 'secondHalf'], 1)}
+                                onDecrement={() => handleStatChange('myTeam', ['steals', 'secondHalf'], -1)}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+             <Card>
+                <CardHeader><CardTitle className="text-base font-semibold">PORTERO JUGADOR (minutos)</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="pg-for">A Favor</Label>
+                        <Input id="pg-for" placeholder="Ej: 5" value={myTeamStats.flyingGoalkeeper.for} onChange={(e) => handleStringStatChange('myTeam', ['flyingGoalkeeper', 'for'], e.target.value)} />
+                    </div>
+                     <div>
+                        <Label htmlFor="pg-against">En Contra</Label>
+                        <Input id="pg-against" placeholder="Ej: 2" value={myTeamStats.flyingGoalkeeper.against} onChange={(e) => handleStringStatChange('myTeam', ['flyingGoalkeeper', 'against'], e.target.value)} />
+                    </div>
+                </CardContent>
+             </Card>
+        </div>
+        
+        {/* OPPONENT TEAM STATS */}
+        <div className="space-y-6">
+            <Card>
+                <CardHeader className="p-0">
+                     <CardTitle className="bg-accent text-accent-foreground p-3 rounded-t-lg text-lg">ESTADÍSTICAS - {opponentTeamName}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                    <div className="max-h-96 overflow-y-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[40px]">Nº</TableHead>
+                                    <TableHead>Jugador</TableHead>
+                                    <TableHead title="Tarjeta Amarilla" className="text-center w-[60px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
+                                    <TableHead title="Tarjeta Roja" className="text-center w-[60px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
+                                    <TableHead className="text-center w-[110px]">Goles</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {opponentPlayers.map((player, index) => (
+                                    <TableRow key={player.id}>
+                                        <TableCell className="font-semibold">{player.id}</TableCell>
+                                        <TableCell><Input className="h-8 text-sm" placeholder={`Jugador ${player.id}`} value={player.name} onChange={(e) => handleOpponentPlayerChange(index, 'name', e.target.value)} /></TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.yellowCards} onIncrement={() => handleOpponentPlayerStatChange(index, 'yellowCards', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'yellowCards', -1)} />
+                                        </TableCell>
+                                        <TableCell>
+                                             <StatCounter value={player.redCards} onIncrement={() => handleOpponentPlayerStatChange(index, 'redCards', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'redCards', -1)} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.goals} onIncrement={() => handleOpponentPlayerStatChange(index, 'goals', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'goals', -1)} />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base font-semibold">TIROS A PUERTA - {opponentTeamName}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tipo</TableHead>
+                                <TableHead className="text-center w-[120px]">1º Tiempo</TableHead>
+                                <TableHead className="text-center w-[120px]">2º Tiempo</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {renderStatRow("Portería", 'onTarget', 'opponentTeam')}
+                            {renderStatRow("Fuera", 'offTarget', 'opponentTeam')}
+                            {renderStatRow("Defectuosos", 'blocked', 'opponentTeam')}
+                            {renderStatRow("Goles", 'goals', 'opponentTeam')}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -294,4 +354,3 @@ export default function EstadisticasPage() {
     </AuthGuard>
   );
 }
-
