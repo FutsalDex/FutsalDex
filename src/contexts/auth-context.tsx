@@ -2,13 +2,14 @@
 "use client";
 import type { User as FirebaseUser, AuthError } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut
 } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
 
@@ -69,12 +70,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      if (userCredential.user && userCredential.user.email === ADMIN_EMAIL) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
+      const newUser = userCredential.user;
+
+      if (newUser) {
+        // Create a document for the new user in the 'usuarios' collection
+        const userDocRef = doc(db, "usuarios", newUser.uid);
+        await setDoc(userDocRef, {
+            uid: newUser.uid,
+            email: newUser.email,
+            createdAt: serverTimestamp(),
+            role: 'user', // default role
+        });
+
+        if (newUser.email === ADMIN_EMAIL) {
+            setIsAdmin(true);
+        } else {
+            setIsAdmin(false);
+        }
+        return newUser;
       }
-      return userCredential.user;
+      return null;
+
     } catch (e) {
       const authError = e as AuthError;
       setError(authError.message);
@@ -115,4 +131,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-

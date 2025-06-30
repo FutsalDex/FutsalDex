@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // User profile data & subcollections
+    match /usuarios/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // User's favorite exercises
+      match /user_favorites/{exerciseId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Public exercise library
+    // Anyone can read. Only authenticated users (admins, via app logic) can write.
+    match /ejercicios_futsal/{exerciseId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // User's own training sessions
+    match /mis_sesiones/{sessionId} {
+      allow read, create, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+  }
+}

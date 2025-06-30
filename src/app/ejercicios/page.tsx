@@ -46,7 +46,7 @@ interface Ejercicio {
 }
 
 const ITEMS_PER_PAGE = 10;
-const GUEST_ITEM_LIMIT = 10;
+const GUEST_ITEM_LIMIT = 15;
 const ALL_FILTER_VALUE = "ALL";
 
 
@@ -149,7 +149,7 @@ export default function EjerciciosPage() {
         ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
       
-      let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB;
+      let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
 
       if (currentSearchTerm.trim() !== "") {
         const lowerSearchTerms = currentSearchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
@@ -247,7 +247,7 @@ export default function EjerciciosPage() {
     if (user && isRegisteredUser) {
       const loadFavorites = async () => {
         try {
-          const favsRef = firestoreCollection(db, "users", user.uid, "user_favorites");
+          const favsRef = firestoreCollection(db, "usuarios", user.uid, "user_favorites");
           const querySnapshot = await getDocs(favsRef);
           const userFavorites: FavoriteState = {};
           querySnapshot.forEach((docSnap) => {
@@ -274,7 +274,7 @@ export default function EjerciciosPage() {
     const newFavoritesState = { ...favorites, [exerciseId]: !isCurrentlyFavorite };
     setFavorites(newFavoritesState);
     try {
-      const favDocRef = doc(db, "users", user.uid, "user_favorites", exerciseId);
+      const favDocRef = doc(db, "usuarios", user.uid, "user_favorites", exerciseId);
       if (!isCurrentlyFavorite) {
         await setDoc(favDocRef, { addedAt: serverTimestamp() });
         toast({ title: "Favorito Añadido", description: "El ejercicio se ha añadido a tus favoritos." });
@@ -396,10 +396,11 @@ export default function EjerciciosPage() {
         <div className="text-left text-sm text-muted-foreground pt-2">
             {searchTerm.trim() === '' ? (
             <>
+                Total de ejercicios:
                 {isCounting ? (
-                <Loader2 className="inline-block h-4 w-4 animate-spin" />
+                <Loader2 className="inline-block h-4 w-4 animate-spin ml-2" />
                 ) : (
-                <span>Total de ejercicios: <span className='font-bold text-foreground'>{filteredCount ?? 0}</span></span>
+                <span className='font-bold text-foreground ml-1'>{filteredCount ?? 0}</span>
                 )}
             </>
             ) : (

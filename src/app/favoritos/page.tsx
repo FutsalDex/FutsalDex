@@ -48,7 +48,7 @@ function FavoritosPageContent() {
     }
     setIsLoading(true);
     try {
-      const favsRef = firestoreCollection(db, "users", user.uid, "user_favorites");
+      const favsRef = firestoreCollection(db, "usuarios", user.uid, "user_favorites");
       const favsSnapshot = await firestoreGetDocs(favsRef);
       const favoriteExerciseIds = favsSnapshot.docs.map(docSnap => docSnap.id);
 
@@ -118,7 +118,7 @@ function FavoritosPageContent() {
     setFavoriteExercises(prev => prev.filter(ex => ex.id !== exerciseId));
 
     try {
-      const favDocRef = firestoreDoc(db, "users", user.uid, "user_favorites", exerciseId);
+      const favDocRef = firestoreDoc(db, "usuarios", user.uid, "user_favorites", exerciseId);
       await firestoreDeleteDoc(favDocRef);
       toast({
         title: "Favorito Eliminado",
@@ -276,4 +276,3 @@ export default function FavoritosPage() {
     </AuthGuard>
   );
 }
-

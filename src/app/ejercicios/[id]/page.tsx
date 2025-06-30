@@ -128,7 +128,7 @@ export default function EjercicioDetallePage() {
     if (user && isRegisteredUser && exerciseId) {
       const loadFavoriteStatus = async () => {
         try {
-          const favDocRef = doc(db, "users", user.uid, "user_favorites", exerciseId);
+          const favDocRef = doc(db, "usuarios", user.uid, "user_favorites", exerciseId);
           const docSnap = await getDoc(favDocRef);
           setFavorites(prev => ({ ...prev, [exerciseId]: docSnap.exists() }));
         } catch (error) {
@@ -154,7 +154,7 @@ export default function EjercicioDetallePage() {
     setFavorites(prev => ({ ...prev, [currentExerciseId]: !isCurrentlyFavorite }));
 
     try {
-      const favDocRef = doc(db, "users", user.uid, "user_favorites", currentExerciseId);
+      const favDocRef = doc(db, "usuarios", user.uid, "user_favorites", currentExerciseId);
       if (!isCurrentlyFavorite) {
         await firestoreSetDoc(favDocRef, { addedAt: serverTimestamp() });
         toast({ title: "Favorito Añadido", description: "El ejercicio se ha añadido a tus favoritos." });
@@ -418,4 +418,3 @@ export default function EjercicioDetallePage() {
     </div>
   );
 }
-

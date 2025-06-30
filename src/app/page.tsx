@@ -1,8 +1,8 @@
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Lock } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -17,24 +17,50 @@ export default function HomePage() {
           ¡Bienvenido a FutsalDex!
         </h1>
         <p className="mb-8 max-w-2xl text-lg text-foreground/80 md:text-xl">
-          Tu compañero definitivo para el entrenamiento de fútbol sala. Descubre más de 500 ejercicios, diseña tus propias sesiones de entrenamiento y eleva tus conocimientos y habilidades como entrenador al siguiente nivel
+          Tu compañero definitivo para el entrenamiento de fútbol sala. Descubre más de 500 ejercicios, diseña tus propias sesiones de entrenamiento y eleva tus conocimientos y habilidades como entrenador al siguiente nivel.
         </p>
-        
-        <Card className="w-full max-w-lg bg-background shadow-xl border-accent border-2">
-          <CardHeader>
-            <CardTitle className="text-accent font-headline text-2xl">¡Potencia Tu Entrenamiento!</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-md text-foreground/90">
-              Regístrate para acceder a todo el catálogo de ejercicios y crear tus sesiones de entrenamientos ilimitadas
-            </p>
-            <Button asChild size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Link href="/register">
-                Regístrate Ahora <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+            <Card className="bg-background shadow-xl border-accent border-2">
+              <CardHeader>
+                <CardTitle className="text-accent font-headline text-2xl">¡Potencia Tu Entrenamiento!</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-md text-foreground/90">
+                  Regístrate para acceder a todo el catálogo de ejercicios y crear tus sesiones de entrenamientos ilimitadas.
+                </p>
+                <Button asChild size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <Link href="/register">
+                    Regístrate Ahora <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-background shadow-xl border-blue-200 border-2">
+              <CardHeader>
+                <CardTitle className="text-primary font-headline text-2xl flex items-center gap-2">
+                    <Lock className="text-primary/80"/>
+                    Acceso de Invitado
+                </CardTitle>
+                <CardDescription>
+                    ¿Quieres probar antes de registrarte?
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-left">
+                <p className="text-md text-foreground/90">
+                  Como invitado, puedes:
+                </p>
+                <ul className="list-disc list-inside text-sm text-foreground/80 space-y-1">
+                    <li>Explorar una selección de <strong>15 ejercicios</strong> de nuestra biblioteca.</li>
+                    <li>Diseñar hasta <strong>2 sesiones de entrenamiento</strong> para ver cómo funciona.</li>
+                </ul>
+                 <p className="text-sm text-foreground/90 pt-2">
+                    ¡Regístrate para desbloquear todo el contenido y guardar tu progreso!
+                </p>
+              </CardContent>
+            </Card>
+        </div>
 
         <div className="mt-16 grid gap-8 md:grid-cols-2">
           <FeatureCard
