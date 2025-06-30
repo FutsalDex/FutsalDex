@@ -29,6 +29,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
 import { parseDurationToMinutes } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { ToastAction } from "@/components/ui/toast";
 
 
 interface Ejercicio {
@@ -64,6 +66,7 @@ export default function CrearSesionManualPage() {
 function CrearSesionManualContent() {
   const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingNextSessionNumber, setIsFetchingNextSessionNumber] = useState(false);
 
@@ -190,8 +193,14 @@ function CrearSesionManualContent() {
     if (!user || !isRegisteredUser) {
         toast({
             title: "Acción Requerida",
-            description: "Por favor, regístrate o inicia sesión para guardar la sesión.",
+            description: "Para guardar tu sesión, necesitas una cuenta. ¡Es gratis!",
             variant: "default",
+            duration: 10000,
+            action: (
+              <ToastAction altText="Crear Cuenta" onClick={() => router.push('/register')}>
+                Crear Cuenta
+              </ToastAction>
+            ),
         });
         return;
     }
@@ -515,11 +524,11 @@ function CrearSesionManualContent() {
           <Button
             type="submit"
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3 text-lg"
-            disabled={isSaving || Object.values(loadingEjercicios).some(l => l) || !isRegisteredUser || isFetchingNextSessionNumber}
-            title={!isRegisteredUser ? "Regístrate para guardar la sesión" : "Guardar Sesión Manual"}
+            disabled={isSaving || Object.values(loadingEjercicios).some(l => l) || isFetchingNextSessionNumber}
+            title={!isRegisteredUser ? "Debes registrarte o iniciar sesión para guardar" : "Guardar Sesión Manual"}
           >
             {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-            {isRegisteredUser ? "Guardar Sesión Manual" : "Regístrate para Guardar"}
+            Guardar Sesión Manual
           </Button>
         </form>
       </Form>
