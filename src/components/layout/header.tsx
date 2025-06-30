@@ -26,16 +26,16 @@ const FutsalAppIcon = ({ className }: { className?: string }) => (
 
 
 export default function Header() {
-  const { user, signOut, loading, isRegisteredUser, isAdmin } = useAuth();
+  const { user, signOut, loading, isAdmin } = useAuth();
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/ejercicios', label: 'Ver ejercicios', icon: <FileText className="mr-2 h-4 w-4" />, guestAllowed: true },
-    { href: '/crear-sesion-manual', label: 'Crear Sesión', icon: <Edit3 className="mr-2 h-4 w-4" />, guestAllowed: true },
-    { href: '/mis-sesiones', label: 'Mis Sesiones', icon: <BookUser className="mr-2 h-4 w-4" />, guestAllowed: false, requiresAuth: true },
-    { href: '/calendario', label: 'Calendario', icon: <CalendarDays className="mr-2 h-4 w-4" />, guestAllowed: false, requiresAuth: true },
-    { href: '/favoritos', label: 'Favoritos', icon: <Heart className="mr-2 h-4 w-4" />, guestAllowed: false, requiresAuth: true },
-    { href: '/suscripcion', label: 'Suscripción', icon: <Star className="mr-2 h-4 w-4" />, guestAllowed: true },
+    { href: '/ejercicios', label: 'Ver ejercicios', icon: <FileText className="mr-2 h-4 w-4" /> },
+    { href: '/crear-sesion-manual', label: 'Crear Sesión', icon: <Edit3 className="mr-2 h-4 w-4" /> },
+    { href: '/mis-sesiones', label: 'Mis Sesiones', icon: <BookUser className="mr-2 h-4 w-4" /> },
+    { href: '/calendario', label: 'Calendario', icon: <CalendarDays className="mr-2 h-4 w-4" /> },
+    { href: '/favoritos', label: 'Favoritos', icon: <Heart className="mr-2 h-4 w-4" /> },
+    { href: '/suscripcion', label: 'Suscripción', icon: <Star className="mr-2 h-4 w-4" /> },
   ];
 
   const adminLinks = [
@@ -50,8 +50,7 @@ export default function Header() {
           <span className="text-xl font-bold font-headline">FutsalDex</span>
         </Link>
         <nav className="hidden items-center space-x-1 md:flex">
-          {navLinks.map((link) =>
-            ((link.guestAllowed || isRegisteredUser) && (!link.requiresAuth || isRegisteredUser)) && (
+          {navLinks.map((link) => (
             <Button
               key={link.href}
               variant={pathname === link.href ? 'secondary' : 'ghost'}
@@ -69,9 +68,9 @@ export default function Header() {
           {isAdmin && adminLinks.map((link) => (
             <Button
               key={link.href}
-              variant={pathname === link.href ? 'secondary' : 'ghost'}
+              variant={pathname.startsWith(link.href) ? 'secondary' : 'ghost'}
               asChild
-              className={pathname === link.href ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'hover:bg-primary/80 text-red-300'}
+              className={pathname.startsWith(link.href) ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'hover:bg-primary/80 text-red-300'}
             >
               <Link href={link.href}>
                 <span className="flex items-center">
@@ -130,8 +129,7 @@ export default function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {navLinks.map((link) =>
-                  ((link.guestAllowed || isRegisteredUser) && (!link.requiresAuth || isRegisteredUser)) && ( 
+                {navLinks.map((link) => ( 
                   <DropdownMenuItem key={link.href} asChild>
                     <Link href={link.href}>
                       <span className="flex items-center">
