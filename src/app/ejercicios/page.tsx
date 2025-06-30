@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -75,11 +74,9 @@ export default function EjerciciosPage() {
         const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
         const qLimit = isRegisteredUser ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
         
-        // For guests, use a simpler query without ordering to avoid potential permission issues with complex queries for unauthenticated users.
-        // Registered users get the ordered list.
-        const q = isRegisteredUser
-          ? query(ejerciciosCollectionRef, firestoreOrderBy('ejercicio'), limit(qLimit))
-          : query(ejerciciosCollectionRef, limit(qLimit));
+        // Simplified query for all users to prevent index/permission issues.
+        // Sorting is handled client-side after fetching.
+        const q = query(ejerciciosCollectionRef, limit(qLimit));
         
         const documentSnapshots = await getDocs(q);
         
@@ -103,8 +100,14 @@ export default function EjerciciosPage() {
           } as Ejercicio;
         });
 
-        // The client-side filtering approach only shows visible exercises.
-        const visibleExercises = fetchedEjercicios.filter(ej => ej.isVisible !== false);
+        // Filter for visible exercises first.
+        let visibleExercises = fetchedEjercicios.filter(ej => ej.isVisible !== false);
+
+        // Sort on the client-side for registered users to maintain order.
+        if (isRegisteredUser) {
+            visibleExercises.sort((a, b) => (a.ejercicio || '').localeCompare(b.ejercicio || ''));
+        }
+        
         setAllExercises(visibleExercises);
         
       } catch (error: any) {
@@ -370,4 +373,3 @@ export default function EjerciciosPage() {
     </div>
   );
 }
-
