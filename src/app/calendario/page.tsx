@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DayContentProps } from 'react-day-picker';
 import { cn } from "@/lib/utils";
+import { SubscriptionGuard } from "@/components/subscription-guard";
 
 interface SesionEntry {
   id: string;
@@ -184,7 +185,7 @@ function CalendarPageContent() {
                             <Link href={`/mis-sesiones/detalle/${session.id}`}>
                                 <div className="flex flex-col">
                                     <span className="font-semibold text-primary">
-                                        Sesión: {session.numero_sesion || 'N/A'} ({session.type === "AI" ? "IA" : "Manual"})
+                                        Sesión: {session.numero_sesion || 'N/A'} ({session.type === "AI" ? "IA" : ""})
                                     </span>
                                     {session.sessionTitle && <span className="text-xs text-muted-foreground">{session.sessionTitle}</span>}
                                 </div>
@@ -215,7 +216,7 @@ function CalendarPageContent() {
             </CardDescription>
             <div className="flex justify-center gap-4">
               <Button asChild variant="outline">
-                <Link href="/crear-sesion-manual">
+                <Link href="/crear-sesion">
                   Crear Sesión
                 </Link>
               </Button>
@@ -230,7 +231,9 @@ function CalendarPageContent() {
 export default function CalendarioPage() {
   return (
     <AuthGuard>
-      <CalendarPageContent />
+      <SubscriptionGuard>
+        <CalendarPageContent />
+      </SubscriptionGuard>
     </AuthGuard>
   );
 }

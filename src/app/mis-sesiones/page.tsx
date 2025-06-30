@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseDurationToMinutes } from "@/lib/utils";
+import { SubscriptionGuard } from "@/components/subscription-guard";
 
 
 interface EjercicioInfo {
@@ -76,7 +77,9 @@ const getYearsRange = () => {
 export default function MisSesionesPage() {
   return (
     <AuthGuard>
-      <MisSesionesContent />
+      <SubscriptionGuard>
+        <MisSesionesContent />
+      </SubscriptionGuard>
     </AuthGuard>
   );
 }
@@ -338,7 +341,7 @@ function MisSesionesContent() {
             </CardDescription>
             <div className="flex justify-center gap-4">
               <Button asChild variant="outline">
-                <Link href="/crear-sesion-manual">
+                <Link href="/crear-sesion">
                   <Edit2 className="mr-2 h-4 w-4" /> Crear Sesión
                 </Link>
               </Button>
@@ -407,6 +410,7 @@ function MisSesionesContent() {
                     className="flex-1 text-sm bg-background shadow-md hover:shadow-lg"
                     onClick={() => handleEditSessionClick(sesion.id)}
                     title="Editar sesión"
+                    disabled={sesion.type === 'AI'}
                   >
                     <Edit2 className="mr-2 h-4 w-4" /> Editar
                   </Button>

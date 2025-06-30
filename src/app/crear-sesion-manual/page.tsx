@@ -31,6 +31,7 @@ import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
+import { AuthGuard } from "@/components/auth-guard";
 
 
 interface Ejercicio {
@@ -57,14 +58,16 @@ function getMaxNumericSessionNumber(sessionNumbers: (string | undefined)[]): num
   return maxNumber;
 }
 
-export default function CrearSesionManualPage() {
-  return (
-    <CrearSesionManualContent />
-  );
+export default function CrearSesionPage() {
+    return (
+        <AuthGuard>
+            <CrearSesionContent />
+        </AuthGuard>
+    )
 }
 
-function CrearSesionManualContent() {
-  const { user, isRegisteredUser } = useAuth();
+function CrearSesionContent() {
+  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -204,8 +207,24 @@ function CrearSesionManualContent() {
         });
         return;
     }
+    
+    if (!isAdmin && !isSubscribed) {
+        toast({
+            title: "Suscripción Requerida",
+            description: "Necesitas una suscripción Pro para guardar tus sesiones.",
+            variant: "default",
+            duration: 10000,
+            action: (
+              <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>
+                Suscribirse
+              </ToastAction>
+            ),
+        });
+        return;
+    }
+
     setIsSaving(true);
-    form.clearErrors("numero_sesion"); // Limpiar errores previos
+    form.clearErrors("numero_sesion"); 
 
     if (values.numero_sesion) {
         try {
@@ -231,7 +250,7 @@ function CrearSesionManualContent() {
     let totalDuration = 0;
     if (warmUpDoc) totalDuration += parseDurationToMinutes(warmUpDoc.duracion);
     mainDocs.forEach(doc => totalDuration += parseDurationToMinutes(doc.duracion));
-    if (coolDownDoc) totalDuration += parseDurationToMinutes(doc.duracion);
+    if (coolDownDoc) totalDuration += parseDurationToMinutes(coolDownDoc.duracion);
 
     const dateStringToUse = values.fecha || new Date().toISOString().split('T')[0];
     let formattedDate: string;
@@ -246,7 +265,7 @@ function CrearSesionManualContent() {
         console.warn("Could not parse date from form, using current date for title:", e);
         formattedDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     }
-    const titleToSave = `Sesión Manual - ${formattedDate}`;
+    const titleToSave = `Sesión - ${formattedDate}`;
 
 
     const sessionDataToSave = {
@@ -525,7 +544,6 @@ function CrearSesionManualContent() {
             type="submit"
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3 text-lg"
             disabled={isSaving || Object.values(loadingEjercicios).some(l => l) || isFetchingNextSessionNumber}
-            title={!isRegisteredUser ? "Debes registrarte o iniciar sesión para guardar" : "Guardar Sesión"}
           >
             {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
             Guardar Sesión

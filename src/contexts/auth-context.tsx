@@ -9,7 +9,7 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
 
@@ -19,7 +19,8 @@ type AuthContextType = {
   user: FirebaseUser | null;
   loading: boolean;
   isRegisteredUser: boolean;
-  isAdmin: boolean; // Nueva propiedad para superusuario
+  isAdmin: boolean;
+  isSubscribed: boolean;
   login: (values: z.infer<typeof loginSchema>) => Promise<FirebaseUser | null>;
   register: (values: z.infer<typeof registerSchema>) => Promise<FirebaseUser | null>;
   signOut: () => Promise<void>;
@@ -34,14 +35,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      if (currentUser && currentUser.email === ADMIN_EMAIL) {
-        setIsAdmin(true);
+      if (currentUser) {
+        const userDocRef = doc(db, "usuarios", currentUser.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setIsAdmin(data.role === 'admin');
+          setIsSubscribed(data.subscriptionStatus === 'active');
+        } else {
+          setIsAdmin(false);
+          setIsSubscribed(false);
+        }
       } else {
+        // No user logged in
         setIsAdmin(false);
+        setIsSubscribed(false);
       }
       setLoading(false);
     });
@@ -52,16 +65,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      if (userCredential.user && userCredential.user.email === ADMIN_EMAIL) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
+      // onAuthStateChanged will handle setting admin/subscription state
       return userCredential.user;
     } catch (e) {
       const authError = e as AuthError;
       setError(authError.message);
-      setIsAdmin(false);
       return null;
     }
   };
@@ -73,24 +81,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const newUser = userCredential.user;
 
       if (newUser) {
-        // Determine user role based on email
         const userRole = newUser.email === ADMIN_EMAIL ? 'admin' : 'user';
-        
-        // Create a document for the new user in the 'usuarios' collection
         const userDocRef = doc(db, "usuarios", newUser.uid);
         await setDoc(userDocRef, {
             uid: newUser.uid,
             email: newUser.email,
             createdAt: serverTimestamp(),
-            role: userRole, // Set the role correctly
+            role: userRole,
+            subscriptionStatus: 'inactive', // New users are not subscribed by default
         });
-
-        // Update the client-side isAdmin state
-        if (userRole === 'admin') {
-            setIsAdmin(true);
-        } else {
-            setIsAdmin(false);
-        }
+        // onAuthStateChanged will handle setting admin/subscription state
         return newUser;
       }
       return null;
@@ -98,7 +98,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       const authError = e as AuthError;
       setError(authError.message);
-      setIsAdmin(false);
       return null;
     }
   };
@@ -107,7 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       await firebaseSignOut(auth);
-      setIsAdmin(false);
+      // onAuthStateChanged will handle resetting states to false
     } catch (e) {
       const authError = e as AuthError;
       setError(authError.message);
@@ -120,9 +119,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isRegisteredUser = !!user;
 
-
   return (
-    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, login, register, signOut, error, clearError }}>
+    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, login, register, signOut, error, clearError }}>
       {children}
     </AuthContext.Provider>
   );

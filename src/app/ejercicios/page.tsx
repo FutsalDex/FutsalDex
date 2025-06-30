@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -9,7 +10,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection as firestoreCollection, getDocs, limit, query, orderBy as firestoreOrderBy, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
-import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, ArrowRight } from 'lucide-react';
+import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, ArrowRight, Star } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -53,7 +54,7 @@ interface FavoriteState {
 }
 
 export default function EjerciciosPage() {
-  const { user, isRegisteredUser } = useAuth();
+  const { user, isRegisteredUser, isAdmin, isSubscribed } = useAuth();
   const { toast } = useToast();
   
   const [allExercises, setAllExercises] = useState<Ejercicio[]>([]);
@@ -72,10 +73,8 @@ export default function EjerciciosPage() {
       setIsLoading(true);
       try {
         const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
-        const qLimit = isRegisteredUser ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
+        const qLimit = (isRegisteredUser && (isAdmin || isSubscribed)) ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
         
-        // Simplified query for all users to prevent index/permission issues.
-        // Sorting is handled client-side after fetching.
         const q = query(ejerciciosCollectionRef, limit(qLimit));
         
         const documentSnapshots = await getDocs(q);
@@ -100,11 +99,9 @@ export default function EjerciciosPage() {
           } as Ejercicio;
         });
 
-        // Filter for visible exercises first.
         let visibleExercises = fetchedEjercicios.filter(ej => ej.isVisible !== false);
 
-        // Sort on the client-side for registered users to maintain order.
-        if (isRegisteredUser) {
+        if (isRegisteredUser && (isAdmin || isSubscribed)) {
             visibleExercises.sort((a, b) => (a.ejercicio || '').localeCompare(b.ejercicio || ''));
         }
         
@@ -118,7 +115,7 @@ export default function EjerciciosPage() {
       setIsLoading(false);
     };
     fetchAllExercises();
-  }, [isRegisteredUser, toast]);
+  }, [isRegisteredUser, isAdmin, isSubscribed, toast]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -206,7 +203,7 @@ export default function EjerciciosPage() {
         <p className="text-lg text-foreground/80">Filtra por nombre, fase, categoría o edad.</p>
       </header>
 
-      {!isRegisteredUser && (
+      {!isRegisteredUser ? (
         <Card className="mb-6 bg-accent/10 border-accent">
           <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center">
@@ -220,6 +217,21 @@ export default function EjerciciosPage() {
               <Link href="/register">Registrarse Ahora</Link>
             </Button>
           </CardContent>
+        </Card>
+      ) : (!isSubscribed && !isAdmin) && (
+         <Card className="mb-6 bg-accent/10 border-accent">
+            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center">
+                    <Star className="h-8 w-8 text-accent mr-4" />
+                    <div>
+                        <h3 className="text-lg font-semibold text-accent font-headline">Desbloquea FutsalDex Pro</h3>
+                        <p className="text-sm text-accent/80">Estás viendo una vista previa. Suscríbete para obtener acceso ilimitado a más de 500 ejercicios y a todas las herramientas de planificación.</p>
+                    </div>
+                </div>
+                <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
+                    <Link href="/suscripcion">Ver Planes</Link>
+                </Button>
+            </CardContent>
         </Card>
       )}
 

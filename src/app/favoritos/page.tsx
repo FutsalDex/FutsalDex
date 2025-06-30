@@ -14,6 +14,7 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Removed DialogDescription
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { SubscriptionGuard } from "@/components/subscription-guard";
 
 interface Ejercicio {
   id: string;
@@ -264,15 +265,17 @@ function FavoritosPageContent() {
 export default function FavoritosPage() {
   return (
     <AuthGuard>
-      <div className="container mx-auto px-4 py-8 md:px-6">
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Mis Ejercicios Favoritos</h1>
-          <p className="text-lg text-foreground/80">
-            Aquí encontrarás todos los ejercicios que has marcado como favoritos.
-          </p>
-        </header>
-        <FavoritosPageContent />
-      </div>
+      <SubscriptionGuard>
+        <div className="container mx-auto px-4 py-8 md:px-6">
+          <header className="mb-8">
+            <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Mis Ejercicios Favoritos</h1>
+            <p className="text-lg text-foreground/80">
+              Aquí encontrarás todos los ejercicios que has marcado como favoritos.
+            </p>
+          </header>
+          <FavoritosPageContent />
+        </div>
+      </SubscriptionGuard>
     </AuthGuard>
   );
 }
