@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 // --- Helper Components ---
 
@@ -268,159 +270,164 @@ function EstadisticasPageContent() {
       </div>
 
       <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} className="text-lg font-bold" />
-        <Input value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} className="text-lg font-bold" />
+        <Input value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Nombre equipo local" className="text-lg font-bold" />
+        <Input value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Nombre equipo visitante" className="text-lg font-bold" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* MY TEAM STATS */}
-        <div className="space-y-6">
-            <Card>
-                <CardHeader className="p-0">
-                    <CardTitle className="bg-primary text-primary-foreground p-3 rounded-t-lg text-lg">TIROS A PUERTA - {myTeamName}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead className="text-center w-[120px]">1º Tiempo</TableHead>
-                                <TableHead className="text-center w-[120px]">2º Tiempo</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {renderStatRow("Portería", 'onTarget', 'myTeam')}
-                            {renderStatRow("Fuera", 'offTarget', 'myTeam')}
-                            {renderStatRow("Defectuosos", 'blocked', 'myTeam')}
-                            {renderStatRow("Goles", 'goals', 'myTeam')}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <Tabs defaultValue="myTeam" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="myTeam">{myTeamName || "Equipo Local"}</TabsTrigger>
+            <TabsTrigger value="opponentTeam">{opponentTeamName || "Equipo Visitante"}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="myTeam">
+            <div className="space-y-6 pt-6">
                 <Card>
-                    <CardHeader><CardTitle className="text-base font-semibold">PÉRDIDAS</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-1">1º Tiempo</p>
-                             <StatCounter 
-                                value={myTeamStats.turnovers.firstHalf}
-                                onIncrement={() => handleStatChange('myTeam', ['turnovers', 'firstHalf'], 1)}
-                                onDecrement={() => handleStatChange('myTeam', ['turnovers', 'firstHalf'], -1)}
-                            />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-1">2º Tiempo</p>
-                             <StatCounter 
-                                value={myTeamStats.turnovers.secondHalf}
-                                onIncrement={() => handleStatChange('myTeam', ['turnovers', 'secondHalf'], 1)}
-                                onDecrement={() => handleStatChange('myTeam', ['turnovers', 'secondHalf'], -1)}
-                            />
-                        </div>
+                    <CardHeader className="p-0">
+                        <CardTitle className="bg-primary text-primary-foreground p-3 rounded-t-lg text-lg">TIROS A PUERTA - {myTeamName || "Local"}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Tipo</TableHead>
+                                    <TableHead className="text-center w-[120px]">1º Tiempo</TableHead>
+                                    <TableHead className="text-center w-[120px]">2º Tiempo</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {renderStatRow("Portería", 'onTarget', 'myTeam')}
+                                {renderStatRow("Fuera", 'offTarget', 'myTeam')}
+                                {renderStatRow("Defectuosos", 'blocked', 'myTeam')}
+                                {renderStatRow("Goles", 'goals', 'myTeam')}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
-                 <Card>
-                    <CardHeader><CardTitle className="text-base font-semibold">ROBOS</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader><CardTitle className="text-base font-semibold">PÉRDIDAS</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">1º Tiempo</p>
+                                <StatCounter 
+                                    value={myTeamStats.turnovers.firstHalf}
+                                    onIncrement={() => handleStatChange('myTeam', ['turnovers', 'firstHalf'], 1)}
+                                    onDecrement={() => handleStatChange('myTeam', ['turnovers', 'firstHalf'], -1)}
+                                />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">2º Tiempo</p>
+                                <StatCounter 
+                                    value={myTeamStats.turnovers.secondHalf}
+                                    onIncrement={() => handleStatChange('myTeam', ['turnovers', 'secondHalf'], 1)}
+                                    onDecrement={() => handleStatChange('myTeam', ['turnovers', 'secondHalf'], -1)}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle className="text-base font-semibold">ROBOS</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">1º Tiempo</p>
+                                <StatCounter 
+                                    value={myTeamStats.steals.firstHalf}
+                                    onIncrement={() => handleStatChange('myTeam', ['steals', 'firstHalf'], 1)}
+                                    onDecrement={() => handleStatChange('myTeam', ['steals', 'firstHalf'], -1)}
+                                />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">2º Tiempo</p>
+                                <StatCounter 
+                                    value={myTeamStats.steals.secondHalf}
+                                    onIncrement={() => handleStatChange('myTeam', ['steals', 'secondHalf'], 1)}
+                                    onDecrement={() => handleStatChange('myTeam', ['steals', 'secondHalf'], -1)}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+                <Card>
+                    <CardHeader><CardTitle className="text-base font-semibold">PORTERO JUGADOR (minutos)</CardTitle></CardHeader>
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-1">1º Tiempo</p>
-                             <StatCounter 
-                                value={myTeamStats.steals.firstHalf}
-                                onIncrement={() => handleStatChange('myTeam', ['steals', 'firstHalf'], 1)}
-                                onDecrement={() => handleStatChange('myTeam', ['steals', 'firstHalf'], -1)}
-                            />
+                            <Label htmlFor="pg-for">A Favor</Label>
+                            <Input id="pg-for" placeholder="Ej: 5" value={myTeamStats.flyingGoalkeeper.for} onChange={(e) => handleStringStatChange('myTeam', ['flyingGoalkeeper', 'for'], e.target.value)} />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-1">2º Tiempo</p>
-                             <StatCounter 
-                                value={myTeamStats.steals.secondHalf}
-                                onIncrement={() => handleStatChange('myTeam', ['steals', 'secondHalf'], 1)}
-                                onDecrement={() => handleStatChange('myTeam', ['steals', 'secondHalf'], -1)}
-                            />
+                            <Label htmlFor="pg-against">En Contra</Label>
+                            <Input id="pg-against" placeholder="Ej: 2" value={myTeamStats.flyingGoalkeeper.against} onChange={(e) => handleStringStatChange('myTeam', ['flyingGoalkeeper', 'against'], e.target.value)} />
                         </div>
                     </CardContent>
                 </Card>
             </div>
-             <Card>
-                <CardHeader><CardTitle className="text-base font-semibold">PORTERO JUGADOR (minutos)</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="pg-for">A Favor</Label>
-                        <Input id="pg-for" placeholder="Ej: 5" value={myTeamStats.flyingGoalkeeper.for} onChange={(e) => handleStringStatChange('myTeam', ['flyingGoalkeeper', 'for'], e.target.value)} />
-                    </div>
-                     <div>
-                        <Label htmlFor="pg-against">En Contra</Label>
-                        <Input id="pg-against" placeholder="Ej: 2" value={myTeamStats.flyingGoalkeeper.against} onChange={(e) => handleStringStatChange('myTeam', ['flyingGoalkeeper', 'against'], e.target.value)} />
-                    </div>
-                </CardContent>
-             </Card>
-        </div>
-        
-        {/* OPPONENT TEAM STATS */}
-        <div className="space-y-6">
-            <Card>
-                <CardHeader className="p-0">
-                     <CardTitle className="bg-accent text-accent-foreground p-3 rounded-t-lg text-lg">ESTADÍSTICAS - {opponentTeamName}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                    <div className="max-h-96 overflow-y-auto">
+        </TabsContent>
+        <TabsContent value="opponentTeam">
+             <div className="space-y-6 pt-6">
+                <Card>
+                    <CardHeader className="p-0">
+                        <CardTitle className="bg-accent text-accent-foreground p-3 rounded-t-lg text-lg">ESTADÍSTICAS - {opponentTeamName || "Visitante"}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                        <div className="max-h-96 overflow-y-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[40px]">Nº</TableHead>
+                                        <TableHead>Jugador</TableHead>
+                                        <TableHead title="Tarjeta Amarilla" className="text-center w-[60px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
+                                        <TableHead title="Tarjeta Roja" className="text-center w-[60px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
+                                        <TableHead className="text-center w-[110px]">Goles</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {opponentPlayers.map((player, index) => (
+                                        <TableRow key={player.id}>
+                                            <TableCell className="font-semibold">{player.id}</TableCell>
+                                            <TableCell><Input className="h-8 text-sm" placeholder={`Jugador ${player.id}`} value={player.name} onChange={(e) => handleOpponentPlayerChange(index, 'name', e.target.value)} /></TableCell>
+                                            <TableCell>
+                                                <StatCounter value={player.yellowCards} onIncrement={() => handleOpponentPlayerStatChange(index, 'yellowCards', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'yellowCards', -1)} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <StatCounter value={player.redCards} onIncrement={() => handleOpponentPlayerStatChange(index, 'redCards', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'redCards', -1)} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <StatCounter value={player.goals} onIncrement={() => handleOpponentPlayerStatChange(index, 'goals', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'goals', -1)} />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold">TIROS A PUERTA - {opponentTeamName || "Visitante"}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-[40px]">Nº</TableHead>
-                                    <TableHead>Jugador</TableHead>
-                                    <TableHead title="Tarjeta Amarilla" className="text-center w-[60px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
-                                    <TableHead title="Tarjeta Roja" className="text-center w-[60px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
-                                    <TableHead className="text-center w-[110px]">Goles</TableHead>
+                                    <TableHead>Tipo</TableHead>
+                                    <TableHead className="text-center w-[120px]">1º Tiempo</TableHead>
+                                    <TableHead className="text-center w-[120px]">2º Tiempo</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {opponentPlayers.map((player, index) => (
-                                    <TableRow key={player.id}>
-                                        <TableCell className="font-semibold">{player.id}</TableCell>
-                                        <TableCell><Input className="h-8 text-sm" placeholder={`Jugador ${player.id}`} value={player.name} onChange={(e) => handleOpponentPlayerChange(index, 'name', e.target.value)} /></TableCell>
-                                        <TableCell>
-                                            <StatCounter value={player.yellowCards} onIncrement={() => handleOpponentPlayerStatChange(index, 'yellowCards', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'yellowCards', -1)} />
-                                        </TableCell>
-                                        <TableCell>
-                                             <StatCounter value={player.redCards} onIncrement={() => handleOpponentPlayerStatChange(index, 'redCards', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'redCards', -1)} />
-                                        </TableCell>
-                                        <TableCell>
-                                            <StatCounter value={player.goals} onIncrement={() => handleOpponentPlayerStatChange(index, 'goals', 1)} onDecrement={() => handleOpponentPlayerStatChange(index, 'goals', -1)} />
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {renderStatRow("Portería", 'onTarget', 'opponentTeam')}
+                                {renderStatRow("Fuera", 'offTarget', 'opponentTeam')}
+                                {renderStatRow("Defectuosos", 'blocked', 'opponentTeam')}
+                                {renderStatRow("Goles", 'goals', 'opponentTeam')}
                             </TableBody>
                         </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-base font-semibold">TIROS A PUERTA - {opponentTeamName}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead className="text-center w-[120px]">1º Tiempo</TableHead>
-                                <TableHead className="text-center w-[120px]">2º Tiempo</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {renderStatRow("Portería", 'onTarget', 'opponentTeam')}
-                            {renderStatRow("Fuera", 'offTarget', 'opponentTeam')}
-                            {renderStatRow("Defectuosos", 'blocked', 'opponentTeam')}
-                            {renderStatRow("Goles", 'goals', 'opponentTeam')}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </div>
-      </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
