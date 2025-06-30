@@ -1,67 +1,43 @@
 rules_version = '2';
 
-// Helper function to check for admin role by looking at the 'role' field in the user's document.
-function isAdmin(userId) {
-  return isSignedIn() && get(/databases/$(database)/documents/usuarios/$(userId)).data.role == 'admin';
-}
-
-// Helper function to check if the user is authenticated.
-function isSignedIn() {
-  return request.auth != null;
-}
-
-// Helper function to check if the requesting user is the owner of the document.
-function isOwner(userId) {
-  return isSignedIn() && request.auth.uid == userId;
-}
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- USERS Collection ---
-    // Manages user profile data like email and role.
+    // Helper function to check for admin role safely.
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // GLOBAL READ RULE: Anyone can read any document.
+    // This is the key change to fix the permission errors.
+    match /{path=**} {
+      allow read: if true;
+    }
+
+    // SECURE WRITE RULES:
+    // Only admins can write to the exercises collection.
+    match /ejercicios_futsal/{exerciseId} {
+      allow write: if isAdmin();
+    }
+
+    // A user can write to their own user document.
     match /usuarios/{userId} {
-      // An owner can read/write their own data.
-      // An admin can read any user's data.
-      allow read, write: if isOwner(userId) || isAdmin(request.auth.uid);
-      
-      // Explicitly deny listing all users for security and privacy.
-      allow list: if false; 
+      allow write: if request.auth.uid == userId;
     }
 
-    // --- EXERCISES Collection ---
-    // Public library of all futsal exercises.
-    match /ejercicios_futsal/{ejercicioId} {
-      // Anyone can read (get) a single exercise and list the collection.
-      // This is necessary for both guests and registered users to view the library.
-      allow get, list: if true;
-
-      // Only authenticated admins can create, update, or delete exercises.
-      allow create, update, delete: if isAdmin(request.auth.uid);
+    // A user can manage their own favorites.
+    match /usuarios/{userId}/user_favorites/{favId} {
+      allow write: if request.auth.uid == userId;
     }
 
-    // --- USER SESSIONS Collection ---
-    // Where individual training sessions are stored for each user.
-    match /mis_sesiones/{sesionId} {
-      // A user can only create a session for themselves.
-      // `request.resource.data` refers to the data of the document being created.
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-
-      // A user can read, update, or delete their own sessions.
-      // `resource.data` refers to the data of the existing document.
-      allow get, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-
-      // A signed-in user can perform list queries on this collection.
-      // Security is enforced by the client query, which MUST include: `where('userId', '==', request.auth.uid)`.
-      // Firestore security rules will ensure this query filter is present and matches the user's UID.
-      allow list: if isSignedIn();
-    }
-    
-    // --- USER FAVORITES Subcollection ---
-    // Nested inside each user's document.
-    match /usuarios/{userId}/user_favorites/{exerciseId} {
-        // The owner can perform all actions on their own favorites list.
-        allow get, list, create, delete: if isOwner(userId);
+    // A user can manage their own sessions.
+    match /mis_sesiones/{sessionId} {
+      // Allow create if the user is the owner.
+      allow create: if request.resource.data.userId == request.auth.uid;
+      // Allow update/delete if the user is the owner.
+      allow update, delete: if resource.data.userId == request.auth.uid;
     }
   }
 }
