@@ -4,56 +4,48 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Funciones de ayuda para que las reglas sean más legibles
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    
+    // Helper function to check if the current user has an 'admin' role.
     function isAdmin() {
-      // Revisa el rol 'admin' en el documento del usuario
-      return isSignedIn() && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      // Check the 'role' field in the user's document in the 'usuarios' collection.
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Reglas para la colección 'ejercicios_futsal'
-    match /ejercicios_futsal/{exerciseId} {
-      // PERMISO DE LECTURA PÚBLICA: Cualquiera puede leer la lista de ejercicios.
-      allow get, list: if true;
-      // PERMISO DE ESCRITURA PARA ADMINS: Solo los admins pueden modificar ejercicios.
-      allow create, update, delete: if isAdmin();
-    }
-
-    // Reglas para la colección 'usuarios' y sus sub-colecciones
+    // Rules for the 'usuarios' collection
     match /usuarios/{userId} {
-      // Un usuario puede leer su propio perfil. Un admin puede leer cualquier perfil.
-      allow get: if isOwner(userId) || isAdmin();
-      // Un usuario puede crear su propio perfil al registrarse.
-      allow create: if isOwner(userId);
-      // Un usuario puede actualizar su propio perfil. Un admin puede actualizar cualquier perfil.
-      allow update: if isOwner(userId) || isAdmin();
-      // Solo los admins pueden borrar perfiles de usuario.
-      allow delete: if isAdmin();
+      // Users can create their own document upon registration.
+      // They can only read or update their own document afterwards.
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
 
-      // Reglas para la sub-colección 'user_favorites'
-      match /user_favorites/{exerciseId} {
-        // Un usuario puede gestionar su propia lista de favoritos.
-        allow get, list, create, delete: if isOwner(userId);
+      // Rules for the 'user_favorites' subcollection
+      match /user_favorites/{favoriteId} {
+        // Users can fully manage their own list of favorites.
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
-    
-    // Reglas para la colección 'mis_sesiones'
+
+    // Rules for the 'ejercicios_futsal' collection
+    match /ejercicios_futsal/{exerciseId} {
+      // Any authenticated user can read the exercises.
+      allow read: if request.auth != null;
+      // Only admins can create, update, or delete exercises.
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    // Rules for the 'mis_sesiones' (user sessions) collection
     match /mis_sesiones/{sessionId} {
-      // Un usuario puede leer una sesión si es el propietario.
-      allow get: if isOwner(resource.data.userId);
-      // Un usuario autenticado puede listar sesiones (la app debe filtrar por su ID).
-      allow list: if isSignedIn(); 
-      // Un usuario puede crear una sesión para sí mismo.
-      allow create: if isOwner(request.resource.data.userId);
-      // Un usuario puede actualizar o borrar su propia sesión.
-      allow update, delete: if isOwner(resource.data.userId);
+      // Users can only read, update, or delete their own sessions.
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Users can only create sessions for themselves.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Rules for the 'partidos_estadisticas' (match statistics) collection
+    match /partidos_estadisticas/{matchId} {
+      // Users can only read, update, or delete their own match stats.
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Users can only create match stats for themselves.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
