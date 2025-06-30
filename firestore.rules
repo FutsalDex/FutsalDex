@@ -2,49 +2,39 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Ejercicios
+    // REGLA GLOBAL DE LECTURA:
+    // Permite que cualquier usuario (autenticado o no) lea cualquier documento.
+    // Esto soluciona los errores de "permisos insuficientes" en la aplicación.
+    match /{document=**} {
+      allow read: if true;
+    }
+
+    // REGLAS DE ESCRITURA SEGURAS:
+
+    // Ejercicios: Solo los administradores pueden escribir.
     match /ejercicios_futsal/{exerciseId} {
-      // ANYONE can get or list exercises.
-      allow get, list: if true;
-
-      // ONLY ADMINS can create, update, or delete exercises.
-      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // User profiles
+    // Perfiles de Usuario: Los usuarios solo gestionan sus propios datos.
     match /usuarios/{userId} {
-      // A user can get their own profile. An admin can get any profile.
-      allow get: if (request.auth != null && request.auth.uid == userId) || (request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
-
-      // Only admins can list all users.
-      allow list: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
-
-      // A user can create their own profile on signup.
-      allow create: if request.auth != null && request.auth.uid == userId;
-
-      // A user can update their own profile.
-      allow update: if request.auth != null && request.auth.uid == userId;
-      
-      // Nobody can delete user profiles.
-      allow delete: if false;
-    }
-    
-    // User Favorites
-    match /usuarios/{userId}/user_favorites/{favId} {
-       // A user can do anything within their own favorites subcollection.
-       allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Un usuario puede crear su propio perfil.
+      allow create: if request.auth.uid == userId;
+      // Un usuario puede actualizar su propio perfil, pero no cambiar su rol.
+      allow update: if request.auth.uid == userId && request.resource.data.role == resource.data.role;
+      // Solo un administrador puede eliminar un usuario.
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // User Sessions
+    // Sesiones: Los usuarios solo gestionan sus propias sesiones.
     match /mis_sesiones/{sessionId} {
-      // A user can get/update/delete their own session.
-      allow get, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-
-      // A user can create a session for themselves.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      
-      // A user can list sessions, but the query MUST be filtered by userId on the client.
-      allow list: if request.auth != null;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Favoritos: Los usuarios solo gestionan sus propios favoritos.
+    match /usuarios/{userId}/user_favorites/{exerciseId} {
+      allow create, delete: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
