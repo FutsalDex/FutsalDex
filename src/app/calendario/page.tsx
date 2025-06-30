@@ -214,11 +214,6 @@ function CalendarPageContent() {
               ¡Crea tu primera sesión para verla aquí!
             </CardDescription>
             <div className="flex justify-center gap-4">
-              <Button asChild>
-                <Link href="/crear-sesion-ia">
-                  Crear con IA
-                </Link>
-              </Button>
               <Button asChild variant="outline">
                 <Link href="/crear-sesion-manual">
                   Crear Manualmente

@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, Sparkles } from "lucide-react";
+import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -263,14 +263,7 @@ function MisSesionesContent() {
     }
   };
 
-  const handleEditSessionClick = (sesionType: "AI" | "Manual", sessionId: string) => {
-    if (sesionType === "AI") {
-       toast({
-        title: "Función no disponible",
-        description: "La edición de sesiones generadas por IA no está disponible actualmente.",
-      });
-      return;
-    }
+  const handleEditSessionClick = (sessionId: string) => {
     router.push(`/mis-sesiones/edit/${sessionId}`);
   };
 
@@ -344,11 +337,6 @@ function MisSesionesContent() {
               ¡Empieza ahora o ajusta los filtros!
             </CardDescription>
             <div className="flex justify-center gap-4">
-              <Button asChild>
-                <Link href="/crear-sesion-ia">
-                  <Sparkles className="mr-2 h-4 w-4" /> Crear con IA
-                </Link>
-              </Button>
               <Button asChild variant="outline">
                 <Link href="/crear-sesion-manual">
                   <Edit2 className="mr-2 h-4 w-4" /> Crear Manualmente
@@ -417,9 +405,8 @@ function MisSesionesContent() {
                   <Button
                     variant="outline"
                     className="flex-1 text-sm bg-background shadow-md hover:shadow-lg"
-                    onClick={() => handleEditSessionClick(sesion.type, sesion.id)}
-                    disabled={sesion.type === "AI"}
-                    title={sesion.type === "AI" ? "La edición de sesiones AI no está disponible" : "Editar sesión"}
+                    onClick={() => handleEditSessionClick(sesion.id)}
+                    title="Editar sesión"
                   >
                     <Edit2 className="mr-2 h-4 w-4" /> Editar
                   </Button>
