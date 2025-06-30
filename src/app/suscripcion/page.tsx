@@ -75,7 +75,7 @@ export default function SuscripcionPage() {
                 Incluye 9,99€ de cuota anual + 10€ de inscripción única.
               </p>
               <p className="mt-4 text-foreground/90">
-                Con tu suscripción a FutsalDex Pro, tendrás acceso inmediato a todos los contenidos y herramientas de la plataforma, más todas las actualizaciones y nuevos ejercicios que se publiquen durante los 12 meses de tu suscripción.
+                Al suscribirte a FutsalDex Pro, obtendrás acceso inmediato a todos nuestros contenidos y herramientas. Además, disfrutarás de todas las actualizaciones y nuevos ejercicios que se publiquen durante los 12 meses de tu suscripción.
               </p>
               {!isRegisteredUser && (
                 <Button asChild size="lg" className="w-full mt-6 bg-accent hover:bg-accent/90 text-accent-foreground text-lg">
@@ -101,7 +101,7 @@ export default function SuscripcionPage() {
                 Renueva y ahorra el coste de inscripción.
               </p>
               <p className="mt-4 text-foreground/90">
-                A partir del segundo año, tu suscripción se renueva por solo 9,99€, manteniendo tu acceso completo a todas las herramientas y contenidos sin interrupciones.
+                A partir del segundo año, renueva tu suscripción por solo 9,99€ para mantener tu acceso completo a todas las herramientas y contenidos sin interrupciones.
               </p>
                {isRegisteredUser && (
                  <Button size="lg" className="w-full mt-6" disabled>
@@ -119,7 +119,7 @@ export default function SuscripcionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="text-sm text-foreground/90">
-                <p>Para tu comodidad, dispones de diferentes formas de pago.</p>
+                <p>Elige el método de pago que prefieras. Ofrecemos varias opciones para tu comodidad.</p>
                 <ul className="list-disc list-inside mt-2 space-y-1">
                     <li>Las opciones de pago con Tarjeta y PayPal son <strong>inmediatas</strong>.</li>
                     <li>Con la opción de pago mediante transferencia bancaria recibirás el acceso en <strong>menos de 24 horas</strong>.</li>
