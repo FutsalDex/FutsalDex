@@ -76,6 +76,13 @@ export default function EjerciciosPage() {
   const uniqueFases = useMemo(() => FASES_SESION, []);
 
   useEffect(() => {
+    // For guests, we don't need a live server count. We can just show a generic message.
+    if (!isRegisteredUser) {
+      setFilteredCount(null);
+      setIsCounting(false);
+      return;
+    }
+
     const fetchFilteredCount = async () => {
       setIsCounting(true);
       try {
@@ -104,7 +111,7 @@ export default function EjerciciosPage() {
     };
 
     fetchFilteredCount();
-  }, [phaseFilter, selectedAgeFilter, thematicCategoryFilter]);
+  }, [phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]);
 
 
   const fetchEjercicios = useCallback(async (
@@ -149,7 +156,7 @@ export default function EjerciciosPage() {
         ...(docSnap.data() as Omit<Ejercicio, 'id'>)
       } as Ejercicio));
       
-      let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB.filter(ej => ej.isVisible !== false);
+      let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB;
 
       if (currentSearchTerm.trim() !== "") {
         const lowerSearchTerms = currentSearchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
@@ -396,12 +403,16 @@ export default function EjerciciosPage() {
         <div className="text-left text-sm text-muted-foreground pt-2">
             {searchTerm.trim() === '' ? (
             <>
+              {isRegisteredUser && (
+                <>
                 Total de ejercicios:
                 {isCounting ? (
                 <Loader2 className="inline-block h-4 w-4 animate-spin ml-2" />
                 ) : (
                 <span className='font-bold text-foreground ml-1'>{filteredCount ?? 0}</span>
                 )}
+                </>
+              )}
             </>
             ) : (
             <span className='italic'>Buscando por: "{searchTerm}"</span>
@@ -417,7 +428,7 @@ export default function EjerciciosPage() {
 
       {!isLoading && ejercicios.length === 0 && (
          <p className="text-center text-lg text-muted-foreground py-10">
-           {filteredCount === 0 ? "No se encontraron ejercicios con los filtros actuales." : "No se encontraron ejercicios."}
+           {isRegisteredUser && filteredCount === 0 ? "No se encontraron ejercicios con los filtros actuales." : "No se encontraron ejercicios."}
          </p>
       )}
 
@@ -492,3 +503,4 @@ export default function EjerciciosPage() {
     </div>
   );
 }
+
