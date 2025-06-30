@@ -19,7 +19,7 @@ const basicFeatures = [
 const topFeatures = [
   ...basicFeatures,
   "Generador de sesiones con IA",
-  "Estadísticas avanzadas de equipo (Próximamente)",
+  "Estadísticas avanzadas de equipo",
   "Soporte técnico prioritario",
 ];
 
