@@ -73,16 +73,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const newUser = userCredential.user;
 
       if (newUser) {
+        // Determine user role based on email
+        const userRole = newUser.email === ADMIN_EMAIL ? 'admin' : 'user';
+        
         // Create a document for the new user in the 'usuarios' collection
         const userDocRef = doc(db, "usuarios", newUser.uid);
         await setDoc(userDocRef, {
             uid: newUser.uid,
             email: newUser.email,
             createdAt: serverTimestamp(),
-            role: 'user', // default role
+            role: userRole, // Set the role correctly
         });
 
-        if (newUser.email === ADMIN_EMAIL) {
+        // Update the client-side isAdmin state
+        if (userRole === 'admin') {
             setIsAdmin(true);
         } else {
             setIsAdmin(false);
