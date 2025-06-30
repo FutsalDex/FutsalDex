@@ -74,8 +74,12 @@ export default function EjerciciosPage() {
       try {
         const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
         const qLimit = isRegisteredUser ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
-        // Simple query that will not fail
-        const q = query(ejerciciosCollectionRef, firestoreOrderBy('ejercicio'), limit(qLimit));
+        
+        // For guests, use a simpler query without ordering to avoid potential permission issues with complex queries for unauthenticated users.
+        // Registered users get the ordered list.
+        const q = isRegisteredUser
+          ? query(ejerciciosCollectionRef, firestoreOrderBy('ejercicio'), limit(qLimit))
+          : query(ejerciciosCollectionRef, limit(qLimit));
         
         const documentSnapshots = await getDocs(q);
         
@@ -120,7 +124,6 @@ export default function EjerciciosPage() {
   const filteredExercises = useMemo(() => {
     return allExercises.filter(ej => {
       const lowerSearchTerms = searchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
-      // Ensure we check against ej.ejercicio which is guaranteed to be a string
       const searchMatch = lowerSearchTerms.length === 0 || lowerSearchTerms.some(term => (ej.ejercicio || '').toLowerCase().includes(term));
       const phaseMatch = phaseFilter === ALL_FILTER_VALUE || ej.fase === phaseFilter;
       const ageMatch = selectedAgeFilter === ALL_FILTER_VALUE || (ej.edad && ej.edad.includes(selectedAgeFilter));
@@ -367,3 +370,4 @@ export default function EjerciciosPage() {
     </div>
   );
 }
+
