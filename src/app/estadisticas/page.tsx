@@ -8,9 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical, Save, Loader2, History } from "lucide-react";
 import React, { useState } from "react";
 import { produce } from "immer";
+import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import Link from 'next/link';
 
 // --- Helper Components ---
 
@@ -87,12 +92,23 @@ const createInitialPlayers = (count: number): Player[] =>
 
 
 function EstadisticasPageContent() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Match Info
   const [myTeamName, setMyTeamName] = useState("Mi Equipo");
   const [opponentTeamName, setOpponentTeamName] = useState("Equipo Contrario");
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [campeonato, setCampeonato] = useState("");
+  const [jornada, setJornada] = useState("");
   
+  // Stats State
   const [myTeamStats, setMyTeamStats] = useState<TeamStats>(createInitialTeamStats());
   const [opponentTeamStats, setOpponentTeamStats] = useState<TeamStats>(createInitialTeamStats());
   const [opponentPlayers, setOpponentPlayers] = useState<Player[]>(createInitialPlayers(17));
+  
+  // Control State
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleStatChange = (
     team: 'myTeam' | 'opponentTeam',
@@ -147,6 +163,43 @@ function EstadisticasPageContent() {
       setOpponentPlayers(createInitialPlayers(17));
       setMyTeamName("Mi Equipo");
       setOpponentTeamName("Equipo Contrario");
+      setFecha(new Date().toISOString().split('T')[0]);
+      setCampeonato("");
+      setJornada("");
+  };
+
+  const handleSaveStats = async () => {
+    if (!user) {
+        toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
+        return;
+    }
+    if (!myTeamName || !opponentTeamName || !fecha) {
+        toast({ title: "Faltan datos", description: "Completa el nombre de los equipos y la fecha.", variant: "destructive" });
+        return;
+    }
+
+    setIsSaving(true);
+    try {
+        await addDoc(collection(db, "partidos_estadisticas"), {
+            userId: user.uid,
+            myTeamName,
+            opponentTeamName,
+            fecha,
+            campeonato,
+            jornada,
+            myTeamStats,
+            opponentTeamStats,
+            opponentPlayers: opponentPlayers.filter(p => p.name.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0),
+            createdAt: serverTimestamp(),
+        });
+        toast({ title: "Estadísticas Guardadas", description: "El partido se ha guardado en tu historial." });
+        resetAllStats();
+    } catch (error) {
+        console.error("Error saving stats: ", error);
+        toast({ title: "Error al guardar", description: "No se pudieron guardar las estadísticas.", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
   };
   
   const renderStatRow = (label: string, statKey: keyof TeamStats['shots'], team: 'myTeam' | 'opponentTeam') => (
@@ -181,11 +234,38 @@ function EstadisticasPageContent() {
                 Registra las estadísticas de tu equipo durante un partido en tiempo real.
             </p>
         </div>
-        <Button onClick={resetAllStats} variant="outline">
-            <RotateCcw className="mr-2 h-4 w-4"/>
-            Reiniciar Estadísticas
-        </Button>
+        <div className="flex flex-wrap gap-2">
+            <Button onClick={resetAllStats} variant="outline">
+                <RotateCcw className="mr-2 h-4 w-4"/>
+                Reiniciar
+            </Button>
+            <Button onClick={handleSaveStats} disabled={isSaving}>
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Guardar
+            </Button>
+            <Button asChild variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                <Link href="/estadisticas/historial">
+                    <History className="mr-2 h-4 w-4" />
+                    Ver Historial
+                </Link>
+            </Button>
+        </div>
       </header>
+
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1">
+              <Label htmlFor="fecha">Fecha</Label>
+              <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+              <Label htmlFor="campeonato">Campeonato</Label>
+              <Input id="campeonato" value={campeonato} onChange={(e) => setCampeonato(e.target.value)} placeholder="Ej: Liga Local" />
+          </div>
+          <div className="space-y-1">
+              <Label htmlFor="jornada">Jornada</Label>
+              <Input id="jornada" value={jornada} onChange={(e) => setJornada(e.target.value)} placeholder="Ej: Jornada 5" />
+          </div>
+      </div>
 
       <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} className="text-lg font-bold" />
