@@ -43,12 +43,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         const userDocRef = doc(db, "usuarios", currentUser.uid);
         const docSnap = await getDoc(userDocRef);
+
+        // An admin is determined by having the ADMIN_EMAIL or by having the 'admin' role in the database.
+        // This makes the check more robust.
+        const isAdminByEmail = currentUser.email === ADMIN_EMAIL;
+        const isAdminByRole = docSnap.exists() && docSnap.data().role === 'admin';
+        const finalIsAdmin = isAdminByEmail || isAdminByRole;
+        
+        setIsAdmin(finalIsAdmin);
+
+        // Subscription status is based purely on the database field.
+        // The admin gets access to protected routes via the `isAdmin` flag, not by being "subscribed".
         if (docSnap.exists()) {
-          const data = docSnap.data();
-          setIsAdmin(data.role === 'admin');
-          setIsSubscribed(data.subscriptionStatus === 'active');
+          setIsSubscribed(docSnap.data().subscriptionStatus === 'active');
         } else {
-          setIsAdmin(false);
           setIsSubscribed(false);
         }
       } else {
