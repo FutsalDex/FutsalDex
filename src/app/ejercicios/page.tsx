@@ -74,6 +74,7 @@ export default function EjerciciosPage() {
       try {
         const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
         const qLimit = isRegisteredUser ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
+        // Simple query that will not fail
         const q = query(ejerciciosCollectionRef, firestoreOrderBy('ejercicio'), limit(qLimit));
         
         const documentSnapshots = await getDocs(q);
@@ -98,6 +99,7 @@ export default function EjerciciosPage() {
           } as Ejercicio;
         });
 
+        // The client-side filtering approach only shows visible exercises.
         const visibleExercises = fetchedEjercicios.filter(ej => ej.isVisible !== false);
         setAllExercises(visibleExercises);
         
@@ -118,7 +120,8 @@ export default function EjerciciosPage() {
   const filteredExercises = useMemo(() => {
     return allExercises.filter(ej => {
       const lowerSearchTerms = searchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
-      const searchMatch = lowerSearchTerms.length === 0 || lowerSearchTerms.some(term => ej.ejercicio.toLowerCase().includes(term));
+      // Ensure we check against ej.ejercicio which is guaranteed to be a string
+      const searchMatch = lowerSearchTerms.length === 0 || lowerSearchTerms.some(term => (ej.ejercicio || '').toLowerCase().includes(term));
       const phaseMatch = phaseFilter === ALL_FILTER_VALUE || ej.fase === phaseFilter;
       const ageMatch = selectedAgeFilter === ALL_FILTER_VALUE || (ej.edad && ej.edad.includes(selectedAgeFilter));
       const categoryMatch = thematicCategoryFilter === ALL_FILTER_VALUE || ej.categoria === thematicCategoryFilter;
@@ -233,7 +236,7 @@ export default function EjerciciosPage() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value={ALL_FILTER_VALUE}>Todas las Fases</SelectItem>
-                    {uniqueFases.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
+                    {FASES_SESION.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
                 </SelectContent>
             </Select>
 
@@ -275,11 +278,9 @@ export default function EjerciciosPage() {
             </DropdownMenu>
         </div>
         <div className="text-left text-sm text-muted-foreground pt-2">
-          {isRegisteredUser && (
-            <>
-              Mostrando <span className='font-bold text-foreground'>{filteredExercises.length}</span> ejercicios.
-            </>
-          )}
+           <p className="text-sm text-muted-foreground">
+             Total de ejercicios: <span className="font-bold text-foreground">{filteredExercises.length}</span>
+           </p>
         </div>
       </div>
 
