@@ -42,11 +42,10 @@ const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecreme
 // --- State and Types ---
 
 interface Player {
-  id: number;
-  name: string;
+  dorsal: string;
+  goals: number;
   yellowCards: number;
   redCards: number;
-  goals: number;
 }
 
 interface HalfStats {
@@ -63,10 +62,6 @@ interface TeamStats {
   };
   turnovers: HalfStats;
   steals: HalfStats;
-  flyingGoalkeeper: {
-    for: string; // Store minutes
-    against: string;
-  };
 }
 
 const initialHalfStats: HalfStats = { firstHalf: 0, secondHalf: 0 };
@@ -80,16 +75,14 @@ const createInitialTeamStats = (): TeamStats => ({
   },
   turnovers: { ...initialHalfStats },
   steals: { ...initialHalfStats },
-  flyingGoalkeeper: { for: '', against: '' },
 });
 
 const createInitialPlayers = (count: number): Player[] =>
-  Array.from({ length: count }, (_, i) => ({
-    id: i + 1,
-    name: '',
+  Array.from({ length: count }, () => ({
+    dorsal: '',
+    goals: 0,
     yellowCards: 0,
     redCards: 0,
-    goals: 0,
   }));
 
 
@@ -107,8 +100,8 @@ function EstadisticasPageContent() {
   // Stats State
   const [myTeamStats, setMyTeamStats] = useState<TeamStats>(createInitialTeamStats());
   const [opponentTeamStats, setOpponentTeamStats] = useState<TeamStats>(createInitialTeamStats());
-  const [myTeamPlayers, setMyTeamPlayers] = useState<Player[]>(createInitialPlayers(17));
-  const [opponentPlayers, setOpponentPlayers] = useState<Player[]>(createInitialPlayers(17));
+  const [myTeamPlayers, setMyTeamPlayers] = useState<Player[]>(createInitialPlayers(12));
+  const [opponentPlayers, setOpponentPlayers] = useState<Player[]>(createInitialPlayers(12));
   
   // Control State
   const [isSaving, setIsSaving] = useState(false);
@@ -134,12 +127,12 @@ function EstadisticasPageContent() {
   const handlePlayerChange = (
     team: 'myTeam' | 'opponentTeam',
     index: number,
-    field: keyof Player,
-    value: string | number
+    field: 'dorsal',
+    value: string
   ) => {
       const setter = team === 'myTeam' ? setMyTeamPlayers : setOpponentPlayers;
       setter(produce(draft => {
-          (draft[index] as any)[field] = value;
+          draft[index][field] = value;
       }));
   };
 
@@ -155,28 +148,11 @@ function EstadisticasPageContent() {
       }));
   }
 
-  const handleStringStatChange = (
-    team: 'myTeam' | 'opponentTeam',
-    statPath: string[],
-    value: string
-  ) => {
-    const setter = team === 'myTeam' ? setMyTeamStats : setOpponentTeamStats;
-    setter(
-      produce(draft => {
-        let current = draft as any;
-        for (let i = 0; i < statPath.length - 1; i++) {
-          current = current[statPath[i]];
-        }
-        current[statPath[statPath.length - 1]] = value;
-      })
-    );
-  };
-
   const resetAllStats = () => {
       setMyTeamStats(createInitialTeamStats());
       setOpponentTeamStats(createInitialTeamStats());
-      setMyTeamPlayers(createInitialPlayers(17));
-      setOpponentPlayers(createInitialPlayers(17));
+      setMyTeamPlayers(createInitialPlayers(12));
+      setOpponentPlayers(createInitialPlayers(12));
       setMyTeamName("Mi Equipo");
       setOpponentTeamName("Equipo Contrario");
       setFecha(new Date().toISOString().split('T')[0]);
@@ -194,7 +170,7 @@ function EstadisticasPageContent() {
         return;
     }
 
-    const filterPlayers = (players: Player[]) => players.filter(p => p.name.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0);
+    const filterPlayers = (players: Player[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0);
 
     setIsSaving(true);
     try {
@@ -236,26 +212,32 @@ function EstadisticasPageContent() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[40px]">Nº</TableHead>
-                                <TableHead>Jugador</TableHead>
+                                <TableHead className="w-[80px]">Dorsal</TableHead>
+                                <TableHead className="text-center w-[110px]">Goles</TableHead>
                                 <TableHead title="Tarjeta Amarilla" className="text-center w-[60px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                                 <TableHead title="Tarjeta Roja" className="text-center w-[60px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
-                                <TableHead className="text-center w-[110px]">Goles</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {players.map((player, index) => (
-                                <TableRow key={player.id}>
-                                    <TableCell className="font-semibold">{player.id}</TableCell>
-                                    <TableCell><Input className="h-8 text-sm" placeholder={`Jugador ${player.id}`} value={player.name} onChange={(e) => handlePlayerChange(team, index, 'name', e.target.value)} /></TableCell>
+                                <TableRow key={index}>
+                                    <TableCell>
+                                      <Input 
+                                        className="h-8 text-sm w-16" 
+                                        placeholder="Nº" 
+                                        value={player.dorsal} 
+                                        onChange={(e) => handlePlayerChange(team, index, 'dorsal', e.target.value)}
+                                        type="number" 
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                        <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} />
+                                    </TableCell>
                                     <TableCell>
                                         <StatCounter value={player.yellowCards} onIncrement={() => handlePlayerStatChange(team, index, 'yellowCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'yellowCards', -1)} />
                                     </TableCell>
                                     <TableCell>
                                         <StatCounter value={player.redCards} onIncrement={() => handlePlayerStatChange(team, index, 'redCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'redCards', -1)} />
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} />
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -329,13 +311,6 @@ function EstadisticasPageContent() {
                     </CardContent>
                 </Card>
             </div>
-             <Card>
-                <CardHeader><CardTitle className="text-base font-semibold">PORTERO JUGADOR (minutos)</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><Label htmlFor={`pg-for-${team}`}>A Favor</Label><Input id={`pg-for-${team}`} placeholder="Ej: 5" value={stats.flyingGoalkeeper.for} onChange={(e) => handleStringStatChange(team, ['flyingGoalkeeper', 'for'], e.target.value)} /></div>
-                    <div><Label htmlFor={`pg-against-${team}`}>En Contra</Label><Input id={`pg-against-${team}`} placeholder="Ej: 2" value={stats.flyingGoalkeeper.against} onChange={(e) => handleStringStatChange(team, ['flyingGoalkeeper', 'against'], e.target.value)} /></div>
-                </CardContent>
-            </Card>
         </div>
     );
   }

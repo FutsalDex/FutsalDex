@@ -16,8 +16,7 @@ import { Loader2, ArrowLeft, RectangleHorizontal, RectangleVertical, History } f
 
 // --- Type Definitions ---
 interface Player {
-  id: number;
-  name: string;
+  dorsal: string;
   yellowCards: number;
   redCards: number;
   goals: number;
@@ -37,10 +36,6 @@ interface TeamStats {
   };
   turnovers: HalfStats;
   steals: HalfStats;
-  flyingGoalkeeper: {
-    for: string;
-    against: string;
-  };
 }
 
 interface MatchData {
@@ -107,21 +102,19 @@ const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[40px]">Nº</TableHead>
-                            <TableHead>Jugador</TableHead>
+                            <TableHead className="w-[60px]">Dorsal</TableHead>
+                            <TableHead className="text-center w-[80px]">Goles</TableHead>
                             <TableHead className="text-center w-[40px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                             <TableHead className="text-center w-[40px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
-                            <TableHead className="text-center w-[60px]">Goles</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {players.map((player) => (
-                            <TableRow key={player.id}>
-                                <TableCell className="font-semibold">{player.id}</TableCell>
-                                <TableCell>{player.name || `Jugador ${player.id}`}</TableCell>
+                        {players.map((player, index) => (
+                            <TableRow key={index}>
+                                <TableCell className="font-semibold">{player.dorsal}</TableCell>
+                                <TableCell className="text-center font-bold">{player.goals || 0}</TableCell>
                                 <TableCell className="text-center">{player.yellowCards || 0}</TableCell>
                                 <TableCell className="text-center">{player.redCards || 0}</TableCell>
-                                <TableCell className="text-center font-bold">{player.goals || 0}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -240,19 +233,6 @@ function HistorialDetallePageContent() {
                     <StatDisplayTable title="Tiros a Puerta" stats={match.myTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={match.myTeamStats.turnovers} type="events" />
                     <StatDisplayTable title="Robos" stats={match.myTeamStats.steals} type="events" />
-                    <Card>
-                        <CardHeader><CardTitle className="text-lg">Portero Jugador</CardTitle></CardHeader>
-                        <CardContent className="flex justify-around text-center">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">A Favor</p>
-                                <p className="text-2xl font-bold">{match.myTeamStats.flyingGoalkeeper.for || '0'} min</p>
-                            </div>
-                             <div>
-                                <p className="text-sm font-medium text-muted-foreground">En Contra</p>
-                                <p className="text-2xl font-bold">{match.myTeamStats.flyingGoalkeeper.against || '0'} min</p>
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
                 {/* Opponent Team Column */}
                 <div className="space-y-6">
@@ -261,19 +241,6 @@ function HistorialDetallePageContent() {
                     <StatDisplayTable title="Tiros a Puerta" stats={match.opponentTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={match.opponentTeamStats.turnovers} type="events" />
                     <StatDisplayTable title="Robos" stats={match.opponentTeamStats.steals} type="events" />
-                    <Card>
-                        <CardHeader><CardTitle className="text-lg">Portero Jugador</CardTitle></CardHeader>
-                        <CardContent className="flex justify-around text-center">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">A Favor</p>
-                                <p className="text-2xl font-bold">{match.opponentTeamStats.flyingGoalkeeper.for || '0'} min</p>
-                            </div>
-                             <div>
-                                <p className="text-sm font-medium text-muted-foreground">En Contra</p>
-                                <p className="text-2xl font-bold">{match.opponentTeamStats.flyingGoalkeeper.against || '0'} min</p>
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
         </div>
