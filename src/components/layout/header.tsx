@@ -31,7 +31,7 @@ export default function Header() {
 
   const navLinks = [
     { href: '/ejercicios', label: 'Ver ejercicios', icon: <FileText className="mr-2 h-4 w-4" />, guestAllowed: true },
-    { href: '/crear-sesion-manual', label: 'Crear Sesión (Manual)', icon: <Edit3 className="mr-2 h-4 w-4" />, guestAllowed: true },
+    { href: '/crear-sesion-manual', label: 'Crear Sesión', icon: <Edit3 className="mr-2 h-4 w-4" />, guestAllowed: true },
     { href: '/mis-sesiones', label: 'Mis Sesiones', icon: <BookUser className="mr-2 h-4 w-4" />, guestAllowed: false, requiresAuth: true },
     { href: '/calendario', label: 'Calendario', icon: <CalendarDays className="mr-2 h-4 w-4" />, guestAllowed: false, requiresAuth: true },
     { href: '/favoritos', label: 'Favoritos', icon: <Heart className="mr-2 h-4 w-4" />, guestAllowed: false, requiresAuth: true },

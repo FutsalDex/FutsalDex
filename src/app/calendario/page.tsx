@@ -216,7 +216,7 @@ function CalendarPageContent() {
             <div className="flex justify-center gap-4">
               <Button asChild variant="outline">
                 <Link href="/crear-sesion-manual">
-                  Crear Manualmente
+                  Crear Sesión
                 </Link>
               </Button>
             </div>

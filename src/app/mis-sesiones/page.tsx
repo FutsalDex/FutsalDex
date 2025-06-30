@@ -339,7 +339,7 @@ function MisSesionesContent() {
             <div className="flex justify-center gap-4">
               <Button asChild variant="outline">
                 <Link href="/crear-sesion-manual">
-                  <Edit2 className="mr-2 h-4 w-4" /> Crear Manualmente
+                  <Edit2 className="mr-2 h-4 w-4" /> Crear Sesión
                 </Link>
               </Button>
             </div>

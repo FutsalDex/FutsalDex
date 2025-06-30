@@ -231,7 +231,7 @@ function CrearSesionManualContent() {
     let totalDuration = 0;
     if (warmUpDoc) totalDuration += parseDurationToMinutes(warmUpDoc.duracion);
     mainDocs.forEach(doc => totalDuration += parseDurationToMinutes(doc.duracion));
-    if (coolDownDoc) totalDuration += parseDurationToMinutes(coolDownDoc.duracion);
+    if (coolDownDoc) totalDuration += parseDurationToMinutes(doc.duracion);
 
     const dateStringToUse = values.fecha || new Date().toISOString().split('T')[0];
     let formattedDate: string;
@@ -270,7 +270,7 @@ function CrearSesionManualContent() {
       await addDoc(collection(db, "mis_sesiones"), sessionDataToSave);
       toast({
         title: "¡Sesión Guardada!",
-        description: "Tu sesión manual ha sido guardada en 'Mis Sesiones'.",
+        description: "Tu sesión ha sido guardada en 'Mis Sesiones'.",
       });
       form.reset({
         warmUpExerciseId: "",
@@ -303,7 +303,7 @@ function CrearSesionManualContent() {
       console.error("Error saving manual session:", error);
       toast({
         title: "Error al Guardar",
-        description: "No se pudo guardar la sesión manual. Inténtalo de nuevo.",
+        description: "No se pudo guardar la sesión. Inténtalo de nuevo.",
         variant: "destructive",
       });
     }
@@ -408,7 +408,7 @@ function CrearSesionManualContent() {
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
       <header className="mb-8">
-        <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Crear Sesión Manualmente</h1>
+        <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Crear Sesión</h1>
         <p className="text-lg text-foreground/80">
           Selecciona ejercicios de nuestra biblioteca para construir tu propio plan de entrenamiento.
         </p>
@@ -419,7 +419,7 @@ function CrearSesionManualContent() {
           <Info className="h-5 w-5 text-accent" />
           <AlertTitle className="font-headline text-accent">Modo Invitado</AlertTitle>
           <AlertDescription className="text-accent/90">
-            Como invitado, puedes diseñar una sesión de entrenamiento manual.
+            Como invitado, puedes diseñar una sesión de entrenamiento.
             Para guardar tus sesiones y acceder a todas las funciones, por favor{" "}
             <Link href="/register" className="font-bold underline hover:text-accent/70">
               regístrate
@@ -525,10 +525,10 @@ function CrearSesionManualContent() {
             type="submit"
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3 text-lg"
             disabled={isSaving || Object.values(loadingEjercicios).some(l => l) || isFetchingNextSessionNumber}
-            title={!isRegisteredUser ? "Debes registrarte o iniciar sesión para guardar" : "Guardar Sesión Manual"}
+            title={!isRegisteredUser ? "Debes registrarte o iniciar sesión para guardar" : "Guardar Sesión"}
           >
             {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-            Guardar Sesión Manual
+            Guardar Sesión
           </Button>
         </form>
       </Form>
