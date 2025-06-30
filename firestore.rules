@@ -3,40 +3,62 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Default deny all access
-    match /{document=**} {
-      allow read, write: if false;
+  
+    // Helper function to check for admin role
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Allow public read access to exercises, but only admins can write.
+    // Main exercise library: 'ejercicios_futsal'
     match /ejercicios_futsal/{exerciseId} {
-      allow read: if true;
-      allow write: if request.auth.token.email == 'futsaldex@gmail.com';
-    }
-
-    // Users can manage their own sessions.
-    match /mis_sesiones/{sessionId} {
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-      allow create: if request.auth.uid == request.resource.data.userId;
-    }
-
-    // Users can read/update their own user document.
-    // Admin can read/write any user document.
-    match /usuarios/{userId} {
-      allow read, update: if request.auth.uid == userId || request.auth.token.email == 'futsaldex@gmail.com';
-      allow create: if request.auth.uid == userId;
+      // Anyone can read exercises marked as visible.
+      // Admins can read all exercises regardless of visibility.
+      allow read: if resource.data.isVisible == true || (request.auth != null && isAdmin());
       
-      // Users can manage their own favorites list.
-      match /user_favorites/{exerciseId} {
-         allow read, write: if request.auth.uid == userId;
+      // Only admins can create, update, or delete exercises.
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    // User-specific data collections
+    match /usuarios/{userId} {
+      // A user can read their own document. An admin can read any user's document.
+      allow read: if request.auth.uid == userId || isAdmin();
+      
+      // A user can create their own document (e.g., on registration).
+      // They cannot assign themselves the admin role.
+      allow create: if request.auth.uid == userId && request.resource.data.role != 'admin';
+      
+      // An admin can update any user document.
+      // A user can update their own document, but CANNOT change their role.
+      allow update: if (request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
+      
+      // Only admins can delete user accounts.
+      allow delete: if isAdmin();
+
+      // Sub-collection for user's favorite exercises
+      match /user_favorites/{favoriteId} {
+        // A user can only access their own favorites sub-collection.
+        allow read, write, delete: if request.auth.uid == userId;
       }
     }
     
-    // Users can manage their own match statistics.
+    // User's saved sessions
+    match /mis_sesiones/{sessionId} {
+      // On create, ensure the session is being created for the logged-in user.
+      allow create: if request.auth.uid == request.resource.data.userId;
+      
+      // Allow read, update, delete only if the document's userId matches the logged-in user.
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+    }
+    
+    // User's match statistics
     match /partidos_estadisticas/{matchId} {
-        allow read, update, delete: if request.auth.uid == resource.data.userId;
-        allow create: if request.auth.uid == request.resource.data.userId;
+      // On create, ensure the stats are being created for the logged-in user.
+      allow create: if request.auth.uid == request.resource.data.userId;
+
+      // Allow read, update, delete only if the document's userId matches the logged-in user.
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
     }
   }
 }
