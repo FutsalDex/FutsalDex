@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useEffect, useState } from 'react';
 
 const FutsalAppIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -28,6 +29,11 @@ const FutsalAppIcon = ({ className }: { className?: string }) => (
 export default function Header() {
   const { user, signOut, loading, isAdmin } = useAuth();
   const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const navLinks = [
     { href: '/ejercicios', label: 'Ver ejercicios', icon: <FileText className="mr-2 h-4 w-4" /> },
@@ -41,6 +47,115 @@ export default function Header() {
   const adminLinks = [
     { href: '/admin', label: 'Panel Admin', icon: <ShieldCheck className="mr-2 h-4 w-4" /> }
   ];
+
+  const renderAuthContent = () => {
+    if (!isMounted || loading) {
+      return <div className="h-8 w-20 animate-pulse rounded-md bg-primary/50" />;
+    }
+
+    if (user) {
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-primary/80">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user.photoURL || `https://placehold.co/40x40.png?text=${user.email?.[0]?.toUpperCase() ?? 'U'}`} alt={user.displayName || user.email || "Usuario"} data-ai-hint="user avatar"/>
+                <AvatarFallback>{user.email?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user.displayName || user.email}</p>
+                {user.displayName && <p className="text-xs leading-none text-muted-foreground">{user.email}</p>}
+                {isAdmin && <p className="text-xs leading-none text-red-500 font-semibold">Admin</p>}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Cerrar sesión</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
+
+    return (
+      <>
+        <Button variant="ghost" asChild className="hidden md:flex hover:bg-primary/80">
+          <Link href="/login"><span className="flex items-center"><LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión</span></Link>
+        </Button>
+        <Button variant="secondary" asChild className="hidden md:flex bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Link href="/register"><span className="flex items-center"><UserPlus className="mr-2 h-4 w-4" /> Registrarse</span></Link>
+        </Button>
+      </>
+    );
+  };
+  
+  const renderMobileMenu = () => {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="hover:bg-primary/80">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {navLinks.map((link) => ( 
+            <DropdownMenuItem key={link.href} asChild>
+              <Link href={link.href}>
+                <span className="flex items-center">
+                  {link.icon}
+                  {link.label}
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          ))}
+          {isMounted && isAdmin && adminLinks.map((link) => (
+            <DropdownMenuItem key={link.href} asChild>
+              <Link href={link.href}>
+                <span className="flex items-center text-red-500">
+                  {link.icon}
+                  {link.label}
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          ))}
+          {isMounted && !user && !loading && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/login">
+                  <span className="flex items-center">
+                    <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+                  </span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                 <Link href="/register">
+                  <span className="flex items-center">
+                    <UserPlus className="mr-2 h-4 w-4" /> Registrarse
+                  </span>
+                </Link>
+              </DropdownMenuItem>
+            </>
+          )}
+           {isMounted && user && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Cerrar sesión</span>
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
@@ -65,7 +180,7 @@ export default function Header() {
               </Link>
             </Button>
           ))}
-          {isAdmin && adminLinks.map((link) => (
+          {isMounted && isAdmin && adminLinks.map((link) => (
             <Button
               key={link.href}
               variant={pathname.startsWith(link.href) ? 'secondary' : 'ghost'}
@@ -82,103 +197,9 @@ export default function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          {loading ? (
-            <div className="h-8 w-20 animate-pulse rounded-md bg-primary/50" />
-          ) : user ? (
-             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-primary/80">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || `https://placehold.co/40x40.png?text=${user.email?.[0]?.toUpperCase() ?? 'U'}`} alt={user.displayName || user.email || "Usuario"} data-ai-hint="user avatar"/>
-                    <AvatarFallback>{user.email?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.displayName || user.email}</p>
-                    {user.displayName && <p className="text-xs leading-none text-muted-foreground">{user.email}</p>}
-                    {isAdmin && <p className="text-xs leading-none text-red-500 font-semibold">Admin</p>}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Cerrar sesión</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <>
-              <Button variant="ghost" asChild className="hidden md:flex hover:bg-primary/80">
-                <Link href="/login"><span className="flex items-center"><LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión</span></Link>
-              </Button>
-              <Button variant="secondary" asChild className="hidden md:flex bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href="/register"><span className="flex items-center"><UserPlus className="mr-2 h-4 w-4" /> Registrarse</span></Link>
-              </Button>
-            </>
-          )}
-           {/* Mobile Menu Trigger */}
+          {renderAuthContent()}
           <div className="inline-flex md:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="hover:bg-primary/80">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Toggle menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {navLinks.map((link) => ( 
-                  <DropdownMenuItem key={link.href} asChild>
-                    <Link href={link.href}>
-                      <span className="flex items-center">
-                        {link.icon}
-                        {link.label}
-                      </span>
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-                {isAdmin && adminLinks.map((link) => (
-                  <DropdownMenuItem key={link.href} asChild>
-                    <Link href={link.href}>
-                      <span className="flex items-center text-red-500">
-                        {link.icon}
-                        {link.label}
-                      </span>
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-                {!user && !loading && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/login">
-                        <span className="flex items-center">
-                          <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
-                        </span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                       <Link href="/register">
-                        <span className="flex items-center">
-                          <UserPlus className="mr-2 h-4 w-4" /> Registrarse
-                        </span>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-                 {user && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={signOut} className="cursor-pointer">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Cerrar sesión</span>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isMounted && renderMobileMenu()}
           </div>
         </div>
       </div>
