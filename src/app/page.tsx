@@ -17,7 +17,7 @@ export default function HomePage() {
           ¡Bienvenido a FutsalDex!
         </h1>
         <p className="mb-8 max-w-2xl text-lg text-foreground/80 md:text-xl">
-          Tu compañero definitivo para el entrenamiento de fútbol sala. Descubre más de 500 ejercicios, diseña tus propias sesiones de entrenamiento o déjale a nuestra IA que te las prepare y eleva tus conocimientos y habilidades como entrenador al siguiente nivel
+          Tu compañero definitivo para el entrenamiento de fútbol sala. Descubre más de 500 ejercicios, diseña tus propias sesiones de entrenamiento y eleva tus conocimientos y habilidades como entrenador al siguiente nivel
         </p>
         
         <Card className="w-full max-w-lg bg-background shadow-xl border-accent border-2">
@@ -36,18 +36,12 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-16 grid gap-8 md:grid-cols-2">
           <FeatureCard
             title="Biblioteca Extensa"
             description="Accede a cientos de ejercicios detallados para todas las edades y niveles."
             imageUrl="https://placehold.co/600x400.png"
             imageHint="exercise library"
-          />
-          <FeatureCard
-            title="IA Inteligente"
-            description="Crea sesiones de entrenamiento personalizadas con nuestra avanzada IA."
-            imageUrl="https://placehold.co/600x400.png"
-            imageHint="artificial intelligence"
           />
           <FeatureCard
             title="Organiza Tus Sesiones"
