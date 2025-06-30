@@ -1,40 +1,51 @@
-rules_version = '2';
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Rule for user profile data. Only the user can read/write their own document.
-    match /usuarios/{userId} {
-      allow read, write: if request.auth.uid == userId;
+    // Helper function to check if the user is an administrator
+    function isAdmin() {
+      // Admins have a 'role' field set to 'admin' in their user document
+      return exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Rule for user's favorites, a subcollection under their profile.
-    match /usuarios/{userId}/user_favorites/{favoriteId} {
-      allow read, write, delete: if request.auth.uid == userId;
-    }
-
-    // Rule for user's training sessions.
-    match /mis_sesiones/{sesionId} {
-      // Allow reading (get), updating, and deleting a session if the user is the owner.
-      allow get, update, delete: if request.auth.uid == resource.data.userId;
-      
-      // Allow listing sessions for any authenticated user.
-      // The client code MUST enforce security by querying only for the user's own sessions
-      // using `where("userId", "==", user.uid)`. The app already does this.
-      allow list: if request.auth != null;
-      
-      // Allow creating a session if the new session's userId matches the user's ID.
-      allow create: if request.auth.uid == request.resource.data.userId;
-    }
-
-    // Rule for the public library of exercises.
+    // Exercises are public to read for everyone, but only admins can write.
     match /ejercicios_futsal/{ejercicioId} {
-      // Anyone can read exercises.
       allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // User-specific data
+    match /usuarios/{userId} {
+      // A user can create, read, update, and delete their own document
+      allow read, update, delete: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId;
       
-      // Only users with an 'admin' role in their user document can write.
-      allow write, delete, update: if request.auth != null 
-                                     && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      // An admin can read any user's profile
+      allow get: if isAdmin();
+      // An admin can list users (for future admin panels)
+      allow list: if isAdmin();
+
+      // Subcollection for user favorites
+      match /user_favorites/{exerciseId} {
+        // A user can manage their own list of favorites
+        allow read, write, delete: if request.auth.uid == userId;
+      }
+    }
+
+    // User-created sessions
+    match /mis_sesiones/{sesionId} {
+      // A user can read, update, or delete their own sessions.
+      // This rule implicitly allows list() queries that include `where("userId", "==", request.auth.uid)`.
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+
+      // A user can create a new session for themselves
+      allow create: if request.auth.uid == request.resource.data.userId;
+
+      // An admin can read any session (for support or moderation)
+      allow get: if isAdmin();
+      allow list: if isAdmin();
     }
   }
 }
