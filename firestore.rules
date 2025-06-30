@@ -1,40 +1,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // REGLA GLOBAL DE LECTURA:
-    // Permite que cualquier usuario (autenticado o no) lea cualquier documento.
-    // Esto soluciona los errores de "permisos insuficientes" en la aplicación.
-    match /{document=**} {
-      allow read: if true;
-    }
-
-    // REGLAS DE ESCRITURA SEGURAS:
-
-    // Ejercicios: Solo los administradores pueden escribir.
+    
+    // Exercises are public to read, but only admins can write.
     match /ejercicios_futsal/{exerciseId} {
-      allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      allow get, list: if true;
+      allow write: if get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Users can read and write to their own user document and its subcollections (like favorites).
+    match /usuarios/{userId}/{document=**} {
+      allow read, write: if request.auth.uid == userId;
     }
 
-    // Perfiles de Usuario: Los usuarios solo gestionan sus propios datos.
-    match /usuarios/{userId} {
-      // Un usuario puede crear su propio perfil.
-      allow create: if request.auth.uid == userId;
-      // Un usuario puede actualizar su propio perfil, pero no cambiar su rol.
-      allow update: if request.auth.uid == userId && request.resource.data.role == resource.data.role;
-      // Solo un administrador puede eliminar un usuario.
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Sesiones: Los usuarios solo gestionan sus propias sesiones.
+    // Rules for the top-level sessions collection.
     match /mis_sesiones/{sessionId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-    }
-
-    // Favoritos: Los usuarios solo gestionan sus propios favoritos.
-    match /usuarios/{userId}/user_favorites/{exerciseId} {
-      allow create, delete: if request.auth != null && request.auth.uid == userId;
+      // A user can get a specific session if they are the owner.
+      allow get: if request.auth.uid == resource.data.userId;
+      
+      // An authenticated user can list sessions. 
+      // The query in the app MUST secure this with a `where("userId", "==", uid)` clause.
+      allow list: if request.auth.uid != null; 
+      
+      // A user can create a session if they set themselves as the owner.
+      allow create: if request.auth.uid == request.resource.data.userId;
+      
+      // A user can update/delete a session if they are the owner of the existing document.
+      allow update, delete: if request.auth.uid == resource.data.userId;
     }
   }
 }
