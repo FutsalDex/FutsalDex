@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection as firestoreCollection, getDocs, limit, query, where, startAfter, orderBy as firestoreOrderBy, DocumentData, QueryConstraint, QueryDocumentSnapshot, doc, setDoc, deleteDoc, serverTimestamp, getCountFromServer } from 'firebase/firestore';
+import { collection as firestoreCollection, getDocs, limit, query, orderBy as firestoreOrderBy, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
 import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 import { CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, FASES_SESION } from '@/lib/constants';
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-
 
 interface Ejercicio {
   id: string;
@@ -45,10 +44,10 @@ interface Ejercicio {
   isVisible?: boolean; 
 }
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 12;
 const GUEST_ITEM_LIMIT = 15;
+const REGISTERED_USER_LIMIT = 500;
 const ALL_FILTER_VALUE = "ALL";
-
 
 interface FavoriteState {
   [exerciseId: string]: boolean;
@@ -57,103 +56,31 @@ interface FavoriteState {
 export default function EjerciciosPage() {
   const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
-  const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
+  
+  const [allExercises, setAllExercises] = useState<Ejercicio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rawFetchedItemsCountOnPage, setRawFetchedItemsCountOnPage] = useState(0);
-  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot<DocumentData> | null)[]>([]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState(ALL_FILTER_VALUE);
   const [selectedAgeFilter, setSelectedAgeFilter] = useState<string>(ALL_FILTER_VALUE);
   const [thematicCategoryFilter, setThematicCategoryFilter] = useState<string>(ALL_FILTER_VALUE);
+  
   const [favorites, setFavorites] = useState<FavoriteState>({});
-
-  const [filteredCount, setFilteredCount] = useState<number | null>(null);
-  const [isCounting, setIsCounting] = useState(true);
-
-  const uniqueAgeCategories = useMemo(() => CATEGORIAS_EDAD_EJERCICIOS, []);
-  const uniqueFases = useMemo(() => FASES_SESION, []);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    // For guests, we don't need a live server count. We can just show a generic message.
-    if (!isRegisteredUser) {
-      setFilteredCount(null);
-      setIsCounting(false);
-      return;
-    }
-
-    const fetchFilteredCount = async () => {
-      setIsCounting(true);
+    const fetchAllExercises = async () => {
+      setIsLoading(true);
       try {
-        const coll = firestoreCollection(db, "ejercicios_futsal");
-        let countConstraints: QueryConstraint[] = [];
+        const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
+        const qLimit = isRegisteredUser ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
+        const q = query(ejerciciosCollectionRef, firestoreOrderBy('ejercicio'), limit(qLimit));
         
-        if (selectedAgeFilter && selectedAgeFilter !== ALL_FILTER_VALUE) {
-            countConstraints.push(where('edad', 'array-contains', selectedAgeFilter));
-        }
-
-        if (phaseFilter && phaseFilter !== ALL_FILTER_VALUE) {
-          countConstraints.push(where('fase', '==', phaseFilter));
-        }
-        if (thematicCategoryFilter && thematicCategoryFilter !== ALL_FILTER_VALUE) {
-          countConstraints.push(where('categoria', '==', thematicCategoryFilter));
-        }
-
-        const countQuery = query(coll, ...countConstraints);
-        const snapshot = await getCountFromServer(countQuery);
-        setFilteredCount(snapshot.data().count);
-      } catch (error) {
-        console.error("Error fetching filtered exercise count: ", error);
-        setFilteredCount(0);
-      }
-      setIsCounting(false);
-    };
-
-    fetchFilteredCount();
-  }, [phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]);
-
-
-  const fetchEjercicios = useCallback(async (
-    pageToFetch: number,
-    currentSearchTerm: string,
-    currentPhase: string,
-    currentAgeCategory: string,
-    currentThematicCategory: string,
-    docToStartAfter: QueryDocumentSnapshot<DocumentData> | null
-  ): Promise<QueryDocumentSnapshot<DocumentData> | null> => {
-    let newLastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null = null;
-    try {
-      const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
-      
-      let constraintsList: QueryConstraint[] = [];
-
-      if (currentAgeCategory && currentAgeCategory !== ALL_FILTER_VALUE) {
-        constraintsList.push(where('edad', 'array-contains', currentAgeCategory));
-      }
-
-      if (currentPhase && currentPhase !== ALL_FILTER_VALUE) {
-        constraintsList.push(where('fase', '==', currentPhase));
-      }
-      if (currentThematicCategory && currentThematicCategory !== ALL_FILTER_VALUE) {
-        constraintsList.push(where('categoria', '==', currentThematicCategory));
-      }
-      
-      constraintsList.push(firestoreOrderBy('ejercicio'));
-
-      const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
-      constraintsList.push(limit(currentLimit));
-      
-      if (docToStartAfter) {
-         constraintsList.push(startAfter(docToStartAfter));
-      }
-
-      const q = query(ejerciciosCollectionRef, ...constraintsList);
-      const documentSnapshots = await getDocs(q);
-      
-      const fetchedEjerciciosFromDB = documentSnapshots.docs.map(docSnap => {
-        const data = docSnap.data();
-        return {
+        const documentSnapshots = await getDocs(q);
+        
+        const fetchedEjercicios = documentSnapshots.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
             id: docSnap.id,
             ejercicio: data.ejercicio || '',
             descripcion: data.descripcion || '',
@@ -168,102 +95,46 @@ export default function EjerciciosPage() {
             imagen: data.imagen || '',
             consejos_entrenador: data.consejos_entrenador || '',
             isVisible: data.isVisible,
-        } as Ejercicio;
-      });
-      
-      let filteredAndSearchedEjercicios = fetchedEjerciciosFromDB;
-
-      if (currentSearchTerm.trim() !== "") {
-        const lowerSearchTerms = currentSearchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
-        filteredAndSearchedEjercicios = fetchedEjerciciosFromDB.filter(ej => {
-          const lowerEjercicioName = ej.ejercicio.toLowerCase();
-          return lowerSearchTerms.some(term => lowerEjercicioName.includes(term));
+          } as Ejercicio;
         });
+
+        const visibleExercises = fetchedEjercicios.filter(ej => ej.isVisible !== false);
+        setAllExercises(visibleExercises);
+        
+      } catch (error: any) {
+        console.error("Error fetching exercises: ", error);
+        toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios. Revisa tu conexión o contacta soporte.", variant: "destructive" });
+        setAllExercises([]);
       }
-      
-      setEjercicios(filteredAndSearchedEjercicios);
-      newLastVisibleDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1] || null;
-      setRawFetchedItemsCountOnPage(documentSnapshots.docs.length);
-
-    } catch (error: any) {
-      console.error("Error fetching exercises: ", error);
-      if (error.code === 'failed-precondition') {
-        toast({
-          title: "Índice Requerido por Firestore",
-          description: ( <div className="text-sm"> <p>La combinación actual de filtros y/o ordenación necesita un índice compuesto en Firestore que no existe.</p> <p className="mt-1">Por favor, abre la consola de desarrollador (F12), busca el mensaje de error completo de Firebase y haz clic en el enlace que proporciona para crear el índice automáticamente.</p> </div> ),
-          variant: "destructive", duration: 30000,
-        });
-      } else {
-        toast({ title: "Error al Cargar Ejercicios", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
-      }
-      setEjercicios([]); 
-      setRawFetchedItemsCountOnPage(0);
-    }
-    return newLastVisibleDoc;
-  }, [isRegisteredUser, toast]);
-
-
-  useEffect(() => {
-    const fetchDataForCurrentPage = async () => {
-      setIsLoading(true);
-      const startAfterDoc = currentPage > 1 && pageCursors[currentPage - 2] ? pageCursors[currentPage - 2] : null;
-
-      const newLastVisibleDoc = await fetchEjercicios(
-        currentPage,
-        searchTerm,
-        phaseFilter,
-        selectedAgeFilter,
-        thematicCategoryFilter,
-        startAfterDoc
-      );
-      
-      setPageCursors(prevCursors => {
-        const updatedCursors = [...prevCursors];
-        if (currentPage === 1) {
-          return newLastVisibleDoc ? [newLastVisibleDoc] : [];
-        }
-        if (newLastVisibleDoc) {
-          updatedCursors[currentPage - 1] = newLastVisibleDoc;
-        } else if (currentPage > 0 && updatedCursors.length >= currentPage) {
-          updatedCursors[currentPage - 1] = null; 
-           while (updatedCursors.length > 0 && updatedCursors[updatedCursors.length - 1] === null) {
-            updatedCursors.pop();
-          }
-        }
-        return updatedCursors;
-      });
       setIsLoading(false);
     };
+    fetchAllExercises();
+  }, [isRegisteredUser, toast]);
 
-    fetchDataForCurrentPage();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter, isRegisteredUser]);
-
-  const resetPaginationAndFilters = () => {
+  useEffect(() => {
     setCurrentPage(1);
-    setPageCursors([]);
-    setEjercicios([]); 
-  };
+  }, [searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter]);
 
-  const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    resetPaginationAndFilters();
-  };
+  const filteredExercises = useMemo(() => {
+    return allExercises.filter(ej => {
+      const lowerSearchTerms = searchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
+      const searchMatch = lowerSearchTerms.length === 0 || lowerSearchTerms.some(term => ej.ejercicio.toLowerCase().includes(term));
+      const phaseMatch = phaseFilter === ALL_FILTER_VALUE || ej.fase === phaseFilter;
+      const ageMatch = selectedAgeFilter === ALL_FILTER_VALUE || (ej.edad && ej.edad.includes(selectedAgeFilter));
+      const categoryMatch = thematicCategoryFilter === ALL_FILTER_VALUE || ej.categoria === thematicCategoryFilter;
+      return searchMatch && phaseMatch && ageMatch && categoryMatch;
+    });
+  }, [allExercises, searchTerm, phaseFilter, selectedAgeFilter, thematicCategoryFilter]);
 
-  const handlePhaseFilterChange = (value: string) => {
-    setPhaseFilter(value);
-    resetPaginationAndFilters();
-  };
+  const paginatedExercises = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredExercises.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredExercises, currentPage]);
 
-  const handleThematicCategoryFilterChange = (value: string) => {
-    setThematicCategoryFilter(value);
-    resetPaginationAndFilters();
-  };
+  const totalPages = Math.ceil(filteredExercises.length / ITEMS_PER_PAGE);
 
-  const handleSelectedAgeFilterChange = (value: string) => {
-    setSelectedAgeFilter(value);
-    resetPaginationAndFilters();
-  };
+  const canGoPrevious = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
 
   useEffect(() => {
     if (user && isRegisteredUser) {
@@ -311,24 +182,12 @@ export default function EjerciciosPage() {
     }
   };
   
-  const handlePageChange = (newPage: number) => {
-    if (isLoading) return;
-    if (newPage < 1 && currentPage === 1) return;
-    if (newPage > currentPage && !canGoNext) return;
-    setCurrentPage(newPage);
-  };
-  
   const getAgeFilterButtonText = () => {
     if (selectedAgeFilter === ALL_FILTER_VALUE) return "Todas las Edades";
     return selectedAgeFilter;
   };
   
   const formatDuracion = (duracion: string) => duracion ? `${duracion}` : 'N/A';
-
-  const currentLimit = isRegisteredUser ? ITEMS_PER_PAGE : GUEST_ITEM_LIMIT;
-  const canGoPrevious = currentPage > 1;
-  const canGoNext = rawFetchedItemsCountOnPage === currentLimit;
-
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -362,12 +221,12 @@ export default function EjerciciosPage() {
                 type="text"
                 placeholder="Buscar ejercicio por nombre..."
                 value={searchTerm}
-                onChange={handleSearchTermChange}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
                 />
                 <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             </div>
-            <Select value={phaseFilter} onValueChange={handlePhaseFilterChange}>
+            <Select value={phaseFilter} onValueChange={setPhaseFilter}>
                 <SelectTrigger className="w-full md:w-[180px]">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Filtrar por Fase" />
@@ -378,7 +237,7 @@ export default function EjerciciosPage() {
                 </SelectContent>
             </Select>
 
-            <Select value={thematicCategoryFilter} onValueChange={handleThematicCategoryFilterChange}>
+            <Select value={thematicCategoryFilter} onValueChange={setThematicCategoryFilter}>
                 <SelectTrigger className="w-full md:w-[220px]">
                     <ListFilter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Categoría" />
@@ -404,9 +263,9 @@ export default function EjerciciosPage() {
                 <DropdownMenuContent className="w-[250px]">
                     <DropdownMenuLabel>Selecciona Edad</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={handleSelectedAgeFilterChange}>
+                    <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={setSelectedAgeFilter}>
                     <DropdownMenuRadioItem value={ALL_FILTER_VALUE}>Todas las Edades</DropdownMenuRadioItem>
-                    {uniqueAgeCategories.map(ageCat => (
+                    {CATEGORIAS_EDAD_EJERCICIOS.map(ageCat => (
                         <DropdownMenuRadioItem key={ageCat} value={ageCat}>
                         {ageCat}
                         </DropdownMenuRadioItem>
@@ -416,41 +275,26 @@ export default function EjerciciosPage() {
             </DropdownMenu>
         </div>
         <div className="text-left text-sm text-muted-foreground pt-2">
-            {searchTerm.trim() === '' ? (
+          {isRegisteredUser && (
             <>
-              {isRegisteredUser && (
-                <>
-                Total de ejercicios:
-                {isCounting ? (
-                <Loader2 className="inline-block h-4 w-4 animate-spin ml-2" />
-                ) : (
-                <span className='font-bold text-foreground ml-1'>{filteredCount ?? 0}</span>
-                )}
-                </>
-              )}
+              Mostrando <span className='font-bold text-foreground'>{filteredExercises.length}</span> ejercicios.
             </>
-            ) : (
-            <span className='italic'>Buscando por: "{searchTerm}"</span>
-            )}
+          )}
         </div>
       </div>
 
-      {isLoading && (
+      {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
-      )}
-
-      {!isLoading && ejercicios.length === 0 && (
+      ) : paginatedExercises.length === 0 ? (
          <p className="text-center text-lg text-muted-foreground py-10">
-           {isRegisteredUser && filteredCount === 0 ? "No se encontraron ejercicios con los filtros actuales." : "No se encontraron ejercicios."}
+           No se encontraron ejercicios con los filtros actuales.
          </p>
-      )}
-
-      {ejercicios.length > 0 && (
+      ) : (
         <>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {ejercicios.map((ej) => (
+            {paginatedExercises.map((ej) => (
               <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
                 <div className="relative h-48 w-full">
                   <Image
@@ -496,22 +340,24 @@ export default function EjerciciosPage() {
             ))}
           </div>
           
-          {isRegisteredUser && (
-             <div className="mt-8 flex justify-center">
+          {totalPages > 1 && (
+             <div className="mt-8 flex justify-center items-center gap-4">
               <Button
-                  onClick={() => handlePageChange(currentPage - 1)}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
                   disabled={!canGoPrevious || isLoading}
                   variant="outline"
-                  className="mr-2"
               >
                   Anterior
               </Button>
+              <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </span>
               <Button
-                  onClick={() => handlePageChange(currentPage + 1)}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
                   disabled={!canGoNext || isLoading}
                   variant="outline"
               >
-                  {isLoading && currentPage > 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Siguiente"}
+                  Siguiente
               </Button>
             </div>
           )}
@@ -520,5 +366,3 @@ export default function EjerciciosPage() {
     </div>
   );
 }
-
-    
