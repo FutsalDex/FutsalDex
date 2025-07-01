@@ -11,6 +11,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Eye, History } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface SavedMatch {
     id: string;
@@ -18,6 +19,7 @@ interface SavedMatch {
     opponentTeamName: string;
     fecha: string;
     hora?: string;
+    tipoPartido?: string;
     myTeamPlayers?: { goals: number; }[];
     opponentPlayers: { goals: number; }[];
      // For backwards compatibility
@@ -114,7 +116,10 @@ function HistorialPageContent() {
                     {matches.map(match => (
                         <Card key={match.id} className="flex flex-col">
                             <CardHeader>
-                                <CardTitle className="text-xl font-headline truncate">{match.myTeamName} vs {match.opponentTeamName}</CardTitle>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="text-xl font-headline truncate">{match.myTeamName} vs {match.opponentTeamName}</CardTitle>
+                                    {match.tipoPartido && <Badge variant="outline">{match.tipoPartido}</Badge>}
+                                </div>
                                 <CardDescription>{formatDate(match.fecha)}{match.hora ? ` - ${match.hora}` : ''}</CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow">

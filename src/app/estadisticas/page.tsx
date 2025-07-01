@@ -27,6 +27,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 // --- Helper Components ---
@@ -132,6 +133,7 @@ function EstadisticasPageContent() {
   const [hora, setHora] = useState("");
   const [campeonato, setCampeonato] = useState("");
   const [jornada, setJornada] = useState("");
+  const [tipoPartido, setTipoPartido] = useState("");
   
   // Stats State
   const [myTeamStats, setMyTeamStats] = useState<TeamStats>(createInitialTeamStats());
@@ -242,6 +244,7 @@ function EstadisticasPageContent() {
       setHora("");
       setCampeonato("");
       setJornada("");
+      setTipoPartido("");
   };
 
   const handleSaveStats = async () => {
@@ -270,6 +273,7 @@ function EstadisticasPageContent() {
             hora: hora || null,
             campeonato,
             jornada,
+            tipoPartido: tipoPartido || null,
             myTeamStats,
             opponentTeamStats,
             myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
@@ -430,7 +434,7 @@ function EstadisticasPageContent() {
                         </TableBody>
                     </Table>
                 </CardContent>
-            </Card>
+            </Card>>
             <div className="space-y-6">
                 <Card>
                     <CardHeader className="p-0">
@@ -517,12 +521,34 @@ function EstadisticasPageContent() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="myTeamName" className="text-right">Mi Equipo</Label>
+                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Mi Equipo" className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="opponentTeamName" className="text-right">Visitante</Label>
+                    <Input id="opponentTeamName" value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Equipo Contrario" className="col-span-3" />
+                  </div>
+                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="fecha" className="text-right">Fecha</Label>
                     <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="hora" className="text-right">Hora</Label>
                     <Input id="hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="col-span-3" />
+                  </div>
+                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="tipoPartido" className="text-right">Tipo</Label>
+                    <Select value={tipoPartido} onValueChange={setTipoPartido}>
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Seleccionar tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Amistoso">Amistoso</SelectItem>
+                        <SelectItem value="Liga">Liga</SelectItem>
+                        <SelectItem value="Torneo">Torneo</SelectItem>
+                        <SelectItem value="Copa">Copa</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="campeonato" className="text-right">Campeonato</Label>
@@ -531,14 +557,6 @@ function EstadisticasPageContent() {
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="jornada" className="text-right">Jornada</Label>
                     <Input id="jornada" value={jornada} onChange={(e) => setJornada(e.target.value)} placeholder="Ej: Jornada 5" className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="myTeamName" className="text-right">Mi Equipo</Label>
-                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Mi Equipo" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="opponentTeamName" className="text-right">Visitante</Label>
-                    <Input id="opponentTeamName" value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Equipo Contrario" className="col-span-3" />
                   </div>
                 </div>
                 <DialogFooter>

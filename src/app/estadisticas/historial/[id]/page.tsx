@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, ArrowLeft, RectangleVertical, History } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 // --- Type Definitions ---
 interface Player {
@@ -51,6 +52,7 @@ interface MatchData {
     hora?: string;
     campeonato?: string;
     jornada?: string;
+    tipoPartido?: string;
     myTeamStats: TeamStats;
     opponentTeamStats: TeamStats;
     myTeamPlayers: Player[];
@@ -219,6 +221,7 @@ function HistorialDetallePageContent() {
                      <div className="text-lg text-foreground/80 flex flex-wrap items-center gap-x-4 gap-y-1">
                         <span>{formatDate(match.fecha)}</span>
                         {match.hora && <span className="font-medium">{match.hora}</span>}
+                        {match.tipoPartido && <Badge variant="secondary">{match.tipoPartido}</Badge>}
                         {match.campeonato && <span className="font-medium">{match.campeonato}</span>}
                         {match.jornada && <span className="text-sm text-muted-foreground">{match.jornada}</span>}
                     </div>
