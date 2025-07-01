@@ -68,6 +68,7 @@ interface Player {
 
 interface OpponentPlayer {
     dorsal: string;
+    nombre?: string;
     goals: number;
     yellowCards: number;
     redCards: number;
@@ -110,6 +111,7 @@ const createInitialTeamStats = (): TeamStats => ({
 const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
   Array.from({ length: count }, () => ({
     dorsal: '',
+    nombre: '',
     goals: 0,
     yellowCards: 0,
     redCards: 0,
@@ -158,20 +160,28 @@ function EstadisticasPageContent() {
       setIsLoadingRoster(true);
       try {
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().players?.length > 0) {
-            const roster = docSnap.data().players;
-            setMyTeamPlayers(roster.map((p: any) => ({
-                dorsal: p.dorsal || '',
-                nombre: p.nombre || 'Sin nombre',
-                posicion: p.posicion || '',
-                goals: 0,
-                yellowCards: 0,
-                redCards: 0,
-                faltas: 0,
-                paradas: 0,
-                golesRecibidos: 0,
-                unoVsUno: 0,
-            })));
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // Pre-fill match info from team data
+            setMyTeamName(data.equipo || "");
+            setCampeonato(data.campeonato || "");
+
+            if (data.players?.length > 0) {
+              const roster = data.players;
+              setMyTeamPlayers(roster.map((p: any) => ({
+                  dorsal: p.dorsal || '',
+                  nombre: p.nombre || 'Sin nombre',
+                  posicion: p.posicion || '',
+                  goals: 0,
+                  yellowCards: 0,
+                  redCards: 0,
+                  faltas: 0,
+                  paradas: 0,
+                  golesRecibidos: 0,
+                  unoVsUno: 0,
+              })));
+            }
         }
       } catch (error) {
         console.error("Error fetching team roster for stats:", error);
@@ -190,8 +200,12 @@ function EstadisticasPageContent() {
     delta: number
   ) => {
     const setter = team === 'myTeam' ? setMyTeamStats : setOpponentTeamStats;
+    const state = team === 'myTeam' ? myTeamStats : opponentTeamStats;
+
+    if (!state) return;
+
     setter(
-      produce(draft => {
+      produce(state, draft => {
         let current = draft as any;
         for (let i = 0; i < statPath.length - 1; i++) {
           current = current[statPath[i]];
@@ -205,6 +219,13 @@ function EstadisticasPageContent() {
   const handleOpponentDorsalChange = (index: number, value: string) => {
       setOpponentPlayers(produce(draft => {
           draft[index].dorsal = value;
+      }));
+  };
+   const handleOpponentNameChange = (index: number, value: string) => {
+      setOpponentPlayers(produce(draft => {
+          if(draft[index]) {
+            draft[index].nombre = value;
+          }
       }));
   };
 
@@ -255,7 +276,7 @@ function EstadisticasPageContent() {
         return;
     }
 
-    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
+    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
       .map(({posicion, ...rest}) => rest); // Only remove position, keep name and other stats
@@ -333,7 +354,7 @@ function EstadisticasPageContent() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[3.25rem] text-xs px-1">Dorsal</TableHead>
-                                {team === 'myTeam' && <TableHead className="text-xs">Nombre</TableHead>}
+                                <TableHead className="text-xs">Nombre</TableHead>
                                 <TableHead className="text-center w-[110px] text-xs">Goles</TableHead>
                                 <TableHead title="T.A." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                                 <TableHead title="T.R." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
@@ -356,7 +377,17 @@ function EstadisticasPageContent() {
                                         type="text" 
                                       />
                                     </TableCell>
-                                    {team === 'myTeam' && <TableCell className="font-medium text-xs">{(player as Player).nombre}</TableCell>}
+                                    <TableCell className="font-medium text-xs px-1">
+                                        {team === 'myTeam' ? 
+                                            (player as Player).nombre : 
+                                            <Input 
+                                                className="h-8 text-xs w-full" 
+                                                placeholder="Nombre" 
+                                                value={(player as OpponentPlayer).nombre || ''}
+                                                onChange={(e) => team === 'opponentTeam' && handleOpponentNameChange(index, e.target.value)}
+                                            />
+                                        }
+                                    </TableCell>
                                     <TableCell>
                                         <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} />
                                     </TableCell>
@@ -390,11 +421,12 @@ function EstadisticasPageContent() {
 
   const renderTeamStats = (team: 'myTeam' | 'opponentTeam') => {
     const stats = team === 'myTeam' ? myTeamStats : opponentTeamStats;
+    if (!stats) return null;
     const teamName = team === 'myTeam' ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Contrario';
     const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     return (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
                 <CardHeader className="p-0">
                     <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {teamName}</CardTitle>
@@ -500,8 +532,8 @@ function EstadisticasPageContent() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="myTeamName" className="text-right">Local</Label>
-                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Equipo Local" className="col-span-3" />
+                    <Label htmlFor="myTeamName" className="text-right">Equipo Local</Label>
+                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Nombre del equipo local" className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="opponentTeamName" className="text-right">Visitante</Label>

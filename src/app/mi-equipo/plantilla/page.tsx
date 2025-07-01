@@ -8,6 +8,7 @@ import { SubscriptionGuard } from '@/components/subscription-guard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Save, Plus, Trash2, Users, ArrowLeft } from 'lucide-react';
@@ -62,6 +63,9 @@ function MiPlantillaPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [players, setPlayers] = useState<DisplayPlayer[]>([]);
+  const [club, setClub] = useState('');
+  const [equipo, setEquipo] = useState('');
+  const [campeonato, setCampeonato] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -84,8 +88,12 @@ function MiPlantillaPageContent() {
 
         const docSnap = await getDoc(docRef);
         let roster: RosterPlayer[] = [];
-        if (docSnap.exists() && docSnap.data().players?.length > 0) {
-            roster = docSnap.data().players;
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            roster = data.players?.length > 0 ? data.players : [];
+            setClub(data.club || '');
+            setEquipo(data.equipo || '');
+            setCampeonato(data.campeonato || '');
         } else {
             roster = Array.from({ length: 5 }, createNewPlayer);
         }
@@ -192,6 +200,9 @@ function MiPlantillaPageContent() {
         posicion: p.posicion,
       }));
       await setDoc(docRef, {
+        club,
+        equipo,
+        campeonato,
         players: rosterToSave,
         updatedAt: serverTimestamp(),
       });
@@ -231,6 +242,29 @@ function MiPlantillaPageContent() {
             </Link>
         </Button>
       </header>
+
+      <Card className="mb-8">
+        <CardHeader>
+            <CardTitle>Información del Equipo</CardTitle>
+            <CardDescription>
+                Define los datos de tu club. Esta información se usará para rellenar automáticamente los datos en las estadísticas de los partidos.
+            </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <Label htmlFor="club">Club</Label>
+                <Input id="club" value={club} onChange={(e) => setClub(e.target.value)} placeholder="Nombre de tu club" />
+            </div>
+            <div>
+                <Label htmlFor="equipo">Equipo</Label>
+                <Input id="equipo" value={equipo} onChange={(e) => setEquipo(e.target.value)} placeholder="Ej: Senior A, Cadete" />
+            </div>
+            <div>
+                <Label htmlFor="campeonato">Campeonato Principal</Label>
+                <Input id="campeonato" value={campeonato} onChange={(e) => setCampeonato(e.target.value)} placeholder="Ej: Liga Local" />
+            </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
