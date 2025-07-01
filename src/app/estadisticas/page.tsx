@@ -28,8 +28,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
 
 // --- Helper Components ---
 
@@ -147,8 +145,9 @@ function EstadisticasPageContent() {
   // Control State
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingRoster, setIsLoadingRoster] = useState(true);
-  const [rosterSide, setRosterSide] = useState<'local' | 'visitante'>('local');
 
+  // Derived state to determine which side our roster is on
+  const rosterSide = localTeamName === rosterInfo.name && rosterInfo.name ? 'local' : (visitorTeamName === rosterInfo.name && rosterInfo.name ? 'visitante' : null);
 
   const getTeamDocRef = useCallback(() => {
       if (!user) return null;
@@ -169,7 +168,8 @@ function EstadisticasPageContent() {
             const data = docSnap.data();
             
             const rosterName = data.equipo || "";
-            setRosterInfo({ name: rosterName, campeonato: data.campeonato || "" });
+            const teamInfo = { name: rosterName, campeonato: data.campeonato || "" };
+            setRosterInfo(teamInfo);
             
             // Pre-fill match info from team data
             setLocalTeamName(rosterName); // My team starts as local
@@ -250,6 +250,20 @@ function EstadisticasPageContent() {
       }));
   }
 
+  const handleSetMyTeam = (side: 'local' | 'visitor') => {
+    if (side === 'local') {
+      if (visitorTeamName === rosterInfo.name) {
+        setVisitorTeamName('');
+      }
+      setLocalTeamName(rosterInfo.name);
+    } else { // visitor
+      if (localTeamName === rosterInfo.name) {
+        setLocalTeamName('');
+      }
+      setVisitorTeamName(rosterInfo.name);
+    }
+  };
+
   const resetAllStats = () => {
       setMyTeamStats(createInitialTeamStats());
       setOpponentTeamStats(createInitialTeamStats());
@@ -266,7 +280,6 @@ function EstadisticasPageContent() {
             p.unoVsUno = 0;
         })
       }));
-      setRosterSide('local');
       setLocalTeamName(rosterInfo.name);
       setVisitorTeamName("");
       setFecha(new Date().toISOString().split('T')[0]);
@@ -287,13 +300,19 @@ function EstadisticasPageContent() {
         return;
     }
 
-    const finalMyTeamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
-    const finalOpponentTeamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
+    if (!rosterSide) {
+      toast({ title: "Asignación de equipo requerida", description: "Por favor, usa el botón 'Usar mi equipo' o escribe el nombre exacto de tu equipo en uno de los campos para asignar tu plantilla antes de guardar.", variant: "destructive", duration: 7000 });
+      return;
+    }
+
+    const myTeamWasHome = rosterSide === 'local';
+    const finalMyTeamName = myTeamWasHome ? localTeamName : visitorTeamName;
+    const finalOpponentTeamName = myTeamWasHome ? visitorTeamName : localTeamName;
 
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, ...rest}) => rest); // Only remove position, keep name and other stats
+      .map(({posicion, ...rest}) => rest);
 
 
     setIsSaving(true);
@@ -302,7 +321,7 @@ function EstadisticasPageContent() {
             userId: user.uid,
             myTeamName: finalMyTeamName,
             opponentTeamName: finalOpponentTeamName,
-            myTeamWasHome: rosterSide === 'local',
+            myTeamWasHome: myTeamWasHome,
             fecha,
             hora: hora || null,
             campeonato,
@@ -327,14 +346,13 @@ function EstadisticasPageContent() {
   const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
     const isMyRosterTeam = team === 'myTeam';
     
-    let teamName: string;
+    let headerTeamName: string;
     if (isMyRosterTeam) {
-        teamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
+        headerTeamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
     } else {
-        teamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
+        headerTeamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
     }
       
-    const headerTeamName = teamName || (isMyRosterTeam ? 'Mi Equipo' : 'Equipo Contrario');
     const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     if (team === 'myTeam' && isLoadingRoster) {
@@ -350,7 +368,7 @@ function EstadisticasPageContent() {
         return (
             <Card>
                  <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName || 'Mi Equipo'}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 text-center">
                     <p className="text-muted-foreground mb-4">No tienes jugadores en tu equipo. Ve a "Mi Plantilla" para añadir tu plantilla.</p>
@@ -370,7 +388,7 @@ function EstadisticasPageContent() {
     return (
         <Card>
             <CardHeader className="p-0">
-                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName}</CardTitle>
+                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName || (isMyRosterTeam ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 overflow-x-auto">
                 <div className="min-w-[800px]">
@@ -448,21 +466,20 @@ function EstadisticasPageContent() {
     const stats = isMyRosterTeam ? myTeamStats : opponentTeamStats;
     if (!stats) return null;
     
-    let teamName: string;
+    let headerTeamName: string;
     if (isMyRosterTeam) {
-        teamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
+        headerTeamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
     } else {
-        teamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
+        headerTeamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
     }
     
-    const headerTeamName = teamName || (isMyRosterTeam ? 'Mi Equipo' : 'Equipo Contrario');
     const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {headerTeamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {headerTeamName || (isMyRosterTeam ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 overflow-x-auto">
                     <Table>
@@ -495,7 +512,7 @@ function EstadisticasPageContent() {
             </Card>
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {headerTeamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {headerTeamName || (isMyRosterTeam ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 overflow-x-auto">
                     <Table>
@@ -622,51 +639,38 @@ function EstadisticasPageContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <Label htmlFor="localTeamName">Equipo Local</Label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                         <Input id="localTeamName" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} placeholder="Nombre del equipo local" />
-                        <Button variant="outline" size="sm" onClick={() => setLocalTeamName(rosterInfo.name || '')} className="px-3 text-xs">Mi Equipo</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('local')} className="px-3 text-xs shrink-0">Usar mi equipo</Button>
                     </div>
                 </div>
                 <div>
                     <Label htmlFor="visitorTeamName">Equipo Visitante</Label>
-                    <div className="flex gap-2">
+                     <div className="flex gap-2 items-center">
                         <Input id="visitorTeamName" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
-                        <Button variant="outline" size="sm" onClick={() => setVisitorTeamName(rosterInfo.name || '')} className="px-3 text-xs">Mi Equipo</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('visitor')} className="px-3 text-xs shrink-0">Usar mi equipo</Button>
                     </div>
                 </div>
-            </div>
-            <div className="pt-4">
-                <Label className="font-semibold">Mi Plantilla juega como:</Label>
-                <RadioGroup value={rosterSide} onValueChange={(value: 'local' | 'visitante') => setRosterSide(value)} className="flex gap-4 mt-2">
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="local" id="r-local" />
-                        <Label htmlFor="r-local">Local</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="visitante" id="r-visitante" />
-                        <Label htmlFor="r-visitante">Visitante</Label>
-                    </div>
-                </RadioGroup>
             </div>
         </CardContent>
       </Card>
 
 
-      <Tabs defaultValue="local" className="w-full">
+      <Tabs defaultValue="local" className="w-full" value={rosterSide === 'local' ? 'local' : (rosterSide === 'visitante' ? 'visitante' : 'local')}>
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="local">{localTeamName || 'Equipo Local'}</TabsTrigger>
             <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Visitante'}</TabsTrigger>
         </TabsList>
         <TabsContent value="local">
             <div className="space-y-6 pt-6">
-                {rosterSide === 'local' ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
-                {rosterSide === 'local' ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
+                {renderPlayerTable(rosterSide === 'local' ? 'myTeam' : 'opponentTeam')}
+                {renderTeamStats(rosterSide === 'local' ? 'myTeam' : 'opponentTeam')}
             </div>
         </TabsContent>
         <TabsContent value="visitante">
              <div className="space-y-6 pt-6">
-                {rosterSide === 'visitante' ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
-                {rosterSide === 'visitante' ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
+                {renderPlayerTable(rosterSide === 'visitante' ? 'myTeam' : 'opponentTeam')}
+                {renderTeamStats(rosterSide === 'visitante' ? 'myTeam' : 'opponentTeam')}
             </div>
         </TabsContent>
       </Tabs>
