@@ -291,7 +291,7 @@ function EstadisticasPageContent() {
   };
 
   const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
-    const teamName = team === 'myTeam' ? myTeamName || 'Mi Equipo' : opponentTeamName || 'Equipo Contrario';
+    const teamName = team === 'myTeam' ? myTeamName || 'Local' : opponentTeamName || 'Equipo Contrario';
     const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     if (team === 'myTeam' && isLoadingRoster) {
@@ -392,7 +392,7 @@ function EstadisticasPageContent() {
 
   const renderTeamStats = (team: 'myTeam' | 'opponentTeam') => {
     const stats = team === 'myTeam' ? myTeamStats : opponentTeamStats;
-    const teamName = team === 'myTeam' ? myTeamName || 'Mi Equipo' : opponentTeamName || 'Equipo Contrario';
+    const teamName = team === 'myTeam' ? myTeamName || 'Local' : opponentTeamName || 'Equipo Contrario';
     const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     return (
@@ -521,8 +521,8 @@ function EstadisticasPageContent() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="myTeamName" className="text-right">Mi Equipo</Label>
-                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Mi Equipo" className="col-span-3" />
+                    <Label htmlFor="myTeamName" className="text-right">Local</Label>
+                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Local" className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="opponentTeamName" className="text-right">Visitante</Label>
@@ -586,7 +586,7 @@ function EstadisticasPageContent() {
 
       <Tabs defaultValue="myTeam" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="myTeam">{myTeamName || "Mi Equipo"}</TabsTrigger>
+            <TabsTrigger value="myTeam">{myTeamName || "Local"}</TabsTrigger>
             <TabsTrigger value="opponentTeam">{opponentTeamName || "Equipo Contrario"}</TabsTrigger>
         </TabsList>
         <TabsContent value="myTeam">
