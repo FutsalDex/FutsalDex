@@ -48,6 +48,7 @@ interface MatchData {
     id: string;
     myTeamName: string;
     opponentTeamName: string;
+    myTeamWasHome: boolean;
     fecha: string;
     hora?: string;
     campeonato?: string;
@@ -63,7 +64,7 @@ interface MatchData {
 
 // --- Helper Components & Functions ---
 
-const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | TeamStats['turnovers'] | TeamStats['steals'], type: 'shots' | 'events' }> = ({ title, stats, type }) => {
+const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | TeamStats['turnovers'] | TeamStats['steals'] | TeamStats['timeouts'], type: 'shots' | 'events' }> = ({ title, stats, type }) => {
     const renderRow = (label: string, data: HalfStats) => (
         <TableRow key={label} className="text-sm">
             <TableCell className="font-medium">{label}</TableCell>
@@ -89,10 +90,10 @@ const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | Te
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {type === 'shots' && renderRow("Portería", (stats as TeamStats['shots']).onTarget)}
-                        {type === 'shots' && renderRow("Fuera", (stats as TeamStats['shots']).offTarget)}
-                        {type === 'shots' && renderRow("Bloqueados", (stats as TeamStats['shots']).blocked)}
-                        {type === 'events' && renderRow("Eventos", stats as HalfStats)}
+                        {type === 'shots' && 'onTarget' in stats && renderRow("Portería", (stats as TeamStats['shots']).onTarget)}
+                        {type === 'shots' && 'offTarget' in stats && renderRow("Fuera", (stats as TeamStats['shots']).offTarget)}
+                        {type === 'shots' && 'blocked' in stats && renderRow("Bloqueados", (stats as TeamStats['shots']).blocked)}
+                        {type === 'events' && 'firstHalf' in stats && renderRow(title, stats as HalfStats)}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -179,12 +180,6 @@ function HistorialDetallePageContent() {
         return `${day}/${month}/${year}`;
     }
     
-    const calculateScore = (matchData: MatchData) => {
-        const myGoals = matchData.myTeamPlayers?.reduce((total, player) => total + (player.goals || 0), 0) || 0;
-        const opponentGoals = matchData.opponentPlayers?.reduce((total, player) => total + (player.goals || 0), 0) || 0;
-        return `${myGoals} - ${opponentGoals}`;
-    };
-
     if (isLoading) {
         return (
             <div className="flex justify-center items-center py-12">
@@ -210,6 +205,18 @@ function HistorialDetallePageContent() {
             </div>
         );
     }
+
+    const localTeamName = match.myTeamWasHome ? match.myTeamName : match.opponentTeamName;
+    const visitorTeamName = match.myTeamWasHome ? match.opponentTeamName : match.myTeamName;
+    
+    const localTeamStats = match.myTeamWasHome ? match.myTeamStats : match.opponentTeamStats;
+    const visitorTeamStats = match.myTeamWasHome ? match.opponentTeamStats : match.myTeamStats;
+
+    const localTeamPlayers = match.myTeamWasHome ? match.myTeamPlayers : match.opponentPlayers;
+    const visitorTeamPlayers = match.myTeamWasHome ? match.opponentPlayers : match.myTeamPlayers;
+    
+    const localScore = localTeamPlayers?.reduce((acc, p) => acc + (p.goals || 0), 0) ?? 0;
+    const visitorScore = visitorTeamPlayers?.reduce((acc, p) => acc + (p.goals || 0), 0) ?? 0;
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
@@ -244,79 +251,31 @@ function HistorialDetallePageContent() {
 
             <Card className="mb-8 text-center">
                 <CardHeader>
-                    <CardTitle className="text-2xl md:text-3xl font-headline">{match.myTeamName} vs {match.opponentTeamName}</CardTitle>
+                    <CardTitle className="text-2xl md:text-3xl font-headline">{localTeamName} vs {visitorTeamName}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-5xl md:text-6xl font-bold text-primary">{calculateScore(match)}</p>
+                    <p className="text-5xl md:text-6xl font-bold text-primary">{localScore} - {visitorScore}</p>
                 </CardContent>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                {/* My Team Column */}
+                {/* Local Team Column */}
                 <div className="space-y-6">
-                    <h2 className="text-2xl font-bold font-headline text-center text-primary">{match.myTeamName}</h2>
-                    <PlayerStatTable players={match.myTeamPlayers} />
-                    <StatDisplayTable title="Tiros a Puerta" stats={match.myTeamStats.shots} type="shots" />
-                    <StatDisplayTable title="Pérdidas" stats={match.myTeamStats.turnovers} type="events" />
-                    <StatDisplayTable title="Robos" stats={match.myTeamStats.steals} type="events" />
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Tiempos Muertos</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="text-sm">Parte</TableHead>
-                                        <TableHead className="text-center text-sm">Cantidad</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow className="text-sm">
-                                        <TableCell className="font-medium">1ª Parte</TableCell>
-                                        <TableCell className="text-center">{match.myTeamStats.timeouts?.firstHalf || 0}</TableCell>
-                                    </TableRow>
-                                    <TableRow className="text-sm">
-                                        <TableCell className="font-medium">2ª Parte</TableCell>
-                                        <TableCell className="text-center">{match.myTeamStats.timeouts?.secondHalf || 0}</TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                    <h2 className="text-2xl font-bold font-headline text-center text-primary">{localTeamName}</h2>
+                    <PlayerStatTable players={localTeamPlayers} />
+                    <StatDisplayTable title="Tiros a Puerta" stats={localTeamStats.shots} type="shots" />
+                    <StatDisplayTable title="Pérdidas" stats={localTeamStats.turnovers} type="events" />
+                    <StatDisplayTable title="Robos" stats={localTeamStats.steals} type="events" />
+                    <StatDisplayTable title="Tiempos Muertos" stats={localTeamStats.timeouts} type="events" />
                 </div>
-                {/* Opponent Team Column */}
+                {/* Visitor Team Column */}
                 <div className="space-y-6">
-                    <h2 className="text-2xl font-bold font-headline text-center text-accent">{match.opponentTeamName}</h2>
-                    <PlayerStatTable players={match.opponentPlayers} />
-                    <StatDisplayTable title="Tiros a Puerta" stats={match.opponentTeamStats.shots} type="shots" />
-                    <StatDisplayTable title="Pérdidas" stats={match.opponentTeamStats.turnovers} type="events" />
-                    <StatDisplayTable title="Robos" stats={match.opponentTeamStats.steals} type="events" />
-                     <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Tiempos Muertos</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="text-sm">Parte</TableHead>
-                                        <TableHead className="text-center text-sm">Cantidad</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow className="text-sm">
-                                        <TableCell className="font-medium">1ª Parte</TableCell>
-                                        <TableCell className="text-center">{match.opponentTeamStats.timeouts?.firstHalf || 0}</TableCell>
-                                    </TableRow>
-                                    <TableRow className="text-sm">
-                                        <TableCell className="font-medium">2ª Parte</TableCell>
-                                        <TableCell className="text-center">{match.opponentTeamStats.timeouts?.secondHalf || 0}</TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                    <h2 className="text-2xl font-bold font-headline text-center text-accent">{visitorTeamName}</h2>
+                    <PlayerStatTable players={visitorTeamPlayers} />
+                    <StatDisplayTable title="Tiros a Puerta" stats={visitorTeamStats.shots} type="shots" />
+                    <StatDisplayTable title="Pérdidas" stats={visitorTeamStats.turnovers} type="events" />
+                    <StatDisplayTable title="Robos" stats={visitorTeamStats.steals} type="events" />
+                    <StatDisplayTable title="Tiempos Muertos" stats={visitorTeamStats.timeouts} type="events" />
                 </div>
             </div>
         </div>
