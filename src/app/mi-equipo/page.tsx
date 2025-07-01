@@ -154,6 +154,10 @@ function MiEquipoPageContent() {
   
   const addPlayerRow = () => {
     setPlayers(produce(draft => {
+      if (draft.length >= 12) {
+        toast({ title: "Límite de Jugadores", description: "Puedes añadir un máximo de 12 jugadores a la plantilla.", variant: "default" });
+        return;
+      }
       const newPlayer: DisplayPlayer = {
         ...createNewPlayer(),
         totalGoles: 0,
@@ -231,16 +235,16 @@ function MiEquipoPageContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px]">Dorsal</TableHead>
+                  <TableHead className="w-[60px]">Dorsal</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead className="w-[150px]">Posición</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Total de goles de partidos guardados">Goles</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Total de tarjetas amarillas de partidos guardados">T. Amarillas</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Total de tarjetas rojas de partidos guardados">T. Rojas</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Total de faltas cometidas">Faltas</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Total de paradas realizadas (porteros)">Paradas</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Total de goles recibidos (porteros)">G. Recibidos</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Total de 1 vs 1 (porteros)">1 vs 1</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Goles">Goles</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Tarjetas Amarillas">T.A.</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Tarjetas Rojas">T.R.</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Faltas Cometidas">Faltas</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Paradas (Porteros)">Paradas</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Goles Recibidos (Porteros)">G. Rec.</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Uno contra Uno (Porteros)">1vs1</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -253,14 +257,14 @@ function MiEquipoPageContent() {
                           type="text"
                           value={player.dorsal}
                           onChange={(e) => handlePlayerChange(player.id, 'dorsal', e.target.value)}
-                          className="h-8"
+                          className="h-8 text-sm"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
                           value={player.nombre}
                           onChange={(e) => handlePlayerChange(player.id, 'nombre', e.target.value)}
-                          className="h-8"
+                          className="h-8 text-sm"
                           placeholder="Nombre del jugador"
                         />
                       </TableCell>
@@ -269,20 +273,20 @@ function MiEquipoPageContent() {
                           value={player.posicion}
                           onValueChange={(value) => handlePlayerChange(player.id, 'posicion', value)}
                         >
-                          <SelectTrigger className="h-8"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                           <SelectContent>
                             {POSICIONES_FUTSAL.map(pos => <SelectItem key={pos} value={pos}>{pos}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </TableCell>
                       {/* Aggregated stats (read-only) */}
-                      <TableCell className="text-center font-bold text-lg">{player.totalGoles}</TableCell>
-                      <TableCell className="text-center font-bold text-lg">{player.totalAmarillas}</TableCell>
-                      <TableCell className="text-center font-bold text-lg">{player.totalRojas}</TableCell>
-                      <TableCell className="text-center font-bold text-lg">{player.totalFaltas}</TableCell>
-                      <TableCell className="text-center font-bold text-lg">{player.totalParadas}</TableCell>
-                      <TableCell className="text-center font-bold text-lg">{player.totalGolesRecibidos}</TableCell>
-                      <TableCell className="text-center font-bold text-lg">{player.totalUnoVsUno}</TableCell>
+                      <TableCell className="text-center font-bold text-base">{player.totalGoles}</TableCell>
+                      <TableCell className="text-center font-bold text-base">{player.totalAmarillas}</TableCell>
+                      <TableCell className="text-center font-bold text-base">{player.totalRojas}</TableCell>
+                      <TableCell className="text-center font-bold text-base">{player.totalFaltas}</TableCell>
+                      <TableCell className="text-center font-bold text-base">{player.totalParadas}</TableCell>
+                      <TableCell className="text-center font-bold text-base">{player.totalGolesRecibidos}</TableCell>
+                      <TableCell className="text-center font-bold text-base">{player.totalUnoVsUno}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => removePlayerRow(player.id)} title="Eliminar jugador">
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -318,3 +322,5 @@ export default function MiEquipoPage() {
     </AuthGuard>
   );
 }
+
+    
