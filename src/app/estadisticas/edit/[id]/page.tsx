@@ -108,6 +108,7 @@ function EditMatchPageContent() {
   const [campeonato, setCampeonato] = useState("");
   const [jornada, setJornada] = useState("");
   const [tipoPartido, setTipoPartido] = useState("");
+  const [myTeamSide, setMyTeamSide] = useState<'local' | 'visitante' | null>(null);
   
   // Stats State
   const [myTeamStats, setMyTeamStats] = useState<TeamStats | null>(null);
@@ -119,9 +120,6 @@ function EditMatchPageContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-
-  // Derived state to determine which side our roster is on
-  const rosterSide = localTeamName === rosterInfo.name && rosterInfo.name ? 'local' : (visitorTeamName === rosterInfo.name && rosterInfo.name ? 'visitante' : null);
 
   useEffect(() => {
     const fetchMatchAndRoster = async () => {
@@ -151,9 +149,11 @@ function EditMatchPageContent() {
         if (matchData.myTeamWasHome) {
             setLocalTeamName(matchData.myTeamName);
             setVisitorTeamName(matchData.opponentTeamName);
+            setMyTeamSide('local');
         } else {
             setLocalTeamName(matchData.opponentTeamName);
             setVisitorTeamName(matchData.myTeamName);
+            setMyTeamSide('visitante');
         }
         
         // Populate match info
@@ -203,8 +203,8 @@ function EditMatchPageContent() {
   const handleUpdateStats = async () => {
      if (!user || !matchId) return;
 
-     if (!rosterSide) {
-      toast({ title: "Asignación de equipo requerida", description: "Por favor, usa el botón 'Usar mi equipo' o escribe el nombre exacto de tu equipo en uno de los campos para asignar tu plantilla antes de guardar.", variant: "destructive", duration: 7000 });
+     if (!myTeamSide) {
+      toast({ title: "Asignación de equipo requerida", description: "Por favor, usa el botón 'Usar mi equipo' para asignar tu plantilla antes de guardar.", variant: "destructive", duration: 7000 });
       return;
     }
 
@@ -215,9 +215,9 @@ function EditMatchPageContent() {
       .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
       .map(({posicion, ...rest}) => rest);
 
-    const myTeamWasHome = rosterSide === 'local';
-    const finalMyTeamName = myTeamWasHome ? localTeamName : visitorTeamName;
-    const finalOpponentTeamName = myTeamWasHome ? visitorTeamName : localTeamName;
+    const myTeamWasHome = myTeamSide === 'local';
+    const finalMyTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
+    const finalOpponentTeamName = myTeamSide === 'local' ? visitorTeamName : localTeamName;
 
      const updatedData = {
         myTeamName: finalMyTeamName,
@@ -299,16 +299,11 @@ function EditMatchPageContent() {
 
   const handleSetMyTeam = (side: 'local' | 'visitor') => {
     if (side === 'local') {
-      if (visitorTeamName === rosterInfo.name) {
-        setVisitorTeamName('');
-      }
       setLocalTeamName(rosterInfo.name);
     } else { // visitor
-      if (localTeamName === rosterInfo.name) {
-        setLocalTeamName('');
-      }
       setVisitorTeamName(rosterInfo.name);
     }
+    setMyTeamSide(side);
   };
 
   // --- Render logic ---
@@ -341,9 +336,9 @@ function EditMatchPageContent() {
     
     let headerTeamName: string;
     if (isMyRosterTeam) {
-        headerTeamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
+        headerTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
     } else {
-        headerTeamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
+        headerTeamName = myTeamSide === 'local' ? visitorTeamName : localTeamName;
     }
 
     const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
@@ -433,9 +428,9 @@ function EditMatchPageContent() {
 
     let headerTeamName: string;
     if (isMyRosterTeam) {
-        headerTeamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
+        headerTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
     } else {
-        headerTeamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
+        headerTeamName = myTeamSide === 'local' ? visitorTeamName : localTeamName;
     }
     const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
@@ -597,7 +592,7 @@ function EditMatchPageContent() {
                 Edita los nombres de los equipos. Usa el botón para asignar rápidamente el nombre de tu equipo guardado en tu plantilla.
             </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <Label htmlFor="localTeamName">Equipo Local</Label>
@@ -618,21 +613,21 @@ function EditMatchPageContent() {
       </Card>
 
 
-      <Tabs defaultValue="local" className="w-full" value={rosterSide === 'local' ? 'local' : (rosterSide === 'visitante' ? 'visitante' : 'local')}>
+      <Tabs defaultValue="local" className="w-full" value={myTeamSide || "local"}>
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="local">{localTeamName || 'Equipo Local'}</TabsTrigger>
             <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Contrario'}</TabsTrigger>
         </TabsList>
         <TabsContent value="local">
             <div className="space-y-6 pt-6">
-                {renderPlayerTable(rosterSide === 'local' ? 'myTeam' : 'opponentTeam')}
-                {renderTeamStats(rosterSide === 'local' ? 'myTeam' : 'opponentTeam')}
+                {renderPlayerTable(myTeamSide === 'local' ? 'myTeam' : 'opponentTeam')}
+                {renderTeamStats(myTeamSide === 'local' ? 'myTeam' : 'opponentTeam')}
             </div>
         </TabsContent>
         <TabsContent value="visitante">
              <div className="space-y-6 pt-6">
-                {renderPlayerTable(rosterSide === 'visitante' ? 'myTeam' : 'opponentTeam')}
-                {renderTeamStats(rosterSide === 'visitante' ? 'myTeam' : 'opponentTeam')}
+                {renderPlayerTable(myTeamSide === 'visitante' ? 'myTeam' : 'opponentTeam')}
+                {renderTeamStats(myTeamSide === 'visitante' ? 'myTeam' : 'opponentTeam')}
             </div>
         </TabsContent>
       </Tabs>
