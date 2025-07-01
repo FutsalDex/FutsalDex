@@ -126,9 +126,11 @@ function EstadisticasPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Match Info
-  const [myTeamName, setMyTeamName] = useState("");
-  const [opponentTeamName, setOpponentTeamName] = useState("");
+  // Roster & Match Info
+  const [rosterInfo, setRosterInfo] = useState({ name: '', campeonato: '' });
+  const [localTeamName, setLocalTeamName] = useState("");
+  const [visitorTeamName, setVisitorTeamName] = useState("");
+  
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState("");
   const [campeonato, setCampeonato] = useState("");
@@ -165,8 +167,12 @@ function EstadisticasPageContent() {
         if (docSnap.exists()) {
             const data = docSnap.data();
             
+            const rosterName = data.equipo || "";
+            setRosterInfo({ name: rosterName, campeonato: data.campeonato || "" });
+            
             // Pre-fill match info from team data
-            setMyTeamName(data.equipo || "");
+            setLocalTeamName(rosterName); // My team starts as local
+            setVisitorTeamName(""); // Opponent starts blank
             setCampeonato(data.campeonato || "");
 
             if (data.players?.length > 0) {
@@ -260,11 +266,11 @@ function EstadisticasPageContent() {
         })
       }));
       setMyTeamIsHome(true);
-      setMyTeamName("");
-      setOpponentTeamName("");
+      setLocalTeamName(rosterInfo.name);
+      setVisitorTeamName("");
       setFecha(new Date().toISOString().split('T')[0]);
       setHora("");
-      setCampeonato("");
+      setCampeonato(rosterInfo.campeonato);
       setJornada("");
       setTipoPartido("");
   };
@@ -274,13 +280,14 @@ function EstadisticasPageContent() {
         toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
         return;
     }
-    const homeTeamName = myTeamIsHome ? myTeamName : opponentTeamName;
-    const awayTeamName = myTeamIsHome ? opponentTeamName : myTeamName;
 
-    if (!homeTeamName || !awayTeamName || !fecha) {
+    if (!localTeamName || !visitorTeamName || !fecha) {
         toast({ title: "Faltan datos", description: "Completa el nombre de los equipos y la fecha.", variant: "destructive" });
         return;
     }
+
+    const finalMyTeamName = myTeamIsHome ? localTeamName : visitorTeamName;
+    const finalOpponentTeamName = myTeamIsHome ? visitorTeamName : localTeamName;
 
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
@@ -292,8 +299,8 @@ function EstadisticasPageContent() {
     try {
         await addDoc(collection(db, "partidos_estadisticas"), {
             userId: user.uid,
-            myTeamName,
-            opponentTeamName,
+            myTeamName: finalMyTeamName,
+            opponentTeamName: finalOpponentTeamName,
             myTeamWasHome: myTeamIsHome,
             fecha,
             hora: hora || null,
@@ -316,13 +323,18 @@ function EstadisticasPageContent() {
     }
   };
 
+  const handleSwapTeams = () => {
+    const currentLocal = localTeamName;
+    setLocalTeamName(visitorTeamName);
+    setVisitorTeamName(currentLocal);
+    setMyTeamIsHome(prev => !prev);
+  }
+
   const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
     const isMyRosterTeam = team === 'myTeam';
-    const teamName = myTeamIsHome
-      ? (isMyRosterTeam ? myTeamName : opponentTeamName)
-      : (isMyRosterTeam ? opponentTeamName : myTeamName);
+    const teamName = (isMyRosterTeam && myTeamIsHome) || (!isMyRosterTeam && !myTeamIsHome) ? localTeamName : visitorTeamName;
       
-    const headerTeamName = isMyRosterTeam ? (myTeamName || 'Mi Equipo') : (opponentTeamName || 'Equipo Contrario');
+    const headerTeamName = teamName || (isMyRosterTeam ? 'Mi Equipo' : 'Equipo Contrario');
     const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     if (team === 'myTeam' && isLoadingRoster) {
@@ -435,7 +447,9 @@ function EstadisticasPageContent() {
     const isMyRosterTeam = team === 'myTeam';
     const stats = isMyRosterTeam ? myTeamStats : opponentTeamStats;
     if (!stats) return null;
-    const headerTeamName = isMyRosterTeam ? (myTeamName || 'Mi Equipo') : (opponentTeamName || 'Equipo Contrario');
+    
+    const teamName = (isMyRosterTeam && myTeamIsHome) || (!isMyRosterTeam && !myTeamIsHome) ? localTeamName : visitorTeamName;
+    const headerTeamName = teamName || (isMyRosterTeam ? 'Mi Equipo' : 'Equipo Contrario');
     const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     return (
@@ -546,11 +560,11 @@ function EstadisticasPageContent() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="localTeamName" className="text-right">Equipo Local</Label>
-                    <Input id="localTeamName" value={myTeamIsHome ? myTeamName : opponentTeamName} onChange={(e) => myTeamIsHome ? setMyTeamName(e.target.value) : setOpponentTeamName(e.target.value)} placeholder="Nombre del equipo local" className="col-span-3" />
+                    <Input id="localTeamName" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} placeholder="Nombre del equipo local" className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="visitanteTeamName" className="text-right">Visitante</Label>
-                    <Input id="visitanteTeamName" value={myTeamIsHome ? opponentTeamName : myTeamName} onChange={(e) => myTeamIsHome ? setOpponentTeamName(e.target.value) : setMyTeamName(e.target.value)} placeholder="Equipo Contrario" className="col-span-3" />
+                    <Input id="visitanteTeamName" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} placeholder="Equipo Contrario" className="col-span-3" />
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="fecha" className="text-right">Fecha</Label>
@@ -591,7 +605,7 @@ function EstadisticasPageContent() {
               </DialogContent>
             </Dialog>
 
-            <Button onClick={() => setMyTeamIsHome(prev => !prev)} variant="outline" size="icon" title="Intercambiar Local/Visitante">
+            <Button onClick={handleSwapTeams} variant="outline" size="icon" title="Intercambiar Local/Visitante">
               <ArrowLeftRight className="h-4 w-4"/>
             </Button>
             <Button onClick={resetAllStats} variant="outline">
@@ -613,8 +627,8 @@ function EstadisticasPageContent() {
 
       <Tabs defaultValue="local" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="local">{myTeamIsHome ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Local'}</TabsTrigger>
-            <TabsTrigger value="visitante">{myTeamIsHome ? opponentTeamName || 'Equipo Contrario' : myTeamName || 'Equipo Contrario'}</TabsTrigger>
+            <TabsTrigger value="local">{localTeamName || 'Equipo Local'}</TabsTrigger>
+            <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Contrario'}</TabsTrigger>
         </TabsList>
         <TabsContent value="local">
             <div className="space-y-6 pt-6">
