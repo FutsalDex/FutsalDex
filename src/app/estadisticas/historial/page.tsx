@@ -8,18 +8,10 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs, Timestamp, deleteDoc, doc, addDoc, serverTimestamp, getDoc as getRosterDoc } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Eye, History, PlusCircle, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +35,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -59,7 +50,6 @@ const newMatchSchema = z.object({
   tipoPartido: z.string().optional(),
   campeonato: z.string().optional(),
   jornada: z.string().optional(),
-  rosterSide: z.enum(['local', 'visitante'], { required_error: "Debes asignar tu plantilla a un equipo." }),
 });
 
 type NewMatchFormValues = z.infer<typeof newMatchSchema>;
@@ -101,6 +91,7 @@ function HistorialPageContent() {
     const [matchToDeleteId, setMatchToDeleteId] = useState<string | null>(null);
 
     const [rosterInfo, setRosterInfo] = useState({ name: '', campeonato: '' });
+    const [rosterSide, setRosterSide] = useState<'local' | 'visitante'>('local');
 
     const form = useForm<NewMatchFormValues>({
       resolver: zodResolver(newMatchSchema),
@@ -112,7 +103,6 @@ function HistorialPageContent() {
         tipoPartido: '',
         campeonato: '',
         jornada: '',
-        rosterSide: 'local',
       }
     });
 
@@ -134,7 +124,6 @@ function HistorialPageContent() {
                 tipoPartido: '',
                 campeonato: teamInfo.campeonato,
                 jornada: '',
-                rosterSide: 'local',
               });
             }
           } catch (error) {
@@ -206,13 +195,20 @@ function HistorialPageContent() {
 
     const onAddMatchSubmit = async (values: NewMatchFormValues) => {
         if (!user) return;
+        
+        const myTeamName = rosterSide === 'local' ? values.localTeamName : values.visitorTeamName;
+        if (!myTeamName) {
+            toast({ title: "Asigna tu equipo", description: "Asegúrate de que el nombre de tu equipo esté en el campo Local o Visitante y selecciona el lado correcto.", variant: "destructive" });
+            return;
+        }
+
         setIsSavingMatch(true);
 
         const newMatchData = {
           userId: user.uid,
-          myTeamName: values.rosterSide === 'local' ? values.localTeamName : values.visitorTeamName,
-          opponentTeamName: values.rosterSide === 'local' ? values.visitorTeamName : values.localTeamName,
-          myTeamWasHome: values.rosterSide === 'local',
+          myTeamName: myTeamName,
+          opponentTeamName: rosterSide === 'local' ? values.visitorTeamName : values.localTeamName,
+          myTeamWasHome: rosterSide === 'local',
           fecha: values.fecha,
           hora: values.hora || null,
           campeonato: values.campeonato || null,
@@ -237,6 +233,11 @@ function HistorialPageContent() {
             setIsSavingMatch(false);
         }
     };
+
+    const handleUseMyTeam = (side: 'local' | 'visitante') => {
+        form.setValue(side === 'local' ? 'localTeamName' : 'visitorTeamName', rosterInfo.name);
+        setRosterSide(side);
+    }
 
 
     const calculateScore = (match: SavedMatch) => {
@@ -292,23 +293,20 @@ function HistorialPageContent() {
                             </DialogHeader>
                             <Form {...form}>
                                 <form onSubmit={form.handleSubmit(onAddMatchSubmit)} className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                      <FormField control={form.control} name="localTeamName" render={({ field }) => (<FormItem><FormLabel>Equipo Local</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                      <FormField control={form.control} name="visitorTeamName" render={({ field }) => (<FormItem><FormLabel>Equipo Visitante</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                  <div>
+                                      <Label>Equipo Local</Label>
+                                      <div className="flex gap-2 items-center">
+                                          <FormField control={form.control} name="localTeamName" render={({ field }) => (<FormItem className="flex-grow"><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                          <Button type="button" variant="outline" size="sm" onClick={() => handleUseMyTeam('local')}>Mi Equipo</Button>
+                                      </div>
                                   </div>
-
-                                  <FormField control={form.control} name="rosterSide" render={({ field }) => (
-                                    <FormItem className="space-y-2">
-                                        <FormLabel>Mi Plantilla juega como:</FormLabel>
-                                        <FormControl>
-                                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
-                                            <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Local</FormLabel></FormItem>
-                                            <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="visitante" /></FormControl><FormLabel className="font-normal">Visitante</FormLabel></FormItem>
-                                        </RadioGroup>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                   )} />
+                                   <div>
+                                      <Label>Equipo Visitante</Label>
+                                      <div className="flex gap-2 items-center">
+                                          <FormField control={form.control} name="visitorTeamName" render={({ field }) => (<FormItem className="flex-grow"><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                          <Button type="button" variant="outline" size="sm" onClick={() => handleUseMyTeam('visitante')}>Mi Equipo</Button>
+                                      </div>
+                                  </div>
                                   
                                   <div className="grid grid-cols-2 gap-4">
                                     <FormField control={form.control} name="fecha" render={({ field }) => (<FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -357,28 +355,22 @@ function HistorialPageContent() {
                     </CardContent>
                 </Card>
             ) : (
-                <Card>
-                    <CardContent className="p-0">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Partido</TableHead>
-                            <TableHead className="text-center">Resultado</TableHead>
-                            <TableHead className="text-center">Tipo</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {matches.map(match => (
-                            <TableRow key={match.id}>
-                              <TableCell className="font-medium">{formatDate(match.fecha)}</TableCell>
-                              <TableCell>{match.myTeamName} vs {match.opponentTeamName}</TableCell>
-                              <TableCell className="text-center font-bold">{calculateScore(match)}</TableCell>
-                              <TableCell className="text-center">
-                                {match.tipoPartido ? <Badge variant="secondary">{match.tipoPartido}</Badge> : "N/A"}
-                              </TableCell>
-                              <TableCell className="text-right space-x-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {matches.map(match => (
+                        <Card key={match.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-lg font-headline truncate" title={`${match.myTeamName} vs ${match.opponentTeamName}`}>
+                                    {match.myTeamName} vs {match.opponentTeamName}
+                                </CardTitle>
+                                <CardDescription>
+                                    {formatDate(match.fecha)} {match.hora && `- ${match.hora}`}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-grow text-center">
+                                <p className="text-4xl font-bold text-primary">{calculateScore(match)}</p>
+                                {match.tipoPartido && <Badge variant="secondary" className="mt-2">{match.tipoPartido}</Badge>}
+                            </CardContent>
+                            <CardFooter className="flex justify-center gap-2">
                                 <Button asChild variant="ghost" size="icon" title="Ver Detalles">
                                   <Link href={`/estadisticas/historial/${match.id}`}><Eye className="h-4 w-4"/></Link>
                                 </Button>
@@ -388,13 +380,10 @@ function HistorialPageContent() {
                                 <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)}>
                                   <Trash2 className="h-4 w-4 text-destructive"/>
                                 </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                </Card>
+                            </CardFooter>
+                        </Card>
+                    ))}
+                </div>
             )}
             
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
