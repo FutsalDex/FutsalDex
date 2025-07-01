@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -9,7 +8,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Calendar as CalendarIconLucide, Loader2, CheckCircle } from "lucide-react";
+import { Calendar as CalendarIconLucide, Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Link from "next/link";
@@ -124,14 +123,22 @@ function CalendarPageContent() {
   
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold text-primary mb-2 font-headline flex items-center">
-          <CalendarIconLucide className="mr-3 h-10 w-10" />
-          Calendario de Sesiones
-        </h1>
-        <p className="text-lg text-foreground/80">
-          Visualiza tus sesiones de entrenamiento programadas. Las fechas con sesiones se marcan en naranja.
-        </p>
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+            <h1 className="text-4xl font-bold text-primary mb-2 font-headline flex items-center">
+                <CalendarIconLucide className="mr-3 h-10 w-10" />
+                Mi Calendario
+            </h1>
+            <p className="text-lg text-foreground/80">
+                Visualiza tus sesiones de entrenamiento programadas.
+            </p>
+        </div>
+         <Button asChild variant="outline">
+            <Link href="/mi-equipo">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver al Panel
+            </Link>
+        </Button>
       </header>
 
       <Card className="shadow-xl">

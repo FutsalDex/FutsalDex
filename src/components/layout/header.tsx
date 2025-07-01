@@ -37,12 +37,8 @@ export default function Header() {
   const navLinks = [
     { href: '/ejercicios', label: 'Ver ejercicios', icon: <FileText className="mr-2 h-4 w-4" /> },
     { href: '/crear-sesion-manual', label: 'Sesión Manual', icon: <Edit3 className="mr-2 h-4 w-4" /> },
-    { href: '/crear-sesion-ia', label: 'Sesión IA', icon: <Bot className="mr-2 h-4 w-4" /> },
-    { href: '/mis-sesiones', label: 'Mis Sesiones', icon: <BookUser className="mr-2 h-4 w-4" /> },
     { href: '/mi-equipo', label: 'Mi Equipo', icon: <Users className="mr-2 h-4 w-4" /> },
-    { href: '/calendario', label: 'Calendario', icon: <CalendarDays className="mr-2 h-4 w-4" /> },
     { href: '/favoritos', label: 'Favoritos', icon: <Heart className="mr-2 h-4 w-4" /> },
-    { href: '/estadisticas', label: 'Estadísticas', icon: <BarChart2 className="mr-2 h-4 w-4" /> },
     { href: '/suscripcion', label: 'Suscripción', icon: <Star className="mr-2 h-4 w-4" /> },
     { href: '/soporte', label: 'Soporte', icon: <LifeBuoy className="mr-2 h-4 w-4" /> },
   ];

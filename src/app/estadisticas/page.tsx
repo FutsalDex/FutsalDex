@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -8,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical, Save, Loader2, History, FileText, Users } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -301,11 +300,11 @@ function EstadisticasPageContent() {
                     <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>ESTADÍSTICAS JUGADORES - {teamName}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 text-center">
-                    <p className="text-muted-foreground mb-4">No tienes jugadores en tu equipo. Ve a "Mi Equipo" para añadir tu plantilla.</p>
+                    <p className="text-muted-foreground mb-4">No tienes jugadores en tu equipo. Ve a "Mi Plantilla" para añadir tu plantilla.</p>
                     <Button asChild>
-                        <Link href="/mi-equipo">
+                        <Link href="/mi-equipo/plantilla">
                             <Users className="mr-2 h-4 w-4" />
-                            Ir a Mi Equipo
+                            Ir a Mi Plantilla
                         </Link>
                     </Button>
                 </CardContent>
@@ -460,6 +459,12 @@ function EstadisticasPageContent() {
             </p>
         </div>
         <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+                <Link href="/mi-equipo">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Volver a Mi Equipo
+                </Link>
+            </Button>
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline">
