@@ -330,7 +330,7 @@ function EstadisticasPageContent() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[50px] text-xs px-1">Dorsal</TableHead>
+                                <TableHead className="w-[3.25rem] text-xs px-1">Dorsal</TableHead>
                                 {team === 'myTeam' && <TableHead className="text-xs">Nombre</TableHead>}
                                 <TableHead className="text-center w-[110px] text-xs">Goles</TableHead>
                                 <TableHead title="Tarjeta Amarilla" className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
@@ -346,7 +346,7 @@ function EstadisticasPageContent() {
                                 <TableRow key={index}>
                                     <TableCell className="px-1">
                                       <Input 
-                                        className="h-8 text-xs w-[3.25rem]" 
+                                        className="h-8 text-xs w-full" 
                                         placeholder="Nº" 
                                         value={player.dorsal} 
                                         onChange={(e) => team === 'opponentTeam' && handleOpponentDorsalChange(index, e.target.value)}
@@ -437,27 +437,45 @@ function EstadisticasPageContent() {
                     <CardHeader className="p-0">
                         <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>PÉRDIDAS</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 space-y-2">
-                        <div><p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p><StatCounter value={stats.turnovers.firstHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], -1)} /></div>
-                        <div><p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p><StatCounter value={stats.turnovers.secondHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], -1)} /></div>
+                    <CardContent className="p-4 flex flex-row justify-around items-center">
+                        <div className="text-center">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p>
+                            <StatCounter value={stats.turnovers.firstHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], -1)} />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p>
+                            <StatCounter value={stats.turnovers.secondHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], -1)} />
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="p-0">
                         <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>ROBOS</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 space-y-2">
-                        <div><p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p><StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)} /></div>
-                        <div><p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p><StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(team, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'secondHalf'], -1)} /></div>
+                    <CardContent className="p-4 flex flex-row justify-around items-center">
+                        <div className="text-center">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p>
+                            <StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)} />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p>
+                            <StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(team, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'secondHalf'], -1)} />
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="p-0">
                         <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIEMPOS MUERTOS</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 space-y-2">
-                        <div><p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], -1)} /></div>
-                        <div><p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], -1)} /></div>
+                    <CardContent className="p-4 flex flex-row justify-around items-center">
+                        <div className="text-center">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p>
+                            <StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], -1)} />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p>
+                            <StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], -1)} />
+                        </div>
                     </CardContent>
                 </Card>
             </div>
