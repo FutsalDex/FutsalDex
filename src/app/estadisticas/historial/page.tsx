@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { SubscriptionGuard } from "@/components/subscription-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp, deleteDoc, doc, addDoc, serverTimestamp, getDoc as getRosterDoc } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,40 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+
+// New Match Schema
+const newMatchSchema = z.object({
+  localTeamName: z.string().min(1, "El nombre del equipo local es requerido."),
+  visitorTeamName: z.string().min(1, "El nombre del equipo visitante es requerido."),
+  fecha: z.string().min(1, "La fecha es requerida."),
+  hora: z.string().optional(),
+  tipoPartido: z.string().optional(),
+  campeonato: z.string().optional(),
+  jornada: z.string().optional(),
+  rosterSide: z.enum(['local', 'visitante'], { required_error: "Debes asignar tu plantilla a un equipo." }),
+});
+
+type NewMatchFormValues = z.infer<typeof newMatchSchema>;
+
 
 interface SavedMatch {
     id: string;
@@ -44,14 +77,73 @@ interface SavedMatch {
     createdAt: Timestamp;
 }
 
+const createInitialTeamStats = () => ({
+  shots: {
+    onTarget: { firstHalf: 0, secondHalf: 0 },
+    offTarget: { firstHalf: 0, secondHalf: 0 },
+    blocked: { firstHalf: 0, secondHalf: 0 },
+  },
+  turnovers: { firstHalf: 0, secondHalf: 0 },
+  steals: { firstHalf: 0, secondHalf: 0 },
+  timeouts: { firstHalf: 0, secondHalf: 0 },
+});
+
+
 function HistorialPageContent() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [matches, setMatches] = useState<SavedMatch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSavingMatch, setIsSavingMatch] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isAddMatchDialogOpen, setIsAddMatchDialogOpen] = useState(false);
     const [matchToDeleteId, setMatchToDeleteId] = useState<string | null>(null);
+
+    const [rosterInfo, setRosterInfo] = useState({ name: '', campeonato: '' });
+
+    const form = useForm<NewMatchFormValues>({
+      resolver: zodResolver(newMatchSchema),
+      defaultValues: {
+        localTeamName: '',
+        visitorTeamName: '',
+        fecha: new Date().toISOString().split('T')[0],
+        hora: '',
+        tipoPartido: '',
+        campeonato: '',
+        jornada: '',
+        rosterSide: 'local',
+      }
+    });
+
+    useEffect(() => {
+        const fetchRosterInfo = async () => {
+          if (!user) return;
+          try {
+            const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
+            const rosterSnap = await getRosterDoc(rosterDocRef);
+            if (rosterSnap.exists()) {
+              const data = rosterSnap.data();
+              const teamInfo = { name: data.equipo || '', campeonato: data.campeonato || '' };
+              setRosterInfo(teamInfo);
+              form.reset({
+                localTeamName: teamInfo.name,
+                visitorTeamName: '',
+                fecha: new Date().toISOString().split('T')[0],
+                hora: '',
+                tipoPartido: '',
+                campeonato: teamInfo.campeonato,
+                jornada: '',
+                rosterSide: 'local',
+              });
+            }
+          } catch (error) {
+            console.error("Error fetching roster info: ", error);
+          }
+        };
+        fetchRosterInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]);
 
     const fetchMatches = useCallback(async () => {
         if (!user) return;
@@ -60,18 +152,28 @@ function HistorialPageContent() {
             const q = query(
                 collection(db, "partidos_estadisticas"),
                 where("userId", "==", user.uid),
-                orderBy("fecha", "desc")
+                orderBy("fecha", "desc"),
+                orderBy("createdAt", "desc")
             );
             const querySnapshot = await getDocs(q);
             const fetchedMatches = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SavedMatch));
             setMatches(fetchedMatches);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error fetching match history:", error);
-            toast({
-              title: "Error al Cargar Partidos",
-              description: "No se pudieron cargar tus partidos. Inténtalo de nuevo.",
-              variant: "destructive"
-            });
+            if (error.code === 'failed-precondition') {
+                toast({
+                    title: "Índice Requerido",
+                    description: "Se necesita un índice en Firestore para esta consulta. Por favor, crea el índice desde el enlace en la consola de errores de tu navegador.",
+                    variant: "destructive",
+                    duration: 20000,
+                });
+            } else {
+                toast({
+                title: "Error al Cargar Partidos",
+                description: "No se pudieron cargar tus partidos. Inténtalo de nuevo.",
+                variant: "destructive"
+                });
+            }
         }
         setIsLoading(false);
     }, [user, toast]);
@@ -99,6 +201,40 @@ function HistorialPageContent() {
             setIsDeleting(false);
             setMatchToDeleteId(null);
             setIsDeleteDialogOpen(false);
+        }
+    };
+
+    const onAddMatchSubmit = async (values: NewMatchFormValues) => {
+        if (!user) return;
+        setIsSavingMatch(true);
+
+        const newMatchData = {
+          userId: user.uid,
+          myTeamName: values.rosterSide === 'local' ? values.localTeamName : values.visitorTeamName,
+          opponentTeamName: values.rosterSide === 'local' ? values.visitorTeamName : values.localTeamName,
+          myTeamWasHome: values.rosterSide === 'local',
+          fecha: values.fecha,
+          hora: values.hora || null,
+          campeonato: values.campeonato || null,
+          jornada: values.jornada || null,
+          tipoPartido: values.tipoPartido || null,
+          myTeamStats: createInitialTeamStats(),
+          opponentTeamStats: createInitialTeamStats(),
+          myTeamPlayers: [],
+          opponentPlayers: [],
+          createdAt: serverTimestamp(),
+        };
+
+        try {
+            await addDoc(collection(db, "partidos_estadisticas"), newMatchData);
+            toast({ title: "Partido Añadido", description: "El nuevo partido se ha guardado. Ahora puedes editarlo para añadir estadísticas." });
+            setIsAddMatchDialogOpen(false);
+            fetchMatches(); // Refresh the list
+        } catch (error) {
+            console.error("Error saving new match: ", error);
+            toast({ title: "Error al Guardar", description: "No se pudo añadir el nuevo partido.", variant: "destructive" });
+        } finally {
+            setIsSavingMatch(false);
         }
     };
 
@@ -142,12 +278,71 @@ function HistorialPageContent() {
                             Volver al Panel
                         </Link>
                     </Button>
-                    <Button asChild className="flex-1 md:flex-none">
-                        <Link href="/estadisticas">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Añadir Partido
-                        </Link>
-                    </Button>
+                    <Dialog open={isAddMatchDialogOpen} onOpenChange={setIsAddMatchDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="flex-1 md:flex-none">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Añadir Partido
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Añadir Nuevo Partido</DialogTitle>
+                                <DialogDescription>Introduce los datos básicos del partido. Podrás añadir las estadísticas más tarde.</DialogDescription>
+                            </DialogHeader>
+                            <Form {...form}>
+                                <form onSubmit={form.handleSubmit(onAddMatchSubmit)} className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                      <FormField control={form.control} name="localTeamName" render={({ field }) => (<FormItem><FormLabel>Equipo Local</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                      <FormField control={form.control} name="visitorTeamName" render={({ field }) => (<FormItem><FormLabel>Equipo Visitante</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                  </div>
+
+                                  <FormField control={form.control} name="rosterSide" render={({ field }) => (
+                                    <FormItem className="space-y-2">
+                                        <FormLabel>Mi Plantilla juega como:</FormLabel>
+                                        <FormControl>
+                                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
+                                            <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="local" /></FormControl><FormLabel className="font-normal">Local</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="visitante" /></FormControl><FormLabel className="font-normal">Visitante</FormLabel></FormItem>
+                                        </RadioGroup>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                   )} />
+                                  
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="fecha" render={({ field }) => (<FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="hora" render={({ field }) => (<FormItem><FormLabel>Hora</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                  </div>
+
+                                  <FormField control={form.control} name="tipoPartido" render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Tipo de Partido</FormLabel>
+                                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="Amistoso">Amistoso</SelectItem><SelectItem value="Liga">Liga</SelectItem><SelectItem value="Torneo">Torneo</SelectItem><SelectItem value="Copa">Copa</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )} />
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="campeonato" render={({ field }) => (<FormItem><FormLabel>Campeonato</FormLabel><FormControl><Input placeholder="Ej: Liga Local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="jornada" render={({ field }) => (<FormItem><FormLabel>Jornada</FormLabel><FormControl><Input placeholder="Ej: Jornada 5" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                  </div>
+
+                                   <DialogFooter>
+                                      <Button type="button" variant="ghost" onClick={() => setIsAddMatchDialogOpen(false)}>Cancelar</Button>
+                                      <Button type="submit" disabled={isSavingMatch}>
+                                          {isSavingMatch && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                          Guardar Partido
+                                      </Button>
+                                  </DialogFooter>
+                                </form>
+                            </Form>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </header>
 
@@ -155,15 +350,10 @@ function HistorialPageContent() {
                 <Card className="text-center py-12">
                     <CardHeader>
                         <CardTitle>No hay partidos guardados</CardTitle>
-                        <CardDescription>Aún no has guardado ninguna estadística. ¡Empieza registrando tu primer partido!</CardDescription>
+                        <CardDescription>Aún no has guardado ninguna estadística. ¡Empieza añadiendo tu primer partido!</CardDescription>
                     </CardHeader>
                     <CardContent>
-                       <Button asChild>
-                        <Link href="/estadisticas">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Añadir Partido
-                        </Link>
-                       </Button>
+                       {/* The Dialog Trigger is already in the header */}
                     </CardContent>
                 </Card>
             ) : (
@@ -192,7 +382,7 @@ function HistorialPageContent() {
                                 <Button asChild variant="ghost" size="icon" title="Ver Detalles">
                                   <Link href={`/estadisticas/historial/${match.id}`}><Eye className="h-4 w-4"/></Link>
                                 </Button>
-                                <Button asChild variant="ghost" size="icon" title="Editar Partido">
+                                <Button asChild variant="ghost" size="icon" title="Editar Estadísticas">
                                   <Link href={`/estadisticas/edit/${match.id}`}><Edit className="h-4 w-4"/></Link>
                                 </Button>
                                 <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)}>
