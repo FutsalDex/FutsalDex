@@ -434,54 +434,40 @@ function EstadisticasPageContent() {
                         </TableBody>
                     </Table>
                 </CardContent>
-            </Card>>
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader className="p-0">
-                        <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIEMPOS MUERTOS</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 grid grid-cols-2 gap-4">
-                        <div className="text-center">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p>
-                            <StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], -1)} />
-                        </div>
-                        <div className="text-center">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p>
-                            <StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], -1)} />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="p-0">
-                        <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>PÉRDIDAS</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 grid grid-cols-2 gap-4">
-                        <div className="text-center">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p>
-                            <StatCounter value={stats.turnovers.firstHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], -1)} />
-                        </div>
-                        <div className="text-center">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p>
-                            <StatCounter value={stats.turnovers.secondHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], -1)} />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="p-0">
-                        <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>ROBOS</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 grid grid-cols-2 gap-4">
-                         <div className="text-center">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p>
-                            <StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)} />
-                        </div>
-                        <div className="text-center">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p>
-                            <StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(team, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'secondHalf'], -1)} />
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+            </Card>
+            <Card>
+                <CardHeader className="p-0">
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {teamName}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="text-xs">Tipo</TableHead>
+                                <TableHead className="text-center text-xs">1º Tiempo</TableHead>
+                                <TableHead className="text-center text-xs">2º Tiempo</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow className="text-sm">
+                                <TableHead className="font-semibold text-xs">Tiempos Muertos</TableHead>
+                                <TableCell><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], -1)}/></TableCell>
+                            </TableRow>
+                             <TableRow className="text-sm">
+                                <TableHead className="font-semibold text-xs">Pérdidas</TableHead>
+                                <TableCell><StatCounter value={stats.turnovers.firstHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.turnovers.secondHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], -1)}/></TableCell>
+                            </TableRow>
+                            <TableRow className="text-sm">
+                                <TableHead className="font-semibold text-xs">Robos</TableHead>
+                                <TableCell><StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(team, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'secondHalf'], -1)}/></TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
         </div>
     );
   }
