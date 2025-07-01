@@ -9,17 +9,17 @@ import { useAuth } from "@/contexts/auth-context";
 import { Badge } from "@/components/ui/badge";
 
 const basicFeatures = [
-  "Acceso completo a +500 ejercicios",
-  "Creación de sesiones ilimitadas",
-  "Planificación en el calendario",
-  "Guardado de ejercicios favoritos",
-  "Exportación de sesiones a PDF",
+  "Acceso completo a la biblioteca de +500 ejercicios",
+  "Filtros avanzados para búsqueda de ejercicios",
+  "Exportación de ejercicios individuales a PDF",
 ];
 
 const topFeatures = [
   ...basicFeatures,
-  "Generador de sesiones con IA",
-  "Estadísticas avanzadas de equipo",
+  "Creación de sesiones de entrenamiento ilimitadas",
+  "Panel de 'Mi Equipo' (Plantilla, Estadísticas, Calendario)",
+  "Guardado y gestión de 'Mis Sesiones'",
+  "Guardado de ejercicios 'Favoritos'",
   "Soporte técnico prioritario",
 ];
 
@@ -46,7 +46,7 @@ export default function SuscripcionPage() {
             <CardTitle className="text-2xl font-headline text-primary">
               Suscripción Básica
             </CardTitle>
-            <CardDescription>Ideal para empezar a organizar tus entrenamientos de forma profesional.</CardDescription>
+            <CardDescription>Perfecto para explorar y utilizar nuestra extensa biblioteca de ejercicios.</CardDescription>
           </CardHeader>
           <CardContent className="flex-grow space-y-6">
             <div className="text-center">
@@ -86,7 +86,7 @@ export default function SuscripcionPage() {
             <CardTitle className="text-2xl font-headline text-accent">
               Suscripción Top
             </CardTitle>
-            <CardDescription>La experiencia completa con herramientas de IA y análisis avanzado.</CardDescription>
+            <CardDescription>La experiencia completa con herramientas de planificación y análisis de equipo.</CardDescription>
           </CardHeader>
           <CardContent className="flex-grow space-y-6">
              <div className="text-center">
