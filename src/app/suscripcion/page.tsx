@@ -12,14 +12,13 @@ const basicFeatures = [
   "Acceso completo a la biblioteca de +500 ejercicios",
   "Filtros avanzados para búsqueda de ejercicios",
   "Exportación de ejercicios individuales a PDF",
+  "Guardado de ejercicios 'Favoritos'",
+  "Guardado y gestión de 'Mis Sesiones'",
 ];
 
 const topFeatures = [
   ...basicFeatures,
-  "Creación de sesiones de entrenamiento ilimitadas",
   "Panel de 'Mi Equipo' (Plantilla, Estadísticas, Calendario)",
-  "Guardado y gestión de 'Mis Sesiones'",
-  "Guardado de ejercicios 'Favoritos'",
   "Soporte técnico prioritario",
 ];
 
