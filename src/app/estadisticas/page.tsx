@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit, ArrowLeftRight } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -144,6 +144,8 @@ function EstadisticasPageContent() {
   // Control State
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingRoster, setIsLoadingRoster] = useState(true);
+  const [myTeamIsHome, setMyTeamIsHome] = useState(true);
+
 
   const getTeamDocRef = useCallback(() => {
       if (!user) return null;
@@ -257,6 +259,7 @@ function EstadisticasPageContent() {
             p.unoVsUno = 0;
         })
       }));
+      setMyTeamIsHome(true);
       setMyTeamName("");
       setOpponentTeamName("");
       setFecha(new Date().toISOString().split('T')[0]);
@@ -271,7 +274,10 @@ function EstadisticasPageContent() {
         toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
         return;
     }
-    if (!myTeamName || !opponentTeamName || !fecha) {
+    const homeTeamName = myTeamIsHome ? myTeamName : opponentTeamName;
+    const awayTeamName = myTeamIsHome ? opponentTeamName : myTeamName;
+
+    if (!homeTeamName || !awayTeamName || !fecha) {
         toast({ title: "Faltan datos", description: "Completa el nombre de los equipos y la fecha.", variant: "destructive" });
         return;
     }
@@ -288,6 +294,7 @@ function EstadisticasPageContent() {
             userId: user.uid,
             myTeamName,
             opponentTeamName,
+            myTeamWasHome: myTeamIsHome,
             fecha,
             hora: hora || null,
             campeonato,
@@ -310,8 +317,13 @@ function EstadisticasPageContent() {
   };
 
   const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
-    const teamName = team === 'myTeam' ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Contrario';
-    const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+    const isMyRosterTeam = team === 'myTeam';
+    const teamName = myTeamIsHome
+      ? (isMyRosterTeam ? myTeamName : opponentTeamName)
+      : (isMyRosterTeam ? opponentTeamName : myTeamName);
+      
+    const headerTeamName = isMyRosterTeam ? (myTeamName || 'Mi Equipo') : (opponentTeamName || 'Equipo Contrario');
+    const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     if (team === 'myTeam' && isLoadingRoster) {
       return (
@@ -326,7 +338,7 @@ function EstadisticasPageContent() {
         return (
             <Card>
                  <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {teamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 text-center">
                     <p className="text-muted-foreground mb-4">No tienes jugadores en tu equipo. Ve a "Mi Plantilla" para añadir tu plantilla.</p>
@@ -346,7 +358,7 @@ function EstadisticasPageContent() {
     return (
         <Card>
             <CardHeader className="p-0">
-                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {teamName}</CardTitle>
+                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 overflow-x-auto">
                 <div className="min-w-[800px]">
@@ -420,16 +432,17 @@ function EstadisticasPageContent() {
   }
 
   const renderTeamStats = (team: 'myTeam' | 'opponentTeam') => {
-    const stats = team === 'myTeam' ? myTeamStats : opponentTeamStats;
+    const isMyRosterTeam = team === 'myTeam';
+    const stats = isMyRosterTeam ? myTeamStats : opponentTeamStats;
     if (!stats) return null;
-    const teamName = team === 'myTeam' ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Contrario';
-    const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+    const headerTeamName = isMyRosterTeam ? (myTeamName || 'Mi Equipo') : (opponentTeamName || 'Equipo Contrario');
+    const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {teamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {headerTeamName}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 overflow-x-auto">
                     <Table>
@@ -462,7 +475,7 @@ function EstadisticasPageContent() {
             </Card>
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {teamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {headerTeamName}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 overflow-x-auto">
                     <Table>
@@ -532,12 +545,12 @@ function EstadisticasPageContent() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="myTeamName" className="text-right">Equipo Local</Label>
-                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Nombre del equipo local" className="col-span-3" />
+                    <Label htmlFor="localTeamName" className="text-right">Equipo Local</Label>
+                    <Input id="localTeamName" value={myTeamIsHome ? myTeamName : opponentTeamName} onChange={(e) => myTeamIsHome ? setMyTeamName(e.target.value) : setOpponentTeamName(e.target.value)} placeholder="Nombre del equipo local" className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="opponentTeamName" className="text-right">Visitante</Label>
-                    <Input id="opponentTeamName" value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Equipo Contrario" className="col-span-3" />
+                    <Label htmlFor="visitanteTeamName" className="text-right">Visitante</Label>
+                    <Input id="visitanteTeamName" value={myTeamIsHome ? opponentTeamName : myTeamName} onChange={(e) => myTeamIsHome ? setOpponentTeamName(e.target.value) : setMyTeamName(e.target.value)} placeholder="Equipo Contrario" className="col-span-3" />
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="fecha" className="text-right">Fecha</Label>
@@ -578,6 +591,9 @@ function EstadisticasPageContent() {
               </DialogContent>
             </Dialog>
 
+            <Button onClick={() => setMyTeamIsHome(prev => !prev)} variant="outline" size="icon" title="Intercambiar Local/Visitante">
+              <ArrowLeftRight className="h-4 w-4"/>
+            </Button>
             <Button onClick={resetAllStats} variant="outline">
                 <RotateCcw className="mr-2 h-4 w-4"/>
                 Reiniciar
@@ -595,21 +611,21 @@ function EstadisticasPageContent() {
         </div>
       </header>
 
-      <Tabs defaultValue="myTeam" className="w-full">
+      <Tabs defaultValue="local" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="myTeam">{myTeamName || "Equipo Local"}</TabsTrigger>
-            <TabsTrigger value="opponentTeam">{opponentTeamName || "Equipo Contrario"}</TabsTrigger>
+            <TabsTrigger value="local">{myTeamIsHome ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Local'}</TabsTrigger>
+            <TabsTrigger value="visitante">{myTeamIsHome ? opponentTeamName || 'Equipo Contrario' : myTeamName || 'Equipo Contrario'}</TabsTrigger>
         </TabsList>
-        <TabsContent value="myTeam">
+        <TabsContent value="local">
             <div className="space-y-6 pt-6">
-                {renderPlayerTable('myTeam')}
-                {renderTeamStats('myTeam')}
+                {myTeamIsHome ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
+                {myTeamIsHome ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
             </div>
         </TabsContent>
-        <TabsContent value="opponentTeam">
+        <TabsContent value="visitante">
              <div className="space-y-6 pt-6">
-                {renderPlayerTable('opponentTeam')}
-                {renderTeamStats('opponentTeam')}
+                {!myTeamIsHome ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
+                {!myTeamIsHome ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
             </div>
         </TabsContent>
       </Tabs>
