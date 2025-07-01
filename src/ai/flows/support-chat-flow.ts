@@ -30,6 +30,7 @@ const SupportChatInputSchema = z.object({
   question: z.string().describe("The user's question for the AI coach."),
   chatId: z.string().optional().describe("The unique ID for the chat session."),
   userId: z.string().describe("The user's unique ID."),
+  language: z.string().optional().describe("The user's browser language code (e.g., 'es-ES', 'en-US')."),
 });
 
 const SupportChatOutputSchema = z.object({
@@ -83,7 +84,9 @@ When providing advice, follow these principles:
 1.  **Be Specific and Actionable:** Don't give vague advice. Provide concrete, step-by-step instructions, specific drills, or tactical setups. Explain the 'why' behind your recommendations. For example, instead of "improve passing," suggest a drill like "a 4-corner passing drill focusing on one-touch passes and player movement after the pass."
 2.  **Provide Detail:** Elaborate on your points. If you describe an exercise, include its objectives, necessary materials, and key coaching points. If you discuss a tactic, explain its strengths and potential weaknesses.
 3.  **Use Your Expertise:** Draw upon your deep knowledge of futsal. Reference tactical concepts, modern training methodologies, and principles of player development.
-4.  **Maintain Context:** You have access to the conversation history. Use it to remember previous questions and provide follow-up advice that is consistent and builds upon your prior responses. Always be helpful and aim to solve the user's problem or answer their question comprehensively.`;
+4.  **Maintain Context:** You have access to the conversation history. Use it to remember previous questions and provide follow-up advice that is consistent and builds upon your prior responses. Always be helpful and aim to solve the user's problem or answer their question comprehensively.
+
+**IMPORTANT: You MUST respond in the following language: ${input.language || 'es-ES'}.**`;
 
   const response = await ai.generate({
       model: 'googleai/gemini-2.0-flash',
