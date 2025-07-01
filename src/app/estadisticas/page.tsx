@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -327,7 +328,7 @@ function EstadisticasPageContent() {
                                 <TableHead className="w-[80px]">Dorsal</TableHead>
                                 {team === 'myTeam' && <TableHead>Nombre</TableHead>}
                                 <TableHead className="text-center w-[110px]">Goles</TableHead>
-                                <TableHead title="Tarjeta Amarilla" className="text-center w-[60px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
+                                <TableHead title="Tarjeta Amarilla" className="text-center w-[60px]"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                                 <TableHead title="Tarjeta Roja" className="text-center w-[60px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
                                 <TableHead className="text-center w-[110px]">Faltas</TableHead>
                                 <TableHead className="text-center w-[110px]">Paradas</TableHead>

@@ -12,7 +12,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ArrowLeft, RectangleHorizontal, RectangleVertical, History } from "lucide-react";
+import { Loader2, ArrowLeft, RectangleVertical, History } from "lucide-react";
 
 // --- Type Definitions ---
 interface Player {
@@ -108,7 +108,7 @@ const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
                         <TableRow>
                             <TableHead className="w-[60px]">Dorsal</TableHead>
                             <TableHead className="text-center w-[80px]">Goles</TableHead>
-                            <TableHead className="text-center w-[40px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
+                            <TableHead className="text-center w-[40px]"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                             <TableHead className="text-center w-[40px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
                             <TableHead className="text-center">Faltas</TableHead>
                             <TableHead className="text-center">Paradas</TableHead>
