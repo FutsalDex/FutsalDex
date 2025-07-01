@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Save, ArrowLeft, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, addDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { produce } from 'immer';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -45,7 +45,6 @@ function AsistenciaPageContent() {
     const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [attendanceDocId, setAttendanceDocId] = useState<string | null>(null);
 
     const fetchRoster = useCallback(async () => {
         if (!user) return;
@@ -62,35 +61,28 @@ function AsistenciaPageContent() {
     }, [user, toast]);
 
     const fetchAttendanceForDate = useCallback(async (date: Date) => {
-        if (!user || players.length === 0) return;
+        if (!user || players.length === 0) {
+            if (players.length > 0) setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         const dateString = format(date, 'yyyy-MM-dd');
         
         try {
-            const q = query(
-                collection(db, "asistencias"),
-                where("userId", "==", user.uid),
-                where("fecha", "==", dateString)
-            );
-            const querySnapshot = await getDocs(q);
+            const attendanceDocRef = doc(db, 'usuarios', user.uid, 'asistencias', dateString);
+            const docSnap = await getDoc(attendanceDocRef);
 
-            if (!querySnapshot.empty) {
-                const docSnap = querySnapshot.docs[0];
-                setAttendanceDocId(docSnap.id);
+            const initialAttendance = players.reduce((acc, player) => {
+                acc[player.id] = 'presente'; // Default to 'presente'
+                return acc;
+            }, {} as Record<string, AttendanceStatus>);
+
+            if (docSnap.exists()) {
                 const data = docSnap.data().asistencias || {};
-                
-                const updatedAttendance = players.reduce((acc, player) => {
-                    acc[player.id] = data[player.id] || 'presente';
-                    return acc;
-                }, {} as Record<string, AttendanceStatus>);
-                
-                setAttendance(updatedAttendance);
+                // Merge saved data with the initial list to handle new players
+                const finalAttendance = { ...initialAttendance, ...data };
+                setAttendance(finalAttendance);
             } else {
-                setAttendanceDocId(null);
-                const initialAttendance = players.reduce((acc, player) => {
-                    acc[player.id] = 'presente';
-                    return acc;
-                }, {} as Record<string, AttendanceStatus>);
                 setAttendance(initialAttendance);
             }
         } catch (error) {
@@ -124,25 +116,27 @@ function AsistenciaPageContent() {
         if (!user || !selectedDate) return;
         setIsSaving(true);
         const dateString = format(selectedDate, 'yyyy-MM-dd');
-
-        const dataToSave = {
-            userId: user.uid,
-            fecha: dateString,
-            asistencias: attendance,
-            updatedAt: serverTimestamp(),
-        };
+        const attendanceDocRef = doc(db, 'usuarios', user.uid, 'asistencias', dateString);
 
         try {
-            if (attendanceDocId) {
-                const docRef = doc(db, "asistencias", attendanceDocId);
-                await updateDoc(docRef, dataToSave);
-            } else {
-                const docRef = await addDoc(collection(db, "asistencias"), {
-                    ...dataToSave,
-                    createdAt: serverTimestamp(),
+            const docSnap = await getDoc(attendanceDocRef);
+
+            if (docSnap.exists()) {
+                // Update existing document
+                await updateDoc(attendanceDocRef, {
+                    asistencias: attendance,
+                    updatedAt: serverTimestamp(),
                 });
-                setAttendanceDocId(docRef.id);
+            } else {
+                // Create new document
+                await setDoc(attendanceDocRef, {
+                    fecha: dateString,
+                    asistencias: attendance,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
             }
+            
             toast({ title: "Asistencia Guardada", description: `La asistencia para el ${format(selectedDate, 'PPP', { locale: es })} ha sido guardada.` });
         } catch (error) {
             console.error("Error saving attendance: ", error);
