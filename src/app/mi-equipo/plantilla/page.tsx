@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -244,7 +245,7 @@ function MiPlantillaPageContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[60px] px-1">Dorsal</TableHead>
-                  <TableHead className="w-[400px] px-1">Nombre</TableHead>
+                  <TableHead className="w-[300px] px-1">Nombre</TableHead>
                   <TableHead className="w-[150px] px-1">Posición</TableHead>
                   <TableHead className="w-[60px] px-1 text-center" title="Goles">Goles</TableHead>
                   <TableHead className="w-[60px] px-1 text-center" title="Tarjetas Amarillas">T.A.</TableHead>
