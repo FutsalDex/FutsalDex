@@ -77,7 +77,7 @@ export async function askCoach(input: SupportChatInput): Promise<SupportChatOutp
   // 2. Call the AI model
   const systemPrompt = `You are FutsalDex AI Coach, an expert and friendly online futsal coach. Your role is to answer user questions about exercises, training sessions, tactics, player development, and any other futsal-related topic. Provide clear, helpful, and concise advice. Be encouraging and professional.`;
 
-  const { response } = await ai.generate({
+  const response = await ai.generate({
       model: 'googleai/gemini-2.0-flash',
       prompt: input.question,
       history: history,
