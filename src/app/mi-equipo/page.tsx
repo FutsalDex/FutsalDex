@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -34,8 +35,8 @@ const featureCards = [
         icon: CalendarDays,
     },
     {
-        title: "Soporte",
-        description: "Contacta con nuestro equipo de soporte para cualquier duda o problema técnico.",
+        title: "Soporte Técnico",
+        description: "Contacta con nuestro entrenador online para cualquier duda sobre ejercicios, sesiones, etc.",
         href: "/soporte",
         icon: LifeBuoy,
     },
