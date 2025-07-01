@@ -18,7 +18,6 @@ import { cn } from "@/lib/utils";
 
 
 interface Message {
-  id: number;
   sender: 'user' | 'ai';
   text: string;
 }
@@ -27,10 +26,11 @@ function SoportePageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, sender: 'ai', text: `¡Hola! Soy tu entrenador online de FutsalDex. ¿En qué puedo ayudarte hoy? Pregúntame sobre ejercicios, planificación de sesiones, tácticas, o cualquier otra duda que tengas.` }
+    { sender: 'ai', text: `¡Hola! Soy tu entrenador online de FutsalDex. ¿En qué puedo ayudarte hoy? Pregúntame sobre ejercicios, planificación de sesiones, tácticas, o cualquier otra duda que tengas.` }
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,16 +46,29 @@ function SoportePageContent() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const messageText = inputValue.trim();
-    if (!messageText || isSending) return;
+    if (!messageText || isSending || !user) return;
 
     setIsSending(true);
     setInputValue("");
     
-    setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: messageText }]);
+    // Optimistically update UI with user's message
+    setMessages(prev => [...prev, { sender: 'user', text: messageText }]);
 
     try {
-      const response = await askCoach({ question: messageText });
-      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: response.answer }]);
+      const response = await askCoach({ 
+        question: messageText,
+        chatId: chatId, // Will be null for the first message
+        userId: user.uid,
+      });
+
+      // Update UI with AI response
+      setMessages(prev => [...prev, { sender: 'ai', text: response.answer }]);
+      
+      // Set the chat ID for subsequent messages if it's the first message
+      if (!chatId) {
+        setChatId(response.chatId);
+      }
+
     } catch (error) {
       console.error("Error asking AI coach:", error);
       toast({
@@ -63,7 +76,8 @@ function SoportePageContent() {
         description: "Hubo un problema al contactar con el entrenador. Por favor, inténtalo de nuevo más tarde.",
         variant: "destructive"
       });
-      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: "Lo siento, estoy teniendo problemas para conectarme en este momento." }]);
+      // Add an error message to the chat UI
+      setMessages(prev => [...prev, { sender: 'ai', text: "Lo siento, estoy teniendo problemas para conectarme en este momento." }]);
     } finally {
       setIsSending(false);
     }
@@ -98,8 +112,8 @@ function SoportePageContent() {
         <CardContent className="flex-grow overflow-hidden p-0">
           <ScrollArea className="h-full" ref={scrollAreaRef}>
              <div className="p-6 space-y-4">
-              {messages.map((message) => (
-                <div key={message.id} className={cn("flex items-start gap-3", message.sender === 'user' ? "justify-end" : "justify-start")}>
+              {messages.map((message, index) => (
+                <div key={index} className={cn("flex items-start gap-3", message.sender === 'user' ? "justify-end" : "justify-start")}>
                   {message.sender === 'ai' && (
                     <Avatar className="h-8 w-8">
                        <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5"/></AvatarFallback>
