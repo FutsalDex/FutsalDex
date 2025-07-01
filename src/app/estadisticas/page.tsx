@@ -91,6 +91,7 @@ interface TeamStats {
   };
   turnovers: HalfStats;
   steals: HalfStats;
+  timeouts: HalfStats;
 }
 
 const initialHalfStats: HalfStats = { firstHalf: 0, secondHalf: 0 };
@@ -104,6 +105,7 @@ const createInitialTeamStats = (): TeamStats => ({
   },
   turnovers: { ...initialHalfStats },
   steals: { ...initialHalfStats },
+  timeouts: { ...initialHalfStats },
 });
 
 const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
@@ -301,7 +303,7 @@ function EstadisticasPageContent() {
         return (
             <Card>
                  <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>ESTADÍSTICAS JUGADORES - {teamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {teamName}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 text-center">
                     <p className="text-muted-foreground mb-4">No tienes jugadores en tu equipo. Ve a "Mi Plantilla" para añadir tu plantilla.</p>
@@ -321,14 +323,14 @@ function EstadisticasPageContent() {
     return (
         <Card>
             <CardHeader className="p-0">
-                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>ESTADÍSTICAS JUGADORES - {teamName}</CardTitle>
+                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {teamName}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 overflow-x-auto">
                 <div className="min-w-[800px]">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[50px] text-xs">Dorsal</TableHead>
+                                <TableHead className="w-[50px] text-xs px-1">Dorsal</TableHead>
                                 {team === 'myTeam' && <TableHead className="text-xs">Nombre</TableHead>}
                                 <TableHead className="text-center w-[110px] text-xs">Goles</TableHead>
                                 <TableHead title="Tarjeta Amarilla" className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
@@ -336,15 +338,15 @@ function EstadisticasPageContent() {
                                 <TableHead className="text-center w-[110px] text-xs">Faltas</TableHead>
                                 <TableHead className="text-center w-[110px] text-xs">Paradas</TableHead>
                                 <TableHead className="text-center w-[110px] text-xs">G.C.</TableHead>
-                                <TableHead className="text-center w-[110px] text-xs">1 vs 1</TableHead>
+                                <TableHead className="text-center w-[110px] text-xs">1vs1</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {players.map((player, index) => (
                                 <TableRow key={index}>
-                                    <TableCell>
+                                    <TableCell className="px-1">
                                       <Input 
-                                        className="h-8 text-xs w-12" 
+                                        className="h-8 text-xs w-[3.25rem]" 
                                         placeholder="Nº" 
                                         value={player.dorsal} 
                                         onChange={(e) => team === 'opponentTeam' && handleOpponentDorsalChange(index, e.target.value)}
@@ -395,7 +397,7 @@ function EstadisticasPageContent() {
                 <CardHeader className="p-0">
                     <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {teamName}</CardTitle>
                 </CardHeader>
-                <CardContent className="p-4">
+                <CardContent className="p-4 overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -430,7 +432,7 @@ function EstadisticasPageContent() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <Card>
                     <CardHeader className="p-0">
                         <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>PÉRDIDAS</CardTitle>
@@ -447,6 +449,15 @@ function EstadisticasPageContent() {
                     <CardContent className="p-4 space-y-2">
                         <div><p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p><StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)} /></div>
                         <div><p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p><StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(team, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'secondHalf'], -1)} /></div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="p-0">
+                        <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIEMPOS MUERTOS</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-2">
+                        <div><p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], -1)} /></div>
+                        <div><p className="text-xs font-medium text-muted-foreground mb-1">2º Tiempo</p><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], -1)} /></div>
                     </CardContent>
                 </Card>
             </div>

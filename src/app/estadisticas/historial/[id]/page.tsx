@@ -40,6 +40,7 @@ interface TeamStats {
   };
   turnovers: HalfStats;
   steals: HalfStats;
+  timeouts: HalfStats;
 }
 
 interface MatchData {
@@ -247,6 +248,31 @@ function HistorialDetallePageContent() {
                     <StatDisplayTable title="Tiros a Puerta" stats={match.myTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={match.myTeamStats.turnovers} type="events" />
                     <StatDisplayTable title="Robos" stats={match.myTeamStats.steals} type="events" />
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Tiempos Muertos</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="text-sm">Parte</TableHead>
+                                        <TableHead className="text-center text-sm">Cantidad</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow className="text-sm">
+                                        <TableCell className="font-medium">1ª Parte</TableCell>
+                                        <TableCell className="text-center">{match.myTeamStats.timeouts?.firstHalf || 0}</TableCell>
+                                    </TableRow>
+                                    <TableRow className="text-sm">
+                                        <TableCell className="font-medium">2ª Parte</TableCell>
+                                        <TableCell className="text-center">{match.myTeamStats.timeouts?.secondHalf || 0}</TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
                 </div>
                 {/* Opponent Team Column */}
                 <div className="space-y-6">
@@ -255,6 +281,31 @@ function HistorialDetallePageContent() {
                     <StatDisplayTable title="Tiros a Puerta" stats={match.opponentTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={match.opponentTeamStats.turnovers} type="events" />
                     <StatDisplayTable title="Robos" stats={match.opponentTeamStats.steals} type="events" />
+                     <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Tiempos Muertos</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="text-sm">Parte</TableHead>
+                                        <TableHead className="text-center text-sm">Cantidad</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow className="text-sm">
+                                        <TableCell className="font-medium">1ª Parte</TableCell>
+                                        <TableCell className="text-center">{match.opponentTeamStats.timeouts?.firstHalf || 0}</TableCell>
+                                    </TableRow>
+                                    <TableRow className="text-sm">
+                                        <TableCell className="font-medium">2ª Parte</TableCell>
+                                        <TableCell className="text-center">{match.opponentTeamStats.timeouts?.secondHalf || 0}</TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </div>
