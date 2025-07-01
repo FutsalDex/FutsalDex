@@ -120,6 +120,7 @@ function EditMatchPageContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [activeTab, setActiveTab] = useState<'local' | 'visitante'>('local');
 
   useEffect(() => {
     const fetchMatchAndRoster = async () => {
@@ -150,10 +151,12 @@ function EditMatchPageContent() {
             setLocalTeamName(matchData.myTeamName);
             setVisitorTeamName(matchData.opponentTeamName);
             setMyTeamSide('local');
+            setActiveTab('local');
         } else {
             setLocalTeamName(matchData.opponentTeamName);
             setVisitorTeamName(matchData.myTeamName);
             setMyTeamSide('visitante');
+            setActiveTab('visitante');
         }
         
         // Populate match info
@@ -297,7 +300,7 @@ function EditMatchPageContent() {
       }));
   }
 
-  const handleSetMyTeam = (side: 'local' | 'visitor') => {
+  const handleSetMyTeam = (side: 'local' | 'visitante') => {
     if (side === 'local') {
       setLocalTeamName(rosterInfo.name);
     } else { // visitor
@@ -520,7 +523,7 @@ function EditMatchPageContent() {
         </div>
         <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-                <Link href={`/estadisticas/historial/${matchId}`}>
+                <Link href={`/estadisticas/historial`}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Cancelar
                 </Link>
@@ -605,7 +608,7 @@ function EditMatchPageContent() {
                     <Label htmlFor="visitorTeamName">Equipo Visitante</Label>
                     <div className="flex gap-2 items-center">
                         <Input id="visitorTeamName" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
-                        <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('visitor')} className="px-3 text-xs shrink-0">Usar mi equipo</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('visitante')} className="px-3 text-xs shrink-0">Usar mi equipo</Button>
                     </div>
                 </div>
             </div>
@@ -613,10 +616,10 @@ function EditMatchPageContent() {
       </Card>
 
 
-      <Tabs defaultValue="local" className="w-full" value={myTeamSide || "local"}>
+      <Tabs defaultValue="local" className="w-full" onValueChange={(val) => val && setActiveTab(val as 'local' | 'visitante')} value={activeTab}>
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="local">{localTeamName || 'Equipo Local'}</TabsTrigger>
-            <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Contrario'}</TabsTrigger>
+            <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Visitante'}</TabsTrigger>
         </TabsList>
         <TabsContent value="local">
             <div className="space-y-6 pt-6">

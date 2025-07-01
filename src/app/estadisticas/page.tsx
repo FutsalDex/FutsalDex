@@ -145,6 +145,7 @@ function EstadisticasPageContent() {
   // Control State
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingRoster, setIsLoadingRoster] = useState(true);
+  const [activeTab, setActiveTab] = useState<'local' | 'visitante'>('local');
 
   // Derived state to determine which side our roster is on
   const rosterSide = localTeamName === rosterInfo.name && rosterInfo.name ? 'local' : (visitorTeamName === rosterInfo.name && rosterInfo.name ? 'visitante' : null);
@@ -656,7 +657,7 @@ function EstadisticasPageContent() {
       </Card>
 
 
-      <Tabs defaultValue="local" className="w-full" value={rosterSide === 'local' ? 'local' : (rosterSide === 'visitante' ? 'visitante' : 'local')}>
+      <Tabs defaultValue="local" className="w-full" onValueChange={(val) => val && setActiveTab(val as 'local' | 'visitante')} value={activeTab}>
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="local">{localTeamName || 'Equipo Local'}</TabsTrigger>
             <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Visitante'}</TabsTrigger>
