@@ -47,3 +47,4 @@ export const DURACION_EJERCICIO_OPCIONES = [
 
 export const DURACION_EJERCICIO_OPCIONES_VALUES = DURACION_EJERCICIO_OPCIONES.map(opt => opt.value) as [string, ...string[]];
 
+export const POSICIONES_FUTSAL = ["Portero", "Cierre", "Ala", "Pívot", "Universal"];
