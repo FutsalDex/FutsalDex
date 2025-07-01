@@ -235,24 +235,24 @@ function MiEquipoPageContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[60px]">Dorsal</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead className="w-[150px]">Posición</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Goles">Goles</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Tarjetas Amarillas">T.A.</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Tarjetas Rojas">T.R.</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Faltas Cometidas">Faltas</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Paradas (Porteros)">Paradas</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Goles Recibidos (Porteros)">G. Rec.</TableHead>
-                  <TableHead className="w-[90px] text-center" title="Uno contra Uno (Porteros)">1vs1</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[60px] px-2">Dorsal</TableHead>
+                  <TableHead className="w-[250px] px-2">Nombre</TableHead>
+                  <TableHead className="w-[150px] px-2">Posición</TableHead>
+                  <TableHead className="w-[70px] px-1 text-center" title="Goles">Goles</TableHead>
+                  <TableHead className="w-[70px] px-1 text-center" title="Tarjetas Amarillas">T.A.</TableHead>
+                  <TableHead className="w-[70px] px-1 text-center" title="Tarjetas Rojas">T.R.</TableHead>
+                  <TableHead className="w-[70px] px-1 text-center" title="Faltas Cometidas">Faltas</TableHead>
+                  <TableHead className="w-[70px] px-1 text-center" title="Paradas (Porteros)">Paradas</TableHead>
+                  <TableHead className="w-[70px] px-1 text-center" title="Goles Recibidos (Porteros)">G. Rec.</TableHead>
+                  <TableHead className="w-[70px] px-1 text-center" title="Uno contra Uno (Porteros)">1vs1</TableHead>
+                  <TableHead className="w-[40px] px-1"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {players.map((player) => {
                   return (
                     <TableRow key={player.id}>
-                      <TableCell>
+                      <TableCell className="py-1 px-2">
                         <Input
                           type="text"
                           value={player.dorsal}
@@ -260,7 +260,7 @@ function MiEquipoPageContent() {
                           className="h-8 text-sm"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-1 px-2">
                         <Input
                           value={player.nombre}
                           onChange={(e) => handlePlayerChange(player.id, 'nombre', e.target.value)}
@@ -268,7 +268,7 @@ function MiEquipoPageContent() {
                           placeholder="Nombre del jugador"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-1 px-2">
                         <Select
                           value={player.posicion}
                           onValueChange={(value) => handlePlayerChange(player.id, 'posicion', value)}
@@ -280,15 +280,15 @@ function MiEquipoPageContent() {
                         </Select>
                       </TableCell>
                       {/* Aggregated stats (read-only) */}
-                      <TableCell className="text-center font-bold text-base">{player.totalGoles}</TableCell>
-                      <TableCell className="text-center font-bold text-base">{player.totalAmarillas}</TableCell>
-                      <TableCell className="text-center font-bold text-base">{player.totalRojas}</TableCell>
-                      <TableCell className="text-center font-bold text-base">{player.totalFaltas}</TableCell>
-                      <TableCell className="text-center font-bold text-base">{player.totalParadas}</TableCell>
-                      <TableCell className="text-center font-bold text-base">{player.totalGolesRecibidos}</TableCell>
-                      <TableCell className="text-center font-bold text-base">{player.totalUnoVsUno}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => removePlayerRow(player.id)} title="Eliminar jugador">
+                      <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalGoles}</TableCell>
+                      <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalAmarillas}</TableCell>
+                      <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalRojas}</TableCell>
+                      <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalFaltas}</TableCell>
+                      <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalParadas}</TableCell>
+                      <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalGolesRecibidos}</TableCell>
+                      <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalUnoVsUno}</TableCell>
+                      <TableCell className="py-1 px-1">
+                        <Button variant="ghost" size="icon" onClick={() => removePlayerRow(player.id)} title="Eliminar jugador" className="h-8 w-8">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </TableCell>
@@ -322,5 +322,3 @@ export default function MiEquipoPage() {
     </AuthGuard>
   );
 }
-
-    
