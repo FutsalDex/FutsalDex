@@ -472,14 +472,6 @@ function EditMatchPageContent() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="myTeamName" className="text-right">Local</Label>
-                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Equipo Local" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="opponentTeamName" className="text-right">Visitante</Label>
-                    <Input id="opponentTeamName" value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Equipo Contrario" className="col-span-3" />
-                  </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="fecha" className="text-right">Fecha</Label>
                     <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="col-span-3" />
@@ -525,6 +517,26 @@ function EditMatchPageContent() {
             </Button>
         </div>
       </header>
+
+      <Card className="mb-6">
+        <CardHeader>
+            <CardTitle>Nombres de los Equipos</CardTitle>
+            <CardDescription>
+                Edita los nombres del equipo local y visitante.
+            </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <Label htmlFor="myTeamName">Equipo Local</Label>
+                <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Nombre del equipo local" />
+            </div>
+            <div>
+                <Label htmlFor="opponentTeamName">Equipo Visitante</Label>
+                <Input id="opponentTeamName" value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
+            </div>
+        </CardContent>
+      </Card>
+
 
       <Tabs defaultValue="myTeam" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
