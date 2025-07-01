@@ -12,12 +12,13 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ArrowLeft, RectangleVertical, History } from "lucide-react";
+import { Loader2, ArrowLeft, RectangleVertical, History, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 // --- Type Definitions ---
 interface Player {
   dorsal: string;
+  nombre?: string;
   yellowCards: number;
   redCards: number;
   goals: number;
@@ -100,7 +101,7 @@ const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | Te
 };
 
 const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
-    if (!players || players.length === 0) return <p className="text-sm text-muted-foreground p-4">No hay datos de jugadores.</p>;
+    if (!players || players.length === 0) return <p className="text-sm text-muted-foreground p-4">No se registraron estadísticas de jugadores para este partido.</p>;
     return (
         <Card>
             <CardHeader><CardTitle className="text-base">Estadísticas de Jugadores</CardTitle></CardHeader>
@@ -109,6 +110,7 @@ const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[60px] text-sm">Dorsal</TableHead>
+                            <TableHead className="text-sm">Nombre</TableHead>
                             <TableHead className="text-center w-[80px] text-sm">Goles</TableHead>
                             <TableHead className="text-center w-[40px] text-sm"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                             <TableHead className="text-center w-[40px] text-sm"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
@@ -122,6 +124,7 @@ const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
                         {players.map((player, index) => (
                             <TableRow key={index} className="text-sm">
                                 <TableCell className="font-semibold">{player.dorsal}</TableCell>
+                                <TableCell>{player.nombre || "-"}</TableCell>
                                 <TableCell className="text-center font-bold">{player.goals || 0}</TableCell>
                                 <TableCell className="text-center">{player.yellowCards || 0}</TableCell>
                                 <TableCell className="text-center">{player.redCards || 0}</TableCell>
@@ -219,17 +222,24 @@ function HistorialDetallePageContent() {
                      <div className="text-lg text-foreground/80 flex flex-wrap items-center gap-x-4 gap-y-1">
                         <span>{formatDate(match.fecha)}</span>
                         {match.hora && <span className="font-medium">{match.hora}</span>}
-                        {match.tipoPartido && <Badge variant="secondary">{match.tipoPartido}</Badge>}
+                        {match.tipoPartido && <span className="font-medium">{match.tipoPartido}</span>}
                         {match.campeonato && <span className="font-medium">{match.campeonato}</span>}
-                        {match.jornada && <span className="text-sm text-muted-foreground">{match.jornada}</span>}
                     </div>
                 </div>
-                <Button asChild variant="outline">
-                    <Link href="/estadisticas/historial">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver al Historial
-                    </Link>
-                </Button>
+                 <div className="flex gap-2">
+                    <Button asChild variant="outline">
+                        <Link href="/estadisticas/historial">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver al Historial
+                        </Link>
+                    </Button>
+                    <Button asChild>
+                        <Link href={`/estadisticas/edit/${match.id}`}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar Partido
+                        </Link>
+                    </Button>
+                </div>
             </header>
 
             <Card className="mb-8 text-center">

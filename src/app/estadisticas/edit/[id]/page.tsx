@@ -14,7 +14,7 @@ import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -28,10 +28,9 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
+import { useParams, useRouter } from 'next/navigation';
 
 // --- Helper Components ---
-
 interface StatCounterProps {
   value: number;
   onIncrement: () => void;
@@ -52,7 +51,6 @@ const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecreme
 );
 
 // --- State and Types ---
-
 interface Player {
   dorsal: string;
   nombre: string;
@@ -68,6 +66,7 @@ interface Player {
 
 interface OpponentPlayer {
     dorsal: string;
+    nombre?: string;
     goals: number;
     yellowCards: number;
     redCards: number;
@@ -76,7 +75,6 @@ interface OpponentPlayer {
     golesRecibidos: number;
     unoVsUno: number;
 }
-
 
 interface HalfStats {
   firstHalf: number;
@@ -94,104 +92,149 @@ interface TeamStats {
   timeouts: HalfStats;
 }
 
-const initialHalfStats: HalfStats = { firstHalf: 0, secondHalf: 0 };
-
-const createInitialTeamStats = (): TeamStats => ({
-  shots: {
-    onTarget: { ...initialHalfStats },
-    offTarget: { ...initialHalfStats },
-    blocked: { ...initialHalfStats },
-  },
-  turnovers: { ...initialHalfStats },
-  steals: { ...initialHalfStats },
-  timeouts: { ...initialHalfStats },
-});
-
-const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
-  Array.from({ length: count }, () => ({
-    dorsal: '',
-    goals: 0,
-    yellowCards: 0,
-    redCards: 0,
-    faltas: 0,
-    paradas: 0,
-    golesRecibidos: 0,
-    unoVsUno: 0,
-  }));
-
-
-function EstadisticasPageContent() {
+function EditMatchPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
+  const params = useParams();
+  const matchId = params.id as string;
 
   // Match Info
   const [myTeamName, setMyTeamName] = useState("");
   const [opponentTeamName, setOpponentTeamName] = useState("");
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
   const [campeonato, setCampeonato] = useState("");
   const [jornada, setJornada] = useState("");
   const [tipoPartido, setTipoPartido] = useState("");
   
   // Stats State
-  const [myTeamStats, setMyTeamStats] = useState<TeamStats>(createInitialTeamStats());
-  const [opponentTeamStats, setOpponentTeamStats] = useState<TeamStats>(createInitialTeamStats());
+  const [myTeamStats, setMyTeamStats] = useState<TeamStats | null>(null);
+  const [opponentTeamStats, setOpponentTeamStats] = useState<TeamStats | null>(null);
   const [myTeamPlayers, setMyTeamPlayers] = useState<Player[]>([]);
-  const [opponentPlayers, setOpponentPlayers] = useState<OpponentPlayer[]>(createInitialOpponentPlayers(12));
+  const [opponentPlayers, setOpponentPlayers] = useState<OpponentPlayer[]>([]);
   
   // Control State
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingRoster, setIsLoadingRoster] = useState(true);
-
-  const getTeamDocRef = useCallback(() => {
-      if (!user) return null;
-      return doc(db, 'usuarios', user.uid, 'team', 'roster');
-  }, [user]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    const fetchTeamRoster = async () => {
-      const docRef = getTeamDocRef();
-      if (!docRef) {
-        setIsLoadingRoster(false);
-        return;
-      }
-      setIsLoadingRoster(true);
+    const fetchMatchAndRoster = async () => {
+      if (!user || !matchId) return;
+      setIsLoading(true);
+
       try {
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().players?.length > 0) {
-            const roster = docSnap.data().players;
-            setMyTeamPlayers(roster.map((p: any) => ({
-                dorsal: p.dorsal || '',
-                nombre: p.nombre || 'Sin nombre',
-                posicion: p.posicion || '',
-                goals: 0,
-                yellowCards: 0,
-                redCards: 0,
-                faltas: 0,
-                paradas: 0,
-                golesRecibidos: 0,
-                unoVsUno: 0,
-            })));
+        const matchDocRef = doc(db, "partidos_estadisticas", matchId);
+        const matchSnap = await getDoc(matchDocRef);
+
+        if (!matchSnap.exists() || matchSnap.data().userId !== user.uid) {
+            setNotFound(true);
+            setIsLoading(false);
+            return;
         }
+
+        const matchData = matchSnap.data();
+        
+        // Populate match info
+        setMyTeamName(matchData.myTeamName || "");
+        setOpponentTeamName(matchData.opponentTeamName || "");
+        setFecha(matchData.fecha || "");
+        setHora(matchData.hora || "");
+        setCampeonato(matchData.campeonato || "");
+        setJornada(matchData.jornada || "");
+        setTipoPartido(matchData.tipoPartido || "");
+        setMyTeamStats(matchData.myTeamStats);
+        setOpponentTeamStats(matchData.opponentTeamStats);
+
+        // Fetch roster
+        const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
+        const rosterSnap = await getDoc(rosterDocRef);
+        const roster: Player[] = rosterSnap.exists() ? rosterSnap.data().players : [];
+
+        // Merge roster with match player stats
+        const enrichedMyTeamPlayers = roster.map(rosterPlayer => {
+            const matchPlayer = matchData.myTeamPlayers?.find((p: Player) => p.dorsal === rosterPlayer.dorsal);
+            return {
+                ...rosterPlayer,
+                goals: matchPlayer?.goals || 0,
+                yellowCards: matchPlayer?.yellowCards || 0,
+                redCards: matchPlayer?.redCards || 0,
+                faltas: matchPlayer?.faltas || 0,
+                paradas: matchPlayer?.paradas || 0,
+                golesRecibidos: matchPlayer?.golesRecibidos || 0,
+                unoVsUno: matchPlayer?.unoVsUno || 0,
+            };
+        });
+        setMyTeamPlayers(enrichedMyTeamPlayers);
+
+        // Populate opponent players, padding with empty rows up to 12
+        const savedOpponents = matchData.opponentPlayers || [];
+        const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
+        setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
+
       } catch (error) {
-        console.error("Error fetching team roster for stats:", error);
-        toast({ title: "Error", description: "No se pudo cargar la plantilla de tu equipo.", variant: "destructive" });
+        console.error("Error fetching data for edit:", error);
+        toast({ title: "Error", description: "No se pudieron cargar los datos del partido.", variant: "destructive" });
+        setNotFound(true);
       } finally {
-        setIsLoadingRoster(false);
+        setIsLoading(false);
       }
     };
-    fetchTeamRoster();
-  }, [getTeamDocRef, toast]);
+    fetchMatchAndRoster();
+  }, [user, matchId, toast]);
+
+  const handleUpdateStats = async () => {
+     if (!user || !matchId) return;
+     setIsSaving(true);
+     
+     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
+     const filterMyTeamPlayersForSaving = (players: Player[]) => players
+      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
+      .map(({posicion, ...rest}) => rest);
+
+     const updatedData = {
+        myTeamName,
+        opponentTeamName,
+        fecha,
+        hora,
+        campeonato,
+        jornada,
+        tipoPartido,
+        myTeamStats,
+        opponentTeamStats,
+        myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
+        opponentPlayers: filterOpponentPlayers(opponentPlayers),
+        updatedAt: serverTimestamp(),
+     };
+
+     try {
+        const matchDocRef = doc(db, "partidos_estadisticas", matchId);
+        await updateDoc(matchDocRef, updatedData);
+        toast({ title: "Partido Actualizado", description: "Los cambios se han guardado correctamente." });
+        router.push(`/estadisticas/historial/${matchId}`);
+     } catch (error) {
+        console.error("Error updating match:", error);
+        toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive" });
+     } finally {
+        setIsSaving(false);
+     }
+  };
 
 
-  const handleStatChange = (
+  // Re-use stat change handlers from the main stats page
+   const handleStatChange = (
     team: 'myTeam' | 'opponentTeam',
     statPath: (string | number)[],
     delta: number
   ) => {
     const setter = team === 'myTeam' ? setMyTeamStats : setOpponentTeamStats;
+    const state = team === 'myTeam' ? myTeamStats : opponentTeamStats;
+
+    if (!state) return;
+
     setter(
-      produce(draft => {
+      produce(state, draft => {
         let current = draft as any;
         for (let i = 0; i < statPath.length - 1; i++) {
           current = current[statPath[i]];
@@ -220,105 +263,34 @@ function EstadisticasPageContent() {
       }));
   }
 
-  const resetAllStats = () => {
-      setMyTeamStats(createInitialTeamStats());
-      setOpponentTeamStats(createInitialTeamStats());
-      setOpponentPlayers(createInitialOpponentPlayers(12));
-      // Reset myTeamPlayers stats to 0 but keep roster info
-      setMyTeamPlayers(produce(draft => {
-        draft.forEach(p => {
-            p.goals = 0;
-            p.yellowCards = 0;
-            p.redCards = 0;
-            p.faltas = 0;
-            p.paradas = 0;
-            p.golesRecibidos = 0;
-            p.unoVsUno = 0;
-        })
-      }));
-      setMyTeamName("");
-      setOpponentTeamName("");
-      setFecha(new Date().toISOString().split('T')[0]);
-      setHora("");
-      setCampeonato("");
-      setJornada("");
-      setTipoPartido("");
-  };
+  // --- Render logic ---
+  if (isLoading) {
+    return (
+        <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
+  }
 
-  const handleSaveStats = async () => {
-    if (!user) {
-        toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
-        return;
-    }
-    if (!myTeamName || !opponentTeamName || !fecha) {
-        toast({ title: "Faltan datos", description: "Completa el nombre de los equipos y la fecha.", variant: "destructive" });
-        return;
-    }
-
-    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
-    const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, ...rest}) => rest); // Only remove position, keep name and other stats
-
-
-    setIsSaving(true);
-    try {
-        await addDoc(collection(db, "partidos_estadisticas"), {
-            userId: user.uid,
-            myTeamName,
-            opponentTeamName,
-            fecha,
-            hora: hora || null,
-            campeonato,
-            jornada,
-            tipoPartido: tipoPartido || null,
-            myTeamStats,
-            opponentTeamStats,
-            myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
-            opponentPlayers: filterOpponentPlayers(opponentPlayers),
-            createdAt: serverTimestamp(),
-        });
-        toast({ title: "Estadísticas Guardadas", description: "El partido se ha guardado en tu historial." });
-        resetAllStats();
-    } catch (error) {
-        console.error("Error saving stats: ", error);
-        toast({ title: "Error al guardar", description: "No se pudieron guardar las estadísticas.", variant: "destructive" });
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
-  const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
+  if (notFound) {
+      return (
+            <div className="container mx-auto px-4 py-8 md:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
+                <Card className="w-full max-w-md text-center">
+                    <CardHeader><CardTitle className="text-2xl font-headline text-destructive">Partido No Encontrado</CardTitle></CardHeader>
+                    <CardContent>
+                        <CardDescription>El partido que buscas no existe o no tienes permiso para editarlo.</CardDescription>
+                        <Button asChild variant="outline" className="mt-4">
+                            <Link href="/estadisticas/historial"><ArrowLeft className="mr-2 h-4 w-4" /> Volver al Historial</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+      );
+  }
+  
+    const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
     const teamName = team === 'myTeam' ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Contrario';
     const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
-
-    if (team === 'myTeam' && isLoadingRoster) {
-      return (
-        <div className="flex justify-center items-center py-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-3 text-muted-foreground">Cargando plantilla...</p>
-        </div>
-      );
-    }
-    
-    if (team === 'myTeam' && !isLoadingRoster && myTeamPlayers.length === 0) {
-        return (
-            <Card>
-                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {teamName}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 text-center">
-                    <p className="text-muted-foreground mb-4">No tienes jugadores en tu equipo. Ve a "Mi Plantilla" para añadir tu plantilla.</p>
-                    <Button asChild>
-                        <Link href="/mi-equipo/plantilla">
-                            <Users className="mr-2 h-4 w-4" />
-                            Ir a Mi Plantilla
-                        </Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        );
-    }
 
     const players = team === 'myTeam' ? myTeamPlayers : opponentPlayers;
 
@@ -390,6 +362,7 @@ function EstadisticasPageContent() {
 
   const renderTeamStats = (team: 'myTeam' | 'opponentTeam') => {
     const stats = team === 'myTeam' ? myTeamStats : opponentTeamStats;
+    if (!stats) return null;
     const teamName = team === 'myTeam' ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Contrario';
     const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
@@ -470,18 +443,18 @@ function EstadisticasPageContent() {
       <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
-                <BarChart2 className="mr-3 h-8 w-8"/>
-                Estadísticas de Partido
+                <Edit className="mr-3 h-8 w-8"/>
+                Editar Estadísticas de Partido
             </h1>
             <p className="text-lg text-foreground/80">
-                Registra las estadísticas de tu equipo durante un partido en tiempo real.
+                Modifica las estadísticas guardadas de este partido.
             </p>
         </div>
         <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-                <Link href="/mi-equipo">
+                <Link href={`/estadisticas/historial/${matchId}`}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Volver a Mi Equipo
+                    Cancelar
                 </Link>
             </Button>
             <Dialog>
@@ -495,7 +468,7 @@ function EstadisticasPageContent() {
                 <DialogHeader>
                   <DialogTitle>Datos del Partido</DialogTitle>
                   <DialogDescription>
-                    Introduce la información general del encuentro.
+                    Modifica la información general del encuentro.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -546,19 +519,9 @@ function EstadisticasPageContent() {
               </DialogContent>
             </Dialog>
 
-            <Button onClick={resetAllStats} variant="outline">
-                <RotateCcw className="mr-2 h-4 w-4"/>
-                Reiniciar
-            </Button>
-            <Button onClick={handleSaveStats} disabled={isSaving}>
+            <Button onClick={handleUpdateStats} disabled={isSaving}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Guardar
-            </Button>
-            <Button asChild variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href="/estadisticas/historial">
-                    <History className="mr-2 h-4 w-4" />
-                    Ver Historial
-                </Link>
+                Actualizar Partido
             </Button>
         </div>
       </header>
@@ -585,11 +548,11 @@ function EstadisticasPageContent() {
   );
 }
 
-export default function EstadisticasPage() {
+export default function EditMatchPage() {
   return (
     <AuthGuard>
       <SubscriptionGuard>
-        <EstadisticasPageContent />
+        <EditMatchPageContent />
       </SubscriptionGuard>
     </AuthGuard>
   );
