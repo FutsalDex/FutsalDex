@@ -17,6 +17,7 @@ interface SavedMatch {
     myTeamName: string;
     opponentTeamName: string;
     fecha: string;
+    hora?: string;
     myTeamPlayers?: { goals: number; }[];
     opponentPlayers: { goals: number; }[];
      // For backwards compatibility
@@ -114,7 +115,7 @@ function HistorialPageContent() {
                         <Card key={match.id} className="flex flex-col">
                             <CardHeader>
                                 <CardTitle className="text-xl font-headline truncate">{match.myTeamName} vs {match.opponentTeamName}</CardTitle>
-                                <CardDescription>{formatDate(match.fecha)}</CardDescription>
+                                <CardDescription>{formatDate(match.fecha)}{match.hora ? ` - ${match.hora}` : ''}</CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow">
                                 <p className="text-4xl font-bold text-center text-primary">{calculateScore(match)}</p>

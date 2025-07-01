@@ -127,6 +127,7 @@ function EstadisticasPageContent() {
   const [myTeamName, setMyTeamName] = useState("Mi Equipo");
   const [opponentTeamName, setOpponentTeamName] = useState("Equipo Contrario");
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [hora, setHora] = useState("");
   const [campeonato, setCampeonato] = useState("");
   const [jornada, setJornada] = useState("");
   
@@ -236,6 +237,7 @@ function EstadisticasPageContent() {
       setMyTeamName("Mi Equipo");
       setOpponentTeamName("Equipo Contrario");
       setFecha(new Date().toISOString().split('T')[0]);
+      setHora("");
       setCampeonato("");
       setJornada("");
   };
@@ -263,6 +265,7 @@ function EstadisticasPageContent() {
             myTeamName,
             opponentTeamName,
             fecha,
+            hora: hora || null,
             campeonato,
             jornada,
             myTeamStats,
@@ -488,6 +491,10 @@ function EstadisticasPageContent() {
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="fecha" className="text-right">Fecha</Label>
                     <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="hora" className="text-right">Hora</Label>
+                    <Input id="hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="campeonato" className="text-right">Campeonato</Label>

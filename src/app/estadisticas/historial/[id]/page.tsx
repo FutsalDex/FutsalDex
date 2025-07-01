@@ -47,6 +47,7 @@ interface MatchData {
     myTeamName: string;
     opponentTeamName: string;
     fecha: string;
+    hora?: string;
     campeonato?: string;
     jornada?: string;
     myTeamStats: TeamStats;
@@ -216,6 +217,7 @@ function HistorialDetallePageContent() {
                     </h1>
                      <div className="text-lg text-foreground/80 flex flex-wrap items-center gap-x-4 gap-y-1">
                         <span>{formatDate(match.fecha)}</span>
+                        {match.hora && <span className="font-medium">{match.hora}</span>}
                         {match.campeonato && <span className="font-medium">{match.campeonato}</span>}
                         {match.jornada && <span className="text-sm text-muted-foreground">{match.jornada}</span>}
                     </div>

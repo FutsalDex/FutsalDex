@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -18,99 +19,122 @@ import type { DayContentProps } from 'react-day-picker';
 import { cn } from "@/lib/utils";
 import { SubscriptionGuard } from "@/components/subscription-guard";
 
-interface SesionEntry {
+interface CalendarEntry {
   id: string;
-  numero_sesion?: string;
-  fecha: string; // YYYY-MM-DD
-  type: "AI" | "Manual";
-  sessionTitle?: string;
-  createdAt: Timestamp;
+  date: string; // YYYY-MM-DD
+  time?: string;
+  title: string;
+  type: 'session' | 'match';
+  rawCreatedAt: Timestamp;
 }
 
-interface SessionsByDate {
-  [dateKey: string]: SesionEntry[];
+interface EntriesByDate {
+  [dateKey: string]: CalendarEntry[];
 }
 
 function CalendarPageContent() {
   const { user } = useAuth();
   const router = useRouter();
-  const [sessionsByDate, setSessionsByDate] = useState<SessionsByDate>({});
+  const [entriesByDate, setEntriesByDate] = useState<EntriesByDate>({});
   const [isLoading, setIsLoading] = useState(true);
   const [currentDisplayMonth, setCurrentDisplayMonth] = useState<Date>(new Date());
   const [selectedDayForPopover, setSelectedDayForPopover] = useState<Date | null>(null);
 
-  const fetchUserSessions = useCallback(async () => {
+  const fetchCalendarEntries = useCallback(async () => {
     if (!user) {
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
-      const q = query(
+      // Fetch Sessions
+      const sessionsQuery = query(
         collection(db, "mis_sesiones"),
-        where("userId", "==", user.uid),
-        firestoreOrderBy("fecha", "asc")
+        where("userId", "==", user.uid)
       );
-      const querySnapshot = await getDocs(q);
-      const fetchedSessions = querySnapshot.docs.map(docSnap => ({
+      const sessionsSnapshot = await getDocs(sessionsQuery);
+      const sessionEntries: CalendarEntry[] = sessionsSnapshot.docs.map(docSnap => ({
         id: docSnap.id,
-        ...docSnap.data()
-      } as SesionEntry));
+        date: docSnap.data().fecha,
+        title: docSnap.data().sessionTitle || `Sesión ${docSnap.data().numero_sesion || 'N/A'}`,
+        type: 'session',
+        rawCreatedAt: docSnap.data().createdAt,
+      }));
 
-      const groupedByDate: SessionsByDate = {};
-      fetchedSessions.forEach(session => {
-        if (session.fecha) {
-          const dateKey = session.fecha;
+      // Fetch Matches
+      const matchesQuery = query(
+        collection(db, "partidos_estadisticas"),
+        where("userId", "==", user.uid)
+      );
+      const matchesSnapshot = await getDocs(matchesQuery);
+      const matchEntries: CalendarEntry[] = matchesSnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          date: data.fecha,
+          time: data.hora,
+          title: `Partido: ${data.myTeamName} vs ${data.opponentTeamName}`,
+          type: 'match',
+          rawCreatedAt: data.createdAt,
+        };
+      });
+
+      const allEntries = [...sessionEntries, ...matchEntries];
+      
+      const groupedByDate: EntriesByDate = {};
+      allEntries.forEach(entry => {
+        if (entry.date) {
+          const dateKey = entry.date;
           if (!groupedByDate[dateKey]) {
             groupedByDate[dateKey] = [];
           }
-          groupedByDate[dateKey].push(session);
+          groupedByDate[dateKey].push(entry);
         }
       });
-      setSessionsByDate(groupedByDate);
+      setEntriesByDate(groupedByDate);
 
     } catch (error) {
-      console.error("Error fetching user sessions for calendar:", error);
+      console.error("Error fetching calendar entries:", error);
     }
     setIsLoading(false);
   }, [user]);
 
   useEffect(() => {
-    fetchUserSessions();
-  }, [fetchUserSessions]);
+    fetchCalendarEntries();
+  }, [fetchCalendarEntries]);
 
-  const datesWithSessionsForModifier = useMemo(() => {
-    const dates = Object.keys(sessionsByDate).map(dateKey => {
+  const datesWithEntriesForModifier = useMemo(() => {
+    const dates = Object.keys(entriesByDate).map(dateKey => {
       const [year, month, day] = dateKey.split('-').map(Number);
       return new Date(year, month - 1, day, 12,0,0); 
     });
     return dates;
-  }, [sessionsByDate]);
+  }, [entriesByDate]);
 
   const CustomDayContent = (dayProps: DayContentProps) => {
     const dateKey = format(dayProps.date, 'yyyy-MM-dd');
-    const dayHasSessions = sessionsByDate[dateKey] && sessionsByDate[dateKey].length > 0;
+    const dayHasEntries = entriesByDate[dateKey] && entriesByDate[dateKey].length > 0;
 
     return (
-      <PopoverTrigger asChild disabled={!dayHasSessions}>
+      <PopoverTrigger asChild disabled={!dayHasEntries}>
         <span
           className={cn(
             "relative flex items-center justify-center h-full w-full"
           )}
         >
           {format(dayProps.date, 'd')}
-          {dayHasSessions && <span className="absolute bottom-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full" title="Tiene sesión"></span>}
+          {dayHasEntries && <span className="absolute bottom-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full" title="Tiene evento"></span>}
         </span>
       </PopoverTrigger>
     );
   };
   
 
-  const sessionsForSelectedDay = useMemo(() => {
+  const entriesForSelectedDay = useMemo(() => {
     if (!selectedDayForPopover) return [];
     const dateKey = format(selectedDayForPopover, 'yyyy-MM-dd');
-    return (sessionsByDate[dateKey] || []).sort((a,b) => a.createdAt.toMillis() - b.createdAt.toMillis());
-  }, [selectedDayForPopover, sessionsByDate]);
+    return (entriesByDate[dateKey] || []).sort((a,b) => a.rawCreatedAt.toMillis() - b.rawCreatedAt.toMillis());
+  }, [selectedDayForPopover, entriesByDate]);
 
 
   if (isLoading) {
@@ -130,7 +154,7 @@ function CalendarPageContent() {
                 Mi Calendario
             </h1>
             <p className="text-lg text-foreground/80">
-                Visualiza tus sesiones de entrenamiento programadas.
+                Visualiza tus sesiones de entrenamiento y partidos programados.
             </p>
         </div>
          <Button asChild variant="outline">
@@ -152,7 +176,7 @@ function CalendarPageContent() {
                     onMonthChange={setCurrentDisplayMonth}
                     locale={es}
                     className="w-full max-w-2xl"
-                    modifiers={{ hasSessions: datesWithSessionsForModifier }}
+                    modifiers={{ hasSessions: datesWithEntriesForModifier }}
                     modifierClassNames={{
                         hasSessions: 'bg-orange-400 text-white hover:bg-orange-500', 
                     }}
@@ -174,27 +198,27 @@ function CalendarPageContent() {
                     }}
                 />
                 <PopoverContent className="w-80 p-0" align="start">
-                    {selectedDayForPopover && sessionsForSelectedDay.length > 0 ? (
+                    {selectedDayForPopover && entriesForSelectedDay.length > 0 ? (
                     <Card className="border-none shadow-none">
                         <CardHeader className="bg-muted p-4">
                         <CardTitle className="text-md font-headline">
-                            Sesiones del {format(selectedDayForPopover, 'PPP', { locale: es })}
+                            Eventos del {format(selectedDayForPopover, 'PPP', { locale: es })}
                         </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 space-y-2 max-h-60 overflow-y-auto">
-                        {sessionsForSelectedDay.map(session => (
+                        {entriesForSelectedDay.map(entry => (
                             <Button
-                            key={session.id}
+                            key={entry.id}
                             variant="ghost"
                             className="w-full justify-start h-auto py-2 px-3 text-left"
                             asChild
                             >
-                            <Link href={`/mis-sesiones/detalle/${session.id}`}>
+                            <Link href={entry.type === 'session' ? `/mis-sesiones/detalle/${entry.id}` : `/estadisticas/historial/${entry.id}`}>
                                 <div className="flex flex-col">
                                     <span className="font-semibold text-primary">
-                                        Sesión: {session.numero_sesion || 'N/A'} ({session.type === "AI" ? "IA" : ""})
+                                       {entry.title}
                                     </span>
-                                    {session.sessionTitle && <span className="text-xs text-muted-foreground">{session.sessionTitle}</span>}
+                                    {entry.time && <span className="text-xs text-muted-foreground">{entry.time}</span>}
                                 </div>
                             </Link>
                             </Button>
@@ -202,14 +226,14 @@ function CalendarPageContent() {
                         </CardContent>
                     </Card>
                     ) : (
-                         <div className="p-4 text-sm text-muted-foreground">No hay sesiones para este día.</div>
+                         <div className="p-4 text-sm text-muted-foreground">No hay eventos para este día.</div>
                     )}
                 </PopoverContent>
             </Popover>
         </CardContent>
       </Card>
 
-       {Object.keys(sessionsByDate).length === 0 && !isLoading && (
+       {Object.keys(entriesByDate).length === 0 && !isLoading && (
         <Card className="mt-8 text-center py-12 bg-card shadow-md">
           <CardHeader>
             <CheckCircle className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
@@ -217,14 +241,19 @@ function CalendarPageContent() {
           </CardHeader>
           <CardContent>
             <CardDescription className="mb-6 text-foreground/80">
-              Aún no has guardado ninguna sesión de entrenamiento.
+              Aún no has guardado ninguna sesión de entrenamiento o partido.
               <br/>
-              ¡Crea tu primera sesión para verla aquí!
+              ¡Crea tu primer evento para verlo aquí!
             </CardDescription>
             <div className="flex justify-center gap-4">
               <Button asChild variant="outline">
                 <Link href="/crear-sesion">
                   Crear Sesión
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/estadisticas">
+                  Registrar Partido
                 </Link>
               </Button>
             </div>
