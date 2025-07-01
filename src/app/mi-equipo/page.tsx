@@ -17,7 +17,7 @@ const featureCards = [
         icon: Users,
     },
     {
-        title: "Estadísticas",
+        title: "Mis Estadísticas",
         description: "Registra las estadísticas de tus partidos en tiempo real para un análisis detallado del rendimiento.",
         href: "/estadisticas",
         icon: BarChart2,
@@ -36,7 +36,7 @@ const featureCards = [
     },
     {
         title: "Soporte Técnico",
-        description: "Contacta con nuestro entrenador online para cualquier duda sobre ejercicios, sesiones, etc.",
+        description: "Chatea con nuestro entrenador (AI) configurado para darte respuesta sobre cualquier duda sobre ejercicios, sesiones, etc.",
         href: "/soporte",
         icon: LifeBuoy,
     },
