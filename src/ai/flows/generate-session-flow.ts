@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Flow to generate a futsal training session using AI.
@@ -10,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 
-export const GenerateSessionInputSchema = z.object({
+const GenerateSessionInputSchema = z.object({
   teamDescription: z.string().describe("Detailed description of the team, including age, skill level, and characteristics."),
   trainingGoals: z.string().describe("Specific goals for this training session (e.g., improve passing, defensive positioning)."),
   sessionFocus: z.string().describe("Main focus of the session (e.g., 'Transitions', 'Ball Possession', 'Finishing')."),
@@ -18,7 +19,7 @@ export const GenerateSessionInputSchema = z.object({
 });
 export type GenerateSessionInput = z.infer<typeof GenerateSessionInputSchema>;
 
-export const GeneratedSessionOutputSchema = z.object({
+const GeneratedSessionOutputSchema = z.object({
     warmUp: z.string().describe("A detailed description of the warm-up exercise, including duration and objectives."),
     mainExercises: z.array(z.string()).describe("An array of 2 to 4 detailed main exercises. Each exercise should include its own description, objectives, and duration."),
     coolDown: z.string().describe("A detailed description of the cool-down exercise, including its duration and purpose."),

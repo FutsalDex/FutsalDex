@@ -11,12 +11,12 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 
-export const SupportChatInputSchema = z.object({
+const SupportChatInputSchema = z.object({
   question: z.string().describe("The user's question for the AI coach."),
 });
 export type SupportChatInput = z.infer<typeof SupportChatInputSchema>;
 
-export const SupportChatOutputSchema = z.object({
+const SupportChatOutputSchema = z.object({
   answer: z.string().describe("The AI coach's answer to the user's question."),
 });
 export type SupportChatOutput = z.infer<typeof SupportChatOutputSchema>;
