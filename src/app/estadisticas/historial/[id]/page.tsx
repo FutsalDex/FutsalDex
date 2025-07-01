@@ -20,6 +20,10 @@ interface Player {
   yellowCards: number;
   redCards: number;
   goals: number;
+  faltas?: number;
+  paradas?: number;
+  golesRecibidos?: number;
+  unoVsUno?: number;
 }
 
 interface HalfStats {
@@ -106,6 +110,10 @@ const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
                             <TableHead className="text-center w-[80px]">Goles</TableHead>
                             <TableHead className="text-center w-[40px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                             <TableHead className="text-center w-[40px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
+                            <TableHead className="text-center">Faltas</TableHead>
+                            <TableHead className="text-center">Paradas</TableHead>
+                            <TableHead className="text-center">G. Recibidos</TableHead>
+                            <TableHead className="text-center">1 vs 1</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -115,6 +123,10 @@ const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
                                 <TableCell className="text-center font-bold">{player.goals || 0}</TableCell>
                                 <TableCell className="text-center">{player.yellowCards || 0}</TableCell>
                                 <TableCell className="text-center">{player.redCards || 0}</TableCell>
+                                <TableCell className="text-center">{player.faltas || 0}</TableCell>
+                                <TableCell className="text-center">{player.paradas || 0}</TableCell>
+                                <TableCell className="text-center">{player.golesRecibidos || 0}</TableCell>
+                                <TableCell className="text-center">{player.unoVsUno || 0}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

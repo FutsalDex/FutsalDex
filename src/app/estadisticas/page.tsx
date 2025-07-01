@@ -35,15 +35,16 @@ interface StatCounterProps {
   value: number;
   onIncrement: () => void;
   onDecrement: () => void;
+  disabled?: boolean;
 }
 
-const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecrement }) => (
+const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecrement, disabled = false }) => (
   <div className="flex items-center justify-center gap-1">
-    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDecrement} disabled={value <= 0}>
+    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDecrement} disabled={disabled || value <= 0}>
       <Minus className="h-4 w-4" />
     </Button>
     <span className="w-6 text-center font-mono text-lg">{value}</span>
-    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onIncrement}>
+    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onIncrement} disabled={disabled}>
       <Plus className="h-4 w-4" />
     </Button>
   </div>
@@ -54,9 +55,14 @@ const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecreme
 interface Player {
   dorsal: string;
   nombre: string;
+  posicion: string;
   goals: number;
   yellowCards: number;
   redCards: number;
+  faltas: number;
+  paradas: number;
+  golesRecibidos: number;
+  unoVsUno: number;
 }
 
 interface OpponentPlayer {
@@ -64,6 +70,10 @@ interface OpponentPlayer {
     goals: number;
     yellowCards: number;
     redCards: number;
+    faltas: number;
+    paradas: number;
+    golesRecibidos: number;
+    unoVsUno: number;
 }
 
 
@@ -102,6 +112,10 @@ const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
     goals: 0,
     yellowCards: 0,
     redCards: 0,
+    faltas: 0,
+    paradas: 0,
+    golesRecibidos: 0,
+    unoVsUno: 0,
   }));
 
 
@@ -146,9 +160,14 @@ function EstadisticasPageContent() {
             setMyTeamPlayers(roster.map((p: any) => ({
                 dorsal: p.dorsal || '',
                 nombre: p.nombre || 'Sin nombre',
+                posicion: p.posicion || '',
                 goals: 0,
                 yellowCards: 0,
                 redCards: 0,
+                faltas: 0,
+                paradas: 0,
+                golesRecibidos: 0,
+                unoVsUno: 0,
             })));
         }
       } catch (error) {
@@ -189,12 +208,12 @@ function EstadisticasPageContent() {
   const handlePlayerStatChange = (
     team: 'myTeam' | 'opponentTeam',
     index: number,
-    field: 'goals' | 'yellowCards' | 'redCards',
+    field: 'goals' | 'yellowCards' | 'redCards' | 'faltas' | 'paradas' | 'golesRecibidos' | 'unoVsUno',
     delta: number
   ) => {
       const setter = team === 'myTeam' ? setMyTeamPlayers : setOpponentPlayers;
       setter(produce(draft => {
-          draft[index][field] = Math.max(0, draft[index][field] + delta);
+          (draft[index] as any)[field] = Math.max(0, (draft[index] as any)[field] + delta);
       }));
   }
 
@@ -208,6 +227,10 @@ function EstadisticasPageContent() {
             p.goals = 0;
             p.yellowCards = 0;
             p.redCards = 0;
+            p.faltas = 0;
+            p.paradas = 0;
+            p.golesRecibidos = 0;
+            p.unoVsUno = 0;
         })
       }));
       setMyTeamName("Mi Equipo");
@@ -227,10 +250,10 @@ function EstadisticasPageContent() {
         return;
     }
 
-    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0);
+    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0))
-      .map(({nombre, ...rest}) => rest); // Remove name before saving to DB
+      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
+      .map(({nombre, posicion, ...rest}) => rest); // Remove name and position before saving
 
 
     setIsSaving(true);
@@ -297,8 +320,8 @@ function EstadisticasPageContent() {
             <CardHeader className="p-0">
                 <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>ESTADÍSTICAS JUGADORES - {teamName}</CardTitle>
             </CardHeader>
-            <CardContent className="p-4">
-                <div className="max-h-96 overflow-y-auto">
+            <CardContent className="p-4 overflow-x-auto">
+                <div className="min-w-[800px]">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -307,6 +330,10 @@ function EstadisticasPageContent() {
                                 <TableHead className="text-center w-[110px]">Goles</TableHead>
                                 <TableHead title="Tarjeta Amarilla" className="text-center w-[60px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                                 <TableHead title="Tarjeta Roja" className="text-center w-[60px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
+                                <TableHead className="text-center w-[110px]">Faltas</TableHead>
+                                <TableHead className="text-center w-[110px]">Paradas</TableHead>
+                                <TableHead className="text-center w-[110px]">G. Recibidos</TableHead>
+                                <TableHead className="text-center w-[110px]">1 vs 1</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -331,6 +358,18 @@ function EstadisticasPageContent() {
                                     </TableCell>
                                     <TableCell>
                                         <StatCounter value={player.redCards} onIncrement={() => handlePlayerStatChange(team, index, 'redCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'redCards', -1)} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <StatCounter value={player.faltas} onIncrement={() => handlePlayerStatChange(team, index, 'faltas', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'faltas', -1)} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <StatCounter value={player.paradas} onIncrement={() => handlePlayerStatChange(team, index, 'paradas', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'paradas', -1)} disabled={team === 'myTeam' && (player as Player).posicion !== 'Portero'} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <StatCounter value={player.golesRecibidos} onIncrement={() => handlePlayerStatChange(team, index, 'golesRecibidos', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'golesRecibidos', -1)} disabled={team === 'myTeam' && (player as Player).posicion !== 'Portero'} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <StatCounter value={player.unoVsUno} onIncrement={() => handlePlayerStatChange(team, index, 'unoVsUno', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'unoVsUno', -1)} disabled={team === 'myTeam' && (player as Player).posicion !== 'Portero'} />
                                     </TableCell>
                                 </TableRow>
                             ))}
