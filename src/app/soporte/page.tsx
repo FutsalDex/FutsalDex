@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -27,9 +26,9 @@ function SoportePageContent() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/">
+          <Link href="/mi-equipo">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver al Inicio
+            Volver a Mi Equipo
           </Link>
         </Button>
       </header>

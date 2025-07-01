@@ -40,7 +40,6 @@ export default function Header() {
     { href: '/mi-equipo', label: 'Mi Equipo', icon: <Users className="mr-2 h-4 w-4" /> },
     { href: '/favoritos', label: 'Favoritos', icon: <Heart className="mr-2 h-4 w-4" /> },
     { href: '/suscripcion', label: 'Suscripción', icon: <Star className="mr-2 h-4 w-4" /> },
-    { href: '/soporte', label: 'Soporte', icon: <LifeBuoy className="mr-2 h-4 w-4" /> },
   ];
 
   const adminLinks = [
