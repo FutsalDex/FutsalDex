@@ -3,12 +3,12 @@
 
 import { AuthGuard } from "@/components/auth-guard";
 import { SubscriptionGuard } from "@/components/subscription-guard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical, Save, Loader2, History } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical, Save, Loader2, History, FileText } from "lucide-react";
 import React, { useState } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -17,6 +17,16 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 
 // --- Helper Components ---
@@ -205,7 +215,7 @@ function EstadisticasPageContent() {
     return (
         <Card>
             <CardHeader className="p-0">
-                <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>ESTADÍSTICAS JUGADORES - {teamName || (team === 'myTeam' ? "Local" : "Visitante")}</CardTitle>
+                <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>ESTADÍSTICAS JUGADORES - {teamName || (team === 'myTeam' ? "Mi Equipo" : "Visitante")}</CardTitle>
             </CardHeader>
             <CardContent className="p-4">
                 <div className="max-h-96 overflow-y-auto">
@@ -258,7 +268,7 @@ function EstadisticasPageContent() {
         <div className="space-y-6">
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>TIROS A PUERTA - {teamName || (team === 'myTeam' ? "Local" : "Visitante")}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>TIROS A PUERTA - {teamName || (team === 'myTeam' ? "Mi Equipo" : "Visitante")}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
                     <Table>
@@ -328,6 +338,50 @@ function EstadisticasPageContent() {
             </p>
         </div>
         <div className="flex flex-wrap gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <FileText className="mr-2 h-4 w-4"/>
+                  Datos del Partido
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Datos del Partido</DialogTitle>
+                  <DialogDescription>
+                    Introduce la información general del encuentro.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="fecha" className="text-right">Fecha</Label>
+                    <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="campeonato" className="text-right">Campeonato</Label>
+                    <Input id="campeonato" value={campeonato} onChange={(e) => setCampeonato(e.target.value)} placeholder="Ej: Liga Local" className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="jornada" className="text-right">Jornada</Label>
+                    <Input id="jornada" value={jornada} onChange={(e) => setJornada(e.target.value)} placeholder="Ej: Jornada 5" className="col-span-3" />
+                  </div>
+                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="myTeamName" className="text-right">Mi Equipo</Label>
+                    <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Nombre equipo local" className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="opponentTeamName" className="text-right">Visitante</Label>
+                    <Input id="opponentTeamName" value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Nombre equipo visitante" className="col-span-3" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button">Aceptar</Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <Button onClick={resetAllStats} variant="outline">
                 <RotateCcw className="mr-2 h-4 w-4"/>
                 Reiniciar
@@ -345,30 +399,10 @@ function EstadisticasPageContent() {
         </div>
       </header>
 
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-1">
-              <Label htmlFor="fecha">Fecha</Label>
-              <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-              <Label htmlFor="campeonato">Campeonato</Label>
-              <Input id="campeonato" value={campeonato} onChange={(e) => setCampeonato(e.target.value)} placeholder="Ej: Liga Local" />
-          </div>
-          <div className="space-y-1">
-              <Label htmlFor="jornada">Jornada</Label>
-              <Input id="jornada" value={jornada} onChange={(e) => setJornada(e.target.value)} placeholder="Ej: Jornada 5" />
-          </div>
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Nombre equipo local" className="text-lg font-bold" />
-        <Input value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Nombre equipo visitante" className="text-lg font-bold" />
-      </div>
-
       <Tabs defaultValue="myTeam" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="myTeam">{myTeamName || "Equipo Local"}</TabsTrigger>
-            <TabsTrigger value="opponentTeam">{opponentTeamName || "Equipo Visitante"}</TabsTrigger>
+            <TabsTrigger value="myTeam">{myTeamName || "Mi Equipo"}</TabsTrigger>
+            <TabsTrigger value="opponentTeam">{opponentTeamName || "Equipo Contrario"}</TabsTrigger>
         </TabsList>
         <TabsContent value="myTeam">
             <div className="space-y-6 pt-6">
