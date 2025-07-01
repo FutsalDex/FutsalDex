@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -536,13 +536,19 @@ function EstadisticasPageContent() {
         <div>
             <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
                 <BarChart2 className="mr-3 h-8 w-8"/>
-                Estadísticas de Partido
+                Registrar Estadísticas de Partido
             </h1>
             <p className="text-lg text-foreground/80">
-                Registra las estadísticas de tu equipo durante un partido en tiempo real.
+                Introduce los datos y estadísticas del partido en tiempo real.
             </p>
         </div>
         <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+                <Link href="/estadisticas/historial">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Volver al Historial
+                </Link>
+            </Button>
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline">
@@ -605,12 +611,6 @@ function EstadisticasPageContent() {
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Guardar
             </Button>
-            <Button asChild variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href="/estadisticas/historial">
-                    <History className="mr-2 h-4 w-4" />
-                    Ver Historial
-                </Link>
-            </Button>
         </div>
       </header>
       
@@ -665,8 +665,8 @@ function EstadisticasPageContent() {
         </TabsContent>
         <TabsContent value="visitante">
              <div className="space-y-6 pt-6">
-                {rosterSide === 'visitor' ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
-                {rosterSide === 'visitor' ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
+                {rosterSide === 'visitante' ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
+                {rosterSide === 'visitante' ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
             </div>
         </TabsContent>
       </Tabs>

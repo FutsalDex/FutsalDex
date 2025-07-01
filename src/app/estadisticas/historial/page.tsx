@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Eye, History } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, History, PlusCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface SavedMatch {
@@ -78,18 +78,26 @@ function HistorialPageContent() {
                 <div>
                     <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
                         <History className="mr-3 h-8 w-8"/>
-                        Historial de Partidos
+                        Mis Partidos
                     </h1>
                     <p className="text-lg text-foreground/80">
-                        Consulta las estadísticas de tus partidos guardados.
+                        Aquí puedes ver todos tus partidos guardados. Añade uno nuevo o consulta los detalles de uno existente.
                     </p>
                 </div>
-                <Button asChild variant="outline">
-                    <Link href="/estadisticas">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver
-                    </Link>
-                </Button>
+                <div className="flex gap-2">
+                    <Button asChild variant="outline">
+                        <Link href="/mi-equipo">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver al Panel
+                        </Link>
+                    </Button>
+                    <Button asChild>
+                        <Link href="/estadisticas">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Añadir Partido
+                        </Link>
+                    </Button>
+                </div>
             </header>
 
             {matches.length === 0 ? (
@@ -98,6 +106,14 @@ function HistorialPageContent() {
                         <CardTitle>No hay partidos guardados</CardTitle>
                         <CardDescription>Aún no has guardado ninguna estadística. ¡Empieza registrando tu primer partido!</CardDescription>
                     </CardHeader>
+                    <CardContent>
+                       <Button asChild>
+                        <Link href="/estadisticas">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Añadir Partido
+                        </Link>
+                       </Button>
+                    </CardContent>
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

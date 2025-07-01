@@ -17,9 +17,9 @@ const featureCards = [
         icon: Users,
     },
     {
-        title: "Mis Estadísticas",
-        description: "Registra las estadísticas de tus partidos en tiempo real para un análisis detallado del rendimiento.",
-        href: "/estadisticas",
+        title: "Mis Partidos",
+        description: "Da de alta nuevos partidos, consulta el historial de encuentros y registra sus estadísticas detalladas.",
+        href: "/estadisticas/historial",
         icon: BarChart2,
     },
     {
