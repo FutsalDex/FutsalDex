@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { SubscriptionGuard } from "@/components/subscription-guard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BarChart2, BookUser, CalendarDays, ArrowRight, LifeBuoy } from "lucide-react";
+import { Users, BarChart2, BookUser, CalendarDays, ArrowRight, LifeBuoy, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -15,6 +15,12 @@ const featureCards = [
         description: "Gestiona la plantilla de tu equipo, añade jugadores y consulta sus estadísticas de la temporada.",
         href: "/mi-equipo/plantilla",
         icon: Users,
+    },
+    {
+        title: "Control de Asistencia",
+        description: "Registra y consulta la asistencia de tus jugadores a los entrenamientos.",
+        href: "/mi-equipo/asistencia",
+        icon: ClipboardCheck,
     },
     {
         title: "Mis Partidos",
@@ -54,7 +60,7 @@ function MiEquipoDashboardContent() {
                 </p>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 {featureCards.map((card) => (
                     <Card key={card.href} className="shadow-lg hover:shadow-xl transition-shadow flex flex-col">
                         <CardHeader>
