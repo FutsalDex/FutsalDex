@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit, ArrowLeftRight } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -118,6 +118,8 @@ function EditMatchPageContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [myTeamIsHome, setMyTeamIsHome] = useState(true);
+
 
   useEffect(() => {
     const fetchMatchAndRoster = async () => {
@@ -146,6 +148,8 @@ function EditMatchPageContent() {
         setTipoPartido(matchData.tipoPartido || "");
         setMyTeamStats(matchData.myTeamStats);
         setOpponentTeamStats(matchData.opponentTeamStats);
+        setMyTeamIsHome(matchData.myTeamWasHome === undefined ? true : matchData.myTeamWasHome);
+
 
         // Fetch roster
         const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
@@ -170,7 +174,7 @@ function EditMatchPageContent() {
 
         // Populate opponent players, padding with empty rows up to 12
         const savedOpponents = matchData.opponentPlayers || [];
-        const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
+        const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
         setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
 
       } catch (error) {
@@ -188,7 +192,7 @@ function EditMatchPageContent() {
      if (!user || !matchId) return;
      setIsSaving(true);
      
-     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
+     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
      const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
       .map(({posicion, ...rest}) => rest);
@@ -196,6 +200,7 @@ function EditMatchPageContent() {
      const updatedData = {
         myTeamName,
         opponentTeamName,
+        myTeamWasHome,
         fecha,
         hora,
         campeonato,
@@ -250,6 +255,13 @@ function EditMatchPageContent() {
           draft[index].dorsal = value;
       }));
   };
+  const handleOpponentNameChange = (index: number, value: string) => {
+      setOpponentPlayers(produce(draft => {
+          if(draft[index]) {
+            draft[index].nombre = value;
+          }
+      }));
+  };
 
   const handlePlayerStatChange = (
     team: 'myTeam' | 'opponentTeam',
@@ -289,15 +301,16 @@ function EditMatchPageContent() {
   }
   
     const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
-    const teamName = team === 'myTeam' ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Contrario';
-    const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+    const isMyRosterTeam = team === 'myTeam';
+    const headerTeamName = isMyRosterTeam ? (myTeamName || 'Mi Equipo') : (opponentTeamName || 'Equipo Contrario');
+    const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     const players = team === 'myTeam' ? myTeamPlayers : opponentPlayers;
 
     return (
         <Card>
             <CardHeader className="p-0">
-                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {teamName}</CardTitle>
+                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 overflow-x-auto">
                 <div className="min-w-[800px]">
@@ -305,7 +318,7 @@ function EditMatchPageContent() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[3.25rem] text-xs px-1">Dorsal</TableHead>
-                                {team === 'myTeam' && <TableHead className="text-xs">Nombre</TableHead>}
+                                <TableHead className="text-xs">Nombre</TableHead>
                                 <TableHead className="text-center w-[110px] text-xs">Goles</TableHead>
                                 <TableHead title="T.A." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                                 <TableHead title="T.R." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
@@ -328,7 +341,17 @@ function EditMatchPageContent() {
                                         type="text" 
                                       />
                                     </TableCell>
-                                    {team === 'myTeam' && <TableCell className="font-medium text-xs">{(player as Player).nombre}</TableCell>}
+                                    <TableCell className="font-medium text-xs px-1">
+                                        {team === 'myTeam' ? 
+                                            (player as Player).nombre : 
+                                            <Input 
+                                                className="h-8 text-xs w-full" 
+                                                placeholder="Nombre" 
+                                                value={(player as OpponentPlayer).nombre || ''}
+                                                onChange={(e) => team === 'opponentTeam' && handleOpponentNameChange(index, e.target.value)}
+                                            />
+                                        }
+                                    </TableCell>
                                     <TableCell>
                                         <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} />
                                     </TableCell>
@@ -361,16 +384,17 @@ function EditMatchPageContent() {
   }
 
   const renderTeamStats = (team: 'myTeam' | 'opponentTeam') => {
-    const stats = team === 'myTeam' ? myTeamStats : opponentTeamStats;
+    const isMyRosterTeam = team === 'myTeam';
+    const stats = isMyRosterTeam ? myTeamStats : opponentTeamStats;
     if (!stats) return null;
-    const teamName = team === 'myTeam' ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Contrario';
-    const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+    const headerTeamName = isMyRosterTeam ? (myTeamName || 'Mi Equipo') : (opponentTeamName || 'Equipo Contrario');
+    const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
     return (
         <div className="grid grid-cols-1 gap-6">
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {teamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {headerTeamName}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 overflow-x-auto">
                     <Table>
@@ -403,7 +427,7 @@ function EditMatchPageContent() {
             </Card>
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {teamName}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {headerTeamName}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 overflow-x-auto">
                     <Table>
@@ -510,7 +534,9 @@ function EditMatchPageContent() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
+            <Button onClick={() => setMyTeamIsHome(prev => !prev)} variant="outline" size="icon" title="Intercambiar Local/Visitante">
+              <ArrowLeftRight className="h-4 w-4"/>
+            </Button>
             <Button onClick={handleUpdateStats} disabled={isSaving}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Actualizar Partido
@@ -527,32 +553,32 @@ function EditMatchPageContent() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <Label htmlFor="myTeamName">Equipo Local</Label>
-                <Input id="myTeamName" value={myTeamName} onChange={(e) => setMyTeamName(e.target.value)} placeholder="Nombre del equipo local" />
+                <Label htmlFor="localTeamName">Equipo Local</Label>
+                <Input id="localTeamName" value={myTeamIsHome ? myTeamName : opponentTeamName} onChange={(e) => myTeamIsHome ? setMyTeamName(e.target.value) : setOpponentTeamName(e.target.value)} placeholder="Nombre del equipo local" />
             </div>
             <div>
-                <Label htmlFor="opponentTeamName">Equipo Visitante</Label>
-                <Input id="opponentTeamName" value={opponentTeamName} onChange={(e) => setOpponentTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
+                <Label htmlFor="visitanteTeamName">Equipo Visitante</Label>
+                <Input id="visitanteTeamName" value={myTeamIsHome ? opponentTeamName : myTeamName} onChange={(e) => myTeamIsHome ? setOpponentTeamName(e.target.value) : setMyTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
             </div>
         </CardContent>
       </Card>
 
 
-      <Tabs defaultValue="myTeam" className="w-full">
+      <Tabs defaultValue="local" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="myTeam">{myTeamName || "Equipo Local"}</TabsTrigger>
-            <TabsTrigger value="opponentTeam">{opponentTeamName || "Equipo Contrario"}</TabsTrigger>
+            <TabsTrigger value="local">{myTeamIsHome ? myTeamName || 'Equipo Local' : opponentTeamName || 'Equipo Local'}</TabsTrigger>
+            <TabsTrigger value="visitante">{myTeamIsHome ? opponentTeamName || 'Equipo Contrario' : myTeamName || 'Equipo Contrario'}</TabsTrigger>
         </TabsList>
-        <TabsContent value="myTeam">
+        <TabsContent value="local">
             <div className="space-y-6 pt-6">
-                {renderPlayerTable('myTeam')}
-                {renderTeamStats('myTeam')}
+                {myTeamIsHome ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
+                {myTeamIsHome ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
             </div>
         </TabsContent>
-        <TabsContent value="opponentTeam">
+        <TabsContent value="visitante">
              <div className="space-y-6 pt-6">
-                {renderPlayerTable('opponentTeam')}
-                {renderTeamStats('opponentTeam')}
+                {!myTeamIsHome ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
+                {!myTeamIsHome ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
             </div>
         </TabsContent>
       </Tabs>
