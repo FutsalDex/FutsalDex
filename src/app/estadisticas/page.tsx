@@ -400,8 +400,8 @@ function EstadisticasPageContent() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="text-xs">Tipo</TableHead>
-                                <TableHead className="text-center w-[120px] text-xs">1º Tiempo</TableHead>
-                                <TableHead className="text-center w-[120px] text-xs">2º Tiempo</TableHead>
+                                <TableHead className="text-center text-xs">1º Tiempo</TableHead>
+                                <TableHead className="text-center text-xs">2º Tiempo</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
