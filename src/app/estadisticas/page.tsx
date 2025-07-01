@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit, ArrowLeftRight } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -28,6 +28,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 // --- Helper Components ---
@@ -146,7 +147,7 @@ function EstadisticasPageContent() {
   // Control State
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingRoster, setIsLoadingRoster] = useState(true);
-  const [myTeamIsHome, setMyTeamIsHome] = useState(true);
+  const [rosterSide, setRosterSide] = useState<'local' | 'visitante'>('local');
 
 
   const getTeamDocRef = useCallback(() => {
@@ -265,7 +266,7 @@ function EstadisticasPageContent() {
             p.unoVsUno = 0;
         })
       }));
-      setMyTeamIsHome(true);
+      setRosterSide('local');
       setLocalTeamName(rosterInfo.name);
       setVisitorTeamName("");
       setFecha(new Date().toISOString().split('T')[0]);
@@ -286,8 +287,8 @@ function EstadisticasPageContent() {
         return;
     }
 
-    const finalMyTeamName = myTeamIsHome ? localTeamName : visitorTeamName;
-    const finalOpponentTeamName = myTeamIsHome ? visitorTeamName : localTeamName;
+    const finalMyTeamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
+    const finalOpponentTeamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
 
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
@@ -301,7 +302,7 @@ function EstadisticasPageContent() {
             userId: user.uid,
             myTeamName: finalMyTeamName,
             opponentTeamName: finalOpponentTeamName,
-            myTeamWasHome: myTeamIsHome,
+            myTeamWasHome: rosterSide === 'local',
             fecha,
             hora: hora || null,
             campeonato,
@@ -323,16 +324,15 @@ function EstadisticasPageContent() {
     }
   };
 
-  const handleSwapTeams = () => {
-    const currentLocal = localTeamName;
-    setLocalTeamName(visitorTeamName);
-    setVisitorTeamName(currentLocal);
-    setMyTeamIsHome(prev => !prev);
-  }
-
   const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
     const isMyRosterTeam = team === 'myTeam';
-    const teamName = (isMyRosterTeam && myTeamIsHome) || (!isMyRosterTeam && !myTeamIsHome) ? localTeamName : visitorTeamName;
+    
+    let teamName: string;
+    if (isMyRosterTeam) {
+        teamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
+    } else {
+        teamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
+    }
       
     const headerTeamName = teamName || (isMyRosterTeam ? 'Mi Equipo' : 'Equipo Contrario');
     const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
@@ -448,7 +448,13 @@ function EstadisticasPageContent() {
     const stats = isMyRosterTeam ? myTeamStats : opponentTeamStats;
     if (!stats) return null;
     
-    const teamName = (isMyRosterTeam && myTeamIsHome) || (!isMyRosterTeam && !myTeamIsHome) ? localTeamName : visitorTeamName;
+    let teamName: string;
+    if (isMyRosterTeam) {
+        teamName = rosterSide === 'local' ? localTeamName : visitorTeamName;
+    } else {
+        teamName = rosterSide === 'local' ? visitorTeamName : localTeamName;
+    }
+    
     const headerTeamName = teamName || (isMyRosterTeam ? 'Mi Equipo' : 'Equipo Contrario');
     const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
 
@@ -537,12 +543,6 @@ function EstadisticasPageContent() {
             </p>
         </div>
         <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-                <Link href="/mi-equipo">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Volver a Mi Equipo
-                </Link>
-            </Button>
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline">
@@ -558,14 +558,6 @@ function EstadisticasPageContent() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="localTeamName" className="text-right">Equipo Local</Label>
-                    <Input id="localTeamName" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} placeholder="Nombre del equipo local" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="visitanteTeamName" className="text-right">Visitante</Label>
-                    <Input id="visitanteTeamName" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} placeholder="Equipo Contrario" className="col-span-3" />
-                  </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="fecha" className="text-right">Fecha</Label>
                     <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="col-span-3" />
@@ -605,9 +597,6 @@ function EstadisticasPageContent() {
               </DialogContent>
             </Dialog>
 
-            <Button onClick={handleSwapTeams} variant="outline" size="icon" title="Intercambiar Local/Visitante">
-              <ArrowLeftRight className="h-4 w-4"/>
-            </Button>
             <Button onClick={resetAllStats} variant="outline">
                 <RotateCcw className="mr-2 h-4 w-4"/>
                 Reiniciar
@@ -624,22 +613,60 @@ function EstadisticasPageContent() {
             </Button>
         </div>
       </header>
+      
+      <Card className="mb-6">
+        <CardHeader>
+            <CardTitle>Información del Partido</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <Label htmlFor="localTeamName">Equipo Local</Label>
+                    <div className="flex gap-2">
+                        <Input id="localTeamName" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} placeholder="Nombre del equipo local" />
+                        <Button variant="outline" size="sm" onClick={() => setLocalTeamName(rosterInfo.name || '')} className="px-3 text-xs">Mi Equipo</Button>
+                    </div>
+                </div>
+                <div>
+                    <Label htmlFor="visitorTeamName">Equipo Visitante</Label>
+                    <div className="flex gap-2">
+                        <Input id="visitorTeamName" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
+                        <Button variant="outline" size="sm" onClick={() => setVisitorTeamName(rosterInfo.name || '')} className="px-3 text-xs">Mi Equipo</Button>
+                    </div>
+                </div>
+            </div>
+            <div className="pt-4">
+                <Label className="font-semibold">Mi Plantilla juega como:</Label>
+                <RadioGroup value={rosterSide} onValueChange={(value: 'local' | 'visitante') => setRosterSide(value)} className="flex gap-4 mt-2">
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="local" id="r-local" />
+                        <Label htmlFor="r-local">Local</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="visitante" id="r-visitante" />
+                        <Label htmlFor="r-visitante">Visitante</Label>
+                    </div>
+                </RadioGroup>
+            </div>
+        </CardContent>
+      </Card>
+
 
       <Tabs defaultValue="local" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="local">{localTeamName || 'Equipo Local'}</TabsTrigger>
-            <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Contrario'}</TabsTrigger>
+            <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Visitante'}</TabsTrigger>
         </TabsList>
         <TabsContent value="local">
             <div className="space-y-6 pt-6">
-                {myTeamIsHome ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
-                {myTeamIsHome ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
+                {rosterSide === 'local' ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
+                {rosterSide === 'local' ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
             </div>
         </TabsContent>
         <TabsContent value="visitante">
              <div className="space-y-6 pt-6">
-                {!myTeamIsHome ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
-                {!myTeamIsHome ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
+                {rosterSide === 'visitor' ? renderPlayerTable('myTeam') : renderPlayerTable('opponentTeam')}
+                {rosterSide === 'visitor' ? renderTeamStats('myTeam') : renderTeamStats('opponentTeam')}
             </div>
         </TabsContent>
       </Tabs>
