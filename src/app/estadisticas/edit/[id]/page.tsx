@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit, ArrowLeftRight } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useParams, useRouter } from 'next/navigation';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // --- Helper Components ---
 interface StatCounterProps {
@@ -534,9 +535,6 @@ function EditMatchPageContent() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button onClick={() => setMyTeamIsHome(prev => !prev)} variant="outline" size="icon" title="Intercambiar Local/Visitante">
-              <ArrowLeftRight className="h-4 w-4"/>
-            </Button>
             <Button onClick={handleUpdateStats} disabled={isSaving}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Actualizar Partido
@@ -548,17 +546,36 @@ function EditMatchPageContent() {
         <CardHeader>
             <CardTitle>Nombres de los Equipos</CardTitle>
             <CardDescription>
-                Edita los nombres del equipo local y visitante.
+                Edita los nombres del equipo local y visitante y asigna tu plantilla.
             </CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <Label htmlFor="localTeamName">Equipo Local</Label>
-                <Input id="localTeamName" value={myTeamIsHome ? myTeamName : opponentTeamName} onChange={(e) => myTeamIsHome ? setMyTeamName(e.target.value) : setOpponentTeamName(e.target.value)} placeholder="Nombre del equipo local" />
+        <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <Label htmlFor="localTeamName">Equipo Local</Label>
+                    <Input id="localTeamName" value={myTeamIsHome ? myTeamName : opponentTeamName} onChange={(e) => myTeamIsHome ? setMyTeamName(e.target.value) : setOpponentTeamName(e.target.value)} placeholder="Nombre del equipo local" />
+                </div>
+                <div>
+                    <Label htmlFor="visitanteTeamName">Equipo Visitante</Label>
+                    <Input id="visitanteTeamName" value={myTeamIsHome ? opponentTeamName : myTeamName} onChange={(e) => myTeamIsHome ? setOpponentTeamName(e.target.value) : setMyTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
+                </div>
             </div>
-            <div>
-                <Label htmlFor="visitanteTeamName">Equipo Visitante</Label>
-                <Input id="visitanteTeamName" value={myTeamIsHome ? opponentTeamName : myTeamName} onChange={(e) => myTeamIsHome ? setOpponentTeamName(e.target.value) : setMyTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
+            <div className="pt-4">
+                <Label className="font-semibold">Mi Plantilla juega como:</Label>
+                <RadioGroup
+                    value={myTeamIsHome ? 'local' : 'visitante'}
+                    onValueChange={(value) => setMyTeamIsHome(value === 'local')}
+                    className="flex gap-4 mt-2"
+                >
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="local" id="r-local-edit" />
+                        <Label htmlFor="r-local-edit">Local</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="visitante" id="r-visitante-edit" />
+                        <Label htmlFor="r-visitante-edit">Visitante</Label>
+                    </div>
+                </RadioGroup>
             </div>
         </CardContent>
       </Card>
