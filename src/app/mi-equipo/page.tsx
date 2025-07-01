@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,36 +13,48 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, Save, Plus, Trash2, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { produce } from 'immer';
 import { POSICIONES_FUTSAL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 
-// Player data structure
-interface Player {
+// Player data structure for the roster
+interface RosterPlayer {
   id: string;
   dorsal: string;
   nombre: string;
   posicion: string;
+  // Manually tracked season stats
   faltas: number;
-  tarjetasAmarillas: number;
-  tarjetasRojas: number;
-  goles: number;
-  // Goalkeeper specific
+  // Goalkeeper specific manually tracked season stats
   paradas: number;
   golesRecibidos: number;
-  unoVsUno: number; // Represents 1-on-1 situations, could be saves or total
+  unoVsUno: number;
 }
 
-const createNewPlayer = (): Player => ({
+// Player data structure for display, including aggregated stats
+interface DisplayPlayer extends RosterPlayer {
+  totalGoles: number;
+  totalAmarillas: number;
+  totalRojas: number;
+}
+
+interface MatchData {
+    myTeamPlayers: {
+        dorsal: string;
+        goals: number;
+        yellowCards: number;
+        redCards: number;
+    }[];
+}
+
+
+const createNewPlayer = (): RosterPlayer => ({
   id: uuidv4(),
   dorsal: '',
   nombre: '',
   posicion: '',
   faltas: 0,
-  tarjetasAmarillas: 0,
-  tarjetasRojas: 0,
-  goles: 0,
   paradas: 0,
   golesRecibidos: 0,
   unoVsUno: 0,
@@ -50,7 +63,7 @@ const createNewPlayer = (): Player => ({
 function MiEquipoPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [players, setPlayers] = useState<Player[]>(() => [createNewPlayer()]);
+  const [players, setPlayers] = useState<DisplayPlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -59,33 +72,71 @@ function MiEquipoPageContent() {
       return doc(db, 'usuarios', user.uid, 'team', 'roster');
   }, [user]);
 
-  useEffect(() => {
-    const fetchTeam = async () => {
-      const docRef = getTeamDocRef();
-      if (!docRef) {
+  const fetchTeamAndAggregateStats = useCallback(async () => {
+    if (!user) {
         setIsLoading(false);
         return;
-      }
+    }
+    setIsLoading(true);
+    
+    try {
+        // 1. Fetch Roster
+        const docRef = getTeamDocRef();
+        if (!docRef) throw new Error("User not found");
 
-      try {
         const docSnap = await getDoc(docRef);
+        let roster: RosterPlayer[] = [];
         if (docSnap.exists() && docSnap.data().players?.length > 0) {
-            setPlayers(docSnap.data().players);
+            roster = docSnap.data().players;
         } else {
-            // If no team exists, start with a default of 5 empty rows
-            setPlayers(Array.from({ length: 5 }, createNewPlayer));
+            roster = Array.from({ length: 5 }, createNewPlayer);
         }
-      } catch (error) {
-        console.error("Error fetching team:", error);
-        toast({ title: "Error", description: "No se pudo cargar tu equipo.", variant: "destructive" });
-      } finally {
+
+        // 2. Fetch all matches for the user
+        const matchesQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
+        const matchesSnapshot = await getDocs(matchesQuery);
+        const matches: MatchData[] = matchesSnapshot.docs.map(d => d.data() as MatchData);
+
+        // 3. Aggregate stats
+        const aggregatedPlayers: DisplayPlayer[] = roster.map(player => {
+            const stats = {
+                totalGoles: 0,
+                totalAmarillas: 0,
+                totalRojas: 0,
+            };
+
+            if (player.dorsal) {
+                for (const match of matches) {
+                    const matchPlayer = match.myTeamPlayers?.find(p => p.dorsal === player.dorsal);
+                    if (matchPlayer) {
+                        stats.totalGoles += matchPlayer.goals || 0;
+                        stats.totalAmarillas += matchPlayer.yellowCards || 0;
+                        stats.totalRojas += matchPlayer.redCards || 0;
+                    }
+                }
+            }
+            
+            return {
+                ...player,
+                ...stats,
+            };
+        });
+
+        setPlayers(aggregatedPlayers);
+    } catch (error) {
+        console.error("Error fetching team and stats:", error);
+        toast({ title: "Error", description: "No se pudieron cargar los datos del equipo y las estadísticas.", variant: "destructive" });
+    } finally {
         setIsLoading(false);
-      }
-    };
-    fetchTeam();
-  }, [getTeamDocRef, toast]);
+    }
+  }, [user, getTeamDocRef, toast]);
   
-  const handlePlayerChange = (id: string, field: keyof Player, value: string | number) => {
+
+  useEffect(() => {
+    fetchTeamAndAggregateStats();
+  }, [fetchTeamAndAggregateStats]);
+  
+  const handlePlayerChange = (id: string, field: keyof RosterPlayer, value: string | number) => {
     setPlayers(
       produce(draft => {
         const player = draft.find(p => p.id === id);
@@ -104,7 +155,13 @@ function MiEquipoPageContent() {
   
   const addPlayerRow = () => {
     setPlayers(produce(draft => {
-      draft.push(createNewPlayer());
+      const newPlayer: DisplayPlayer = {
+        ...createNewPlayer(),
+        totalGoles: 0,
+        totalAmarillas: 0,
+        totalRojas: 0,
+      }
+      draft.push(newPlayer);
     }));
   };
 
@@ -120,8 +177,10 @@ function MiEquipoPageContent() {
     }
     setIsSaving(true);
     try {
+      // Create a clean roster without aggregated stats for saving
+      const rosterToSave = players.map(({ totalGoles, totalAmarillas, totalRojas, ...rosterPlayer }) => rosterPlayer);
       await setDoc(docRef, {
-        players,
+        players: rosterToSave,
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Equipo Guardado", description: "Los datos de tu equipo se han guardado correctamente." });
@@ -149,7 +208,7 @@ function MiEquipoPageContent() {
           Mi Equipo
         </h1>
         <p className="text-lg text-foreground/80">
-          Gestiona la plantilla de tu equipo y sus estadísticas de la temporada.
+          Gestiona la plantilla de tu equipo y consulta sus estadísticas de la temporada.
         </p>
       </header>
 
@@ -157,7 +216,7 @@ function MiEquipoPageContent() {
         <CardHeader>
           <CardTitle>Plantilla del Equipo</CardTitle>
           <CardDescription>
-            Introduce los datos de tus jugadores. Las estadísticas de portero solo se habilitan si la posición es "Portero".
+            Introduce los datos de tus jugadores. Los goles y tarjetas se calculan automáticamente a partir de los partidos guardados.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -168,13 +227,13 @@ function MiEquipoPageContent() {
                   <TableHead className="w-[80px]">Dorsal</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead className="w-[150px]">Posición</TableHead>
-                  <TableHead className="w-[90px] text-center">Goles</TableHead>
-                  <TableHead className="w-[90px] text-center">Faltas</TableHead>
-                  <TableHead className="w-[90px] text-center">T. Amarillas</TableHead>
-                  <TableHead className="w-[90px] text-center">T. Rojas</TableHead>
-                  <TableHead className="w-[90px] text-center">Paradas</TableHead>
-                  <TableHead className="w-[90px] text-center">G. Recibidos</TableHead>
-                  <TableHead className="w-[90px] text-center">1 vs 1</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Total de goles de partidos guardados">Goles</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Total de tarjetas amarillas de partidos guardados">T. Amarillas</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Total de tarjetas rojas de partidos guardados">T. Rojas</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Faltas (total manual)">Faltas</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Paradas (total manual)">Paradas</TableHead>
+                  <TableHead className="w-[90px] text-center" title="Goles recibidos (total manual)">G. Recibidos</TableHead>
+                  <TableHead className="w-[90px] text-center" title="1 vs 1 (total manual)">1 vs 1</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -210,19 +269,14 @@ function MiEquipoPageContent() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
-                        <Input type="number" value={player.goles} onChange={(e) => handlePlayerChange(player.id, 'goles', parseInt(e.target.value) || 0)} className="h-8 text-center" min="0"/>
-                      </TableCell>
+                      {/* Aggregated stats (read-only) */}
+                      <TableCell className="text-center font-bold text-lg">{player.totalGoles}</TableCell>
+                      <TableCell className="text-center font-bold text-lg">{player.totalAmarillas}</TableCell>
+                      <TableCell className="text-center font-bold text-lg">{player.totalRojas}</TableCell>
+                      {/* Manually edited stats */}
                       <TableCell>
                         <Input type="number" value={player.faltas} onChange={(e) => handlePlayerChange(player.id, 'faltas', parseInt(e.target.value) || 0)} className="h-8 text-center" min="0"/>
                       </TableCell>
-                      <TableCell>
-                        <Input type="number" value={player.tarjetasAmarillas} onChange={(e) => handlePlayerChange(player.id, 'tarjetasAmarillas', parseInt(e.target.value) || 0)} className="h-8 text-center" min="0"/>
-                      </TableCell>
-                      <TableCell>
-                        <Input type="number" value={player.tarjetasRojas} onChange={(e) => handlePlayerChange(player.id, 'tarjetasRojas', parseInt(e.target.value) || 0)} className="h-8 text-center" min="0"/>
-                      </TableCell>
-                      {/* Goalkeeper Stats */}
                       <TableCell>
                         <Input type="number" value={player.paradas} onChange={(e) => handlePlayerChange(player.id, 'paradas', parseInt(e.target.value) || 0)} className="h-8 text-center" disabled={!isGoalkeeper} min="0"/>
                       </TableCell>

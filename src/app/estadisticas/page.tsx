@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical, Save, Loader2, History, FileText } from "lucide-react";
-import React, { useState } from "react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleHorizontal, RectangleVertical, Save, Loader2, History, FileText, Users } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -53,10 +53,19 @@ const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecreme
 
 interface Player {
   dorsal: string;
+  nombre: string;
   goals: number;
   yellowCards: number;
   redCards: number;
 }
+
+interface OpponentPlayer {
+    dorsal: string;
+    goals: number;
+    yellowCards: number;
+    redCards: number;
+}
+
 
 interface HalfStats {
   firstHalf: number;
@@ -87,7 +96,7 @@ const createInitialTeamStats = (): TeamStats => ({
   steals: { ...initialHalfStats },
 });
 
-const createInitialPlayers = (count: number): Player[] =>
+const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
   Array.from({ length: count }, () => ({
     dorsal: '',
     goals: 0,
@@ -110,11 +119,48 @@ function EstadisticasPageContent() {
   // Stats State
   const [myTeamStats, setMyTeamStats] = useState<TeamStats>(createInitialTeamStats());
   const [opponentTeamStats, setOpponentTeamStats] = useState<TeamStats>(createInitialTeamStats());
-  const [myTeamPlayers, setMyTeamPlayers] = useState<Player[]>(createInitialPlayers(12));
-  const [opponentPlayers, setOpponentPlayers] = useState<Player[]>(createInitialPlayers(12));
+  const [myTeamPlayers, setMyTeamPlayers] = useState<Player[]>([]);
+  const [opponentPlayers, setOpponentPlayers] = useState<OpponentPlayer[]>(createInitialOpponentPlayers(12));
   
   // Control State
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingRoster, setIsLoadingRoster] = useState(true);
+
+  const getTeamDocRef = useCallback(() => {
+      if (!user) return null;
+      return doc(db, 'usuarios', user.uid, 'team', 'roster');
+  }, [user]);
+
+  useEffect(() => {
+    const fetchTeamRoster = async () => {
+      const docRef = getTeamDocRef();
+      if (!docRef) {
+        setIsLoadingRoster(false);
+        return;
+      }
+      setIsLoadingRoster(true);
+      try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().players?.length > 0) {
+            const roster = docSnap.data().players;
+            setMyTeamPlayers(roster.map((p: any) => ({
+                dorsal: p.dorsal || '',
+                nombre: p.nombre || 'Sin nombre',
+                goals: 0,
+                yellowCards: 0,
+                redCards: 0,
+            })));
+        }
+      } catch (error) {
+        console.error("Error fetching team roster for stats:", error);
+        toast({ title: "Error", description: "No se pudo cargar la plantilla de tu equipo.", variant: "destructive" });
+      } finally {
+        setIsLoadingRoster(false);
+      }
+    };
+    fetchTeamRoster();
+  }, [getTeamDocRef, toast]);
+
 
   const handleStatChange = (
     team: 'myTeam' | 'opponentTeam',
@@ -134,15 +180,9 @@ function EstadisticasPageContent() {
     );
   };
   
-  const handlePlayerChange = (
-    team: 'myTeam' | 'opponentTeam',
-    index: number,
-    field: 'dorsal',
-    value: string
-  ) => {
-      const setter = team === 'myTeam' ? setMyTeamPlayers : setOpponentPlayers;
-      setter(produce(draft => {
-          draft[index][field] = value;
+  const handleOpponentDorsalChange = (index: number, value: string) => {
+      setOpponentPlayers(produce(draft => {
+          draft[index].dorsal = value;
       }));
   };
 
@@ -161,8 +201,15 @@ function EstadisticasPageContent() {
   const resetAllStats = () => {
       setMyTeamStats(createInitialTeamStats());
       setOpponentTeamStats(createInitialTeamStats());
-      setMyTeamPlayers(createInitialPlayers(12));
-      setOpponentPlayers(createInitialPlayers(12));
+      setOpponentPlayers(createInitialOpponentPlayers(12));
+      // Reset myTeamPlayers stats to 0 but keep roster info
+      setMyTeamPlayers(produce(draft => {
+        draft.forEach(p => {
+            p.goals = 0;
+            p.yellowCards = 0;
+            p.redCards = 0;
+        })
+      }));
       setMyTeamName("Mi Equipo");
       setOpponentTeamName("Equipo Contrario");
       setFecha(new Date().toISOString().split('T')[0]);
@@ -180,7 +227,11 @@ function EstadisticasPageContent() {
         return;
     }
 
-    const filterPlayers = (players: Player[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0);
+    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0);
+    const filterMyTeamPlayersForSaving = (players: Player[]) => players
+      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0))
+      .map(({nombre, ...rest}) => rest); // Remove name before saving to DB
+
 
     setIsSaving(true);
     try {
@@ -193,8 +244,8 @@ function EstadisticasPageContent() {
             jornada,
             myTeamStats,
             opponentTeamStats,
-            myTeamPlayers: filterPlayers(myTeamPlayers),
-            opponentPlayers: filterPlayers(opponentPlayers),
+            myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
+            opponentPlayers: filterOpponentPlayers(opponentPlayers),
             createdAt: serverTimestamp(),
         });
         toast({ title: "Estadísticas Guardadas", description: "El partido se ha guardado en tu historial." });
@@ -208,14 +259,43 @@ function EstadisticasPageContent() {
   };
 
   const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
-    const players = team === 'myTeam' ? myTeamPlayers : opponentPlayers;
     const teamName = team === 'myTeam' ? myTeamName : opponentTeamName;
     const cardTitleColor = team === 'myTeam' ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+
+    if (team === 'myTeam' && isLoadingRoster) {
+      return (
+        <div className="flex justify-center items-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-3 text-muted-foreground">Cargando plantilla...</p>
+        </div>
+      );
+    }
+    
+    if (team === 'myTeam' && !isLoadingRoster && myTeamPlayers.length === 0) {
+        return (
+            <Card>
+                 <CardHeader className="p-0">
+                    <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>ESTADÍSTICAS JUGADORES - {teamName}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 text-center">
+                    <p className="text-muted-foreground mb-4">No tienes jugadores en tu equipo. Ve a "Mi Equipo" para añadir tu plantilla.</p>
+                    <Button asChild>
+                        <Link href="/mi-equipo">
+                            <Users className="mr-2 h-4 w-4" />
+                            Ir a Mi Equipo
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    const players = team === 'myTeam' ? myTeamPlayers : opponentPlayers;
 
     return (
         <Card>
             <CardHeader className="p-0">
-                <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>ESTADÍSTICAS JUGADORES - {teamName || (team === 'myTeam' ? "Mi Equipo" : "Visitante")}</CardTitle>
+                <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>ESTADÍSTICAS JUGADORES - {teamName}</CardTitle>
             </CardHeader>
             <CardContent className="p-4">
                 <div className="max-h-96 overflow-y-auto">
@@ -223,6 +303,7 @@ function EstadisticasPageContent() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[80px]">Dorsal</TableHead>
+                                {team === 'myTeam' && <TableHead>Nombre</TableHead>}
                                 <TableHead className="text-center w-[110px]">Goles</TableHead>
                                 <TableHead title="Tarjeta Amarilla" className="text-center w-[60px]"><RectangleHorizontal className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
                                 <TableHead title="Tarjeta Roja" className="text-center w-[60px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
@@ -236,10 +317,12 @@ function EstadisticasPageContent() {
                                         className="h-8 text-sm w-16" 
                                         placeholder="Nº" 
                                         value={player.dorsal} 
-                                        onChange={(e) => handlePlayerChange(team, index, 'dorsal', e.target.value)}
+                                        onChange={(e) => team === 'opponentTeam' && handleOpponentDorsalChange(index, e.target.value)}
+                                        readOnly={team === 'myTeam'}
                                         type="number" 
                                       />
                                     </TableCell>
+                                    {team === 'myTeam' && <TableCell className="font-medium">{(player as Player).nombre}</TableCell>}
                                     <TableCell>
                                         <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} />
                                     </TableCell>
@@ -268,7 +351,7 @@ function EstadisticasPageContent() {
         <div className="space-y-6">
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>TIROS A PUERTA - {teamName || (team === 'myTeam' ? "Mi Equipo" : "Visitante")}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-3 rounded-t-lg text-lg`}>TIROS A PUERTA - {teamName}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
                     <Table>
