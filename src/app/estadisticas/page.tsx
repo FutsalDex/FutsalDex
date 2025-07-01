@@ -333,8 +333,8 @@ function EstadisticasPageContent() {
                                 <TableHead className="w-[3.25rem] text-xs px-1">Dorsal</TableHead>
                                 {team === 'myTeam' && <TableHead className="text-xs">Nombre</TableHead>}
                                 <TableHead className="text-center w-[110px] text-xs">Goles</TableHead>
-                                <TableHead title="Tarjeta Amarilla" className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
-                                <TableHead title="Tarjeta Roja" className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
+                                <TableHead title="T.A." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
+                                <TableHead title="T.R." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
                                 <TableHead className="text-center w-[110px] text-xs">Faltas</TableHead>
                                 <TableHead className="text-center w-[110px] text-xs">Paradas</TableHead>
                                 <TableHead className="text-center w-[110px] text-xs">G.C.</TableHead>
@@ -432,7 +432,7 @@ function EstadisticasPageContent() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader className="p-0">
                         <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>PÉRDIDAS</CardTitle>
@@ -453,7 +453,7 @@ function EstadisticasPageContent() {
                         <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>ROBOS</CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 flex flex-row justify-around items-center">
-                        <div className="text-center">
+                         <div className="text-center">
                             <p className="text-xs font-medium text-muted-foreground mb-1">1º Tiempo</p>
                             <StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)} />
                         </div>
