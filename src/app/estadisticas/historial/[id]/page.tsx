@@ -61,7 +61,7 @@ interface MatchData {
 
 const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | TeamStats['turnovers'] | TeamStats['steals'], type: 'shots' | 'events' }> = ({ title, stats, type }) => {
     const renderRow = (label: string, data: HalfStats) => (
-        <TableRow key={label}>
+        <TableRow key={label} className="text-sm">
             <TableCell className="font-medium">{label}</TableCell>
             <TableCell className="text-center">{data.firstHalf || 0}</TableCell>
             <TableCell className="text-center">{data.secondHalf || 0}</TableCell>
@@ -72,16 +72,16 @@ const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | Te
     return (
         <Card>
             <CardHeader className="pb-2">
-                <CardTitle className="text-lg">{title}</CardTitle>
+                <CardTitle className="text-base">{title}</CardTitle>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead className="text-center">1ºT</TableHead>
-                            <TableHead className="text-center">2ºT</TableHead>
-                            <TableHead className="text-center">Total</TableHead>
+                            <TableHead className="text-sm">Tipo</TableHead>
+                            <TableHead className="text-center text-sm">1ºT</TableHead>
+                            <TableHead className="text-center text-sm">2ºT</TableHead>
+                            <TableHead className="text-center text-sm">Total</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -101,24 +101,24 @@ const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
     if (!players || players.length === 0) return <p className="text-sm text-muted-foreground p-4">No hay datos de jugadores.</p>;
     return (
         <Card>
-            <CardHeader><CardTitle className="text-lg">Estadísticas de Jugadores</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Estadísticas de Jugadores</CardTitle></CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[60px]">Dorsal</TableHead>
-                            <TableHead className="text-center w-[80px]">Goles</TableHead>
-                            <TableHead className="text-center w-[40px]"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
-                            <TableHead className="text-center w-[40px]"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
-                            <TableHead className="text-center">Faltas</TableHead>
-                            <TableHead className="text-center">Paradas</TableHead>
-                            <TableHead className="text-center">G. Recibidos</TableHead>
-                            <TableHead className="text-center">1 vs 1</TableHead>
+                            <TableHead className="w-[60px] text-sm">Dorsal</TableHead>
+                            <TableHead className="text-center w-[80px] text-sm">Goles</TableHead>
+                            <TableHead className="text-center w-[40px] text-sm"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
+                            <TableHead className="text-center w-[40px] text-sm"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
+                            <TableHead className="text-center text-sm">Faltas</TableHead>
+                            <TableHead className="text-center text-sm">Paradas</TableHead>
+                            <TableHead className="text-center text-sm">G.C.</TableHead>
+                            <TableHead className="text-center text-sm">1 vs 1</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {players.map((player, index) => (
-                            <TableRow key={index}>
+                            <TableRow key={index} className="text-sm">
                                 <TableCell className="font-semibold">{player.dorsal}</TableCell>
                                 <TableCell className="text-center font-bold">{player.goals || 0}</TableCell>
                                 <TableCell className="text-center">{player.yellowCards || 0}</TableCell>
