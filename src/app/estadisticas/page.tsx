@@ -88,7 +88,6 @@ interface TeamStats {
     onTarget: HalfStats;
     offTarget: HalfStats;
     blocked: HalfStats;
-    goals: HalfStats;
   };
   turnovers: HalfStats;
   steals: HalfStats;
@@ -102,7 +101,6 @@ const createInitialTeamStats = (): TeamStats => ({
     onTarget: { ...initialHalfStats },
     offTarget: { ...initialHalfStats },
     blocked: { ...initialHalfStats },
-    goals: { ...initialHalfStats },
   },
   turnovers: { ...initialHalfStats },
   steals: { ...initialHalfStats },
@@ -425,11 +423,6 @@ function EstadisticasPageContent() {
                                 <TableHead className="font-semibold text-xs">Bloqueados</TableHead>
                                 <TableCell><StatCounter value={stats.shots.blocked.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'blocked', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'blocked', 'firstHalf'], -1)}/></TableCell>
                                 <TableCell><StatCounter value={stats.shots.blocked.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'blocked', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'blocked', 'secondHalf'], -1)}/></TableCell>
-                            </TableRow>
-                            <TableRow className="text-sm">
-                                <TableHead className="font-semibold text-xs">Goles (Equipo)</TableHead>
-                                <TableCell><StatCounter value={stats.shots.goals.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'goals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'goals', 'firstHalf'], -1)}/></TableCell>
-                                <TableCell><StatCounter value={stats.shots.goals.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'goals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'goals', 'secondHalf'], -1)}/></TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>

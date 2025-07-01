@@ -22,12 +22,6 @@ interface SavedMatch {
     tipoPartido?: string;
     myTeamPlayers?: { goals: number; }[];
     opponentPlayers: { goals: number; }[];
-     // For backwards compatibility
-    myTeamStats?: {
-        shots: {
-            goals: { firstHalf: number; secondHalf: number };
-        };
-    };
     createdAt: Timestamp;
 }
 
@@ -59,13 +53,7 @@ function HistorialPageContent() {
     }, [fetchMatches]);
 
     const calculateScore = (match: SavedMatch) => {
-        // New data structure with player stats for myTeam
-        const myGoalsFromPlayers = match.myTeamPlayers?.reduce((total, player) => total + (player.goals || 0), 0);
-        // Old data structure for backwards compatibility
-        const myGoalsFromStats = (match.myTeamStats?.shots?.goals?.firstHalf || 0) + (match.myTeamStats?.shots?.goals?.secondHalf || 0);
-        // Use player goals if available, otherwise fallback to team stats
-        const myGoals = myGoalsFromPlayers !== undefined ? myGoalsFromPlayers : myGoalsFromStats;
-
+        const myGoals = match.myTeamPlayers?.reduce((total, player) => total + (player.goals || 0), 0) || 0;
         const opponentGoals = match.opponentPlayers?.reduce((total, player) => total + (player.goals || 0), 0) || 0;
         return `${myGoals} - ${opponentGoals}`;
     };

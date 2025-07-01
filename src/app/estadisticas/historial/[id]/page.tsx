@@ -37,7 +37,6 @@ interface TeamStats {
     onTarget: HalfStats;
     offTarget: HalfStats;
     blocked: HalfStats;
-    goals: HalfStats;
   };
   turnovers: HalfStats;
   steals: HalfStats;
@@ -92,7 +91,6 @@ const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | Te
                         {type === 'shots' && renderRow("Portería", (stats as TeamStats['shots']).onTarget)}
                         {type === 'shots' && renderRow("Fuera", (stats as TeamStats['shots']).offTarget)}
                         {type === 'shots' && renderRow("Bloqueados", (stats as TeamStats['shots']).blocked)}
-                        {type === 'shots' && renderRow("Goles", (stats as TeamStats['shots']).goals)}
                         {type === 'events' && renderRow("Eventos", stats as HalfStats)}
                     </TableBody>
                 </Table>
