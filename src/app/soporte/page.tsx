@@ -55,13 +55,10 @@ function SoportePageContent() {
     setMessages(prev => [...prev, { sender: 'user', text: messageText }]);
 
     try {
-      const userLanguage = navigator.language;
-
       const response = await askCoach({ 
         question: messageText,
         chatId: chatId, // Will be null for the first message
         userId: user.uid,
-        language: userLanguage,
       });
 
       // Update UI with AI response
