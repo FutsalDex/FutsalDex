@@ -32,6 +32,40 @@ interface EntriesByDate {
   [dateKey: string]: CalendarEntry[];
 }
 
+const createGuestCalendarEntries = (): EntriesByDate => {
+    const today = new Date();
+    const entries: EntriesByDate = {};
+    const createDateKey = (daysAgo: number) => {
+        const date = new Date(today);
+        date.setDate(date.getDate() - daysAgo);
+        return format(date, 'yyyy-MM-dd');
+    };
+    
+    // Demo Match
+    const matchDateKey = createDateKey(7);
+    entries[matchDateKey] = [{
+        id: 'demo_match_1',
+        date: matchDateKey,
+        time: '20:00',
+        title: 'Partido: FutsalDex Demo vs Titanes FS',
+        type: 'match',
+        rawCreatedAt: Timestamp.now()
+    }];
+
+    // Demo Session
+    const sessionDateKey = createDateKey(5);
+    entries[sessionDateKey] = [{
+        id: 'demo_session_1',
+        date: sessionDateKey,
+        title: 'Sesión de Finalización',
+        type: 'session',
+        rawCreatedAt: Timestamp.now()
+    }];
+
+    return entries;
+};
+
+
 function CalendarPageContent() {
   const { user, isRegisteredUser } = useAuth();
   const router = useRouter();
@@ -41,7 +75,12 @@ function CalendarPageContent() {
   const [selectedDayForPopover, setSelectedDayForPopover] = useState<Date | null>(null);
 
   const fetchCalendarEntries = useCallback(async () => {
-    if (!user) {
+    if (!isRegisteredUser) {
+        setEntriesByDate(createGuestCalendarEntries());
+        setIsLoading(false);
+        return;
+    }
+    if (!user) { // Should be redundant due to isRegisteredUser check, but good practice
       setIsLoading(false);
       return;
     }
@@ -97,7 +136,7 @@ function CalendarPageContent() {
       console.error("Error fetching calendar entries:", error);
     }
     setIsLoading(false);
-  }, [user]);
+  }, [user, isRegisteredUser]);
 
   useEffect(() => {
     fetchCalendarEntries();
@@ -166,15 +205,13 @@ function CalendarPageContent() {
       </header>
 
       { !isRegisteredUser && (
-        <Alert variant="default" className="mb-6 bg-accent/10 border-accent">
-            <Info className="h-5 w-5 text-accent" />
-            <AlertTitle className="font-headline text-accent">Modo Invitado</AlertTitle>
-            <AlertDescription className="text-accent/90">
-                Para ver tus sesiones y partidos guardados en el calendario, necesitas una cuenta.{" "}
-                <Link href="/register" className="font-bold underline hover:text-accent/70">
-                Regístrate
-                </Link>
-                .
+        <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
+            <Info className="h-4 w-4 text-blue-700" />
+            <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
+            <AlertDescription>
+                Estás viendo un calendario con eventos de ejemplo. Para gestionar tu propio calendario, por favor{" "}
+                <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                <Link href="/login" className="font-bold underline">inicia sesión</Link>.
             </AlertDescription>
         </Alert>
       )}
@@ -226,8 +263,9 @@ function CalendarPageContent() {
                             variant="ghost"
                             className="w-full justify-start h-auto py-2 px-3 text-left"
                             asChild
+                            disabled={!isRegisteredUser}
                             >
-                            <Link href={entry.type === 'session' ? `/mis-sesiones/detalle/${entry.id}` : `/estadisticas/historial/${entry.id}`}>
+                            <Link href={isRegisteredUser ? (entry.type === 'session' ? `/mis-sesiones/detalle/${entry.id}` : `/estadisticas/historial/${entry.id}`) : '#'}>
                                 <div className="flex flex-col">
                                     <span className="font-semibold text-primary">
                                        {entry.title}

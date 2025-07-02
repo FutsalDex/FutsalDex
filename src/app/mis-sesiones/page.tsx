@@ -54,6 +54,32 @@ interface Sesion {
   sessionFocus?: string;
 }
 
+const createGuestSessions = (): Sesion[] => {
+    const now = Timestamp.now();
+    const createDate = (daysAgo: number) => {
+        const date = new Date();
+        date.setDate(date.getDate() - daysAgo);
+        return date.toISOString().split('T')[0];
+    };
+    return [
+        {
+            id: 'demo_manual_1', userId: 'guest', type: 'Manual', sessionTitle: 'Sesión de Finalización',
+            warmUp: { id: 'w1', ejercicio: 'Rondo 4 vs 1', duracion: '10' },
+            mainExercises: [{ id: 'm1', ejercicio: 'Finalización tras centro lateral', duracion: '15' }, { id: 'm2', ejercicio: 'Situación 2 vs 1 + Portero', duracion: '15' }],
+            coolDown: { id: 'c1', ejercicio: 'Estiramientos estáticos', duracion: '5' },
+            numero_sesion: 'D1', fecha: createDate(5), createdAt: now
+        },
+        {
+            id: 'demo_ai_1', userId: 'guest', type: 'AI', sessionTitle: 'Sesión de Transiciones',
+            warmUp: 'Calentamiento dinámico con balón, pases y movilidad articular (10 min).',
+            mainExercises: ['Ejercicio de transición defensa-ataque en medio campo (20 min).', 'Partido condicionado 4 vs 4 con porterías pequeñas para fomentar transiciones rápidas (20 min).'],
+            coolDown: 'Trote ligero y estiramientos suaves (5 min).',
+            coachNotes: 'Focalizar en la velocidad de reacción al perder o recuperar el balón.',
+            preferredSessionLengthMinutes: 55, numero_sesion: 'D2', fecha: createDate(2), createdAt: now
+        }
+    ];
+};
+
 const ALL_MONTHS = "ALL";
 
 const MESES = [
@@ -95,6 +121,7 @@ function MisSesionesContent() {
 
   const fetchSesiones = useCallback(async (filter?: { year: number; month: number | 'ALL' } | null) => {
     if (!user) {
+        setSesiones(createGuestSessions());
         setIsLoading(false);
         return;
     };
@@ -171,6 +198,7 @@ function MisSesionesContent() {
         setSelectedMonth(initialFilter.month);
         fetchSesiones(initialFilter);
     } else {
+        setSesiones(createGuestSessions());
         setIsLoading(false);
     }
   }, [fetchSesiones, isRegisteredUser]);
@@ -303,7 +331,7 @@ function MisSesionesContent() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-4 items-center">
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
+          <Select value={selectedYear} onValueChange={setSelectedYear} disabled={!isRegisteredUser}>
             <SelectTrigger className="w-full sm:w-[150px]">
               <SelectValue placeholder="Año" />
             </SelectTrigger>
@@ -311,7 +339,7 @@ function MisSesionesContent() {
               {years.map(year => <SelectItem key={year} value={year.toString()}>{year}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!isRegisteredUser}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Mes" />
             </SelectTrigger>
@@ -320,9 +348,21 @@ function MisSesionesContent() {
               {MESES.map(mes => <SelectItem key={mes.value} value={mes.value.toString()}>{mes.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={handleApplyFilter} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">Aplicar Filtro</Button>
+          <Button onClick={handleApplyFilter} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!isRegisteredUser}>Aplicar Filtro</Button>
         </CardContent>
       </Card>
+      
+       {!isRegisteredUser && (
+            <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
+                <Info className="h-4 w-4 text-blue-700" />
+                <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
+                <AlertDescription>
+                    Estás viendo sesiones de ejemplo. Para guardar y gestionar tus propias sesiones, por favor{" "}
+                    <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                    <Link href="/login" className="font-bold underline">inicia sesión</Link>. Los filtros están desactivados.
+                </AlertDescription>
+            </Alert>
+        )}
 
       {isLoading ? (
          <div className="flex justify-center items-center py-10">
@@ -405,7 +445,7 @@ function MisSesionesContent() {
                 )}
               </CardContent>
               <CardFooter className="flex flex-col items-center gap-2 px-4 py-4 border-t">
-                <Button asChild variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg">
+                <Button asChild variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg" disabled={!isRegisteredUser}>
                     <Link href={`/mis-sesiones/detalle/${sesion.id}`}>
                         <Eye className="mr-2 h-4 w-4" /> Ver Ficha Detallada
                     </Link>
@@ -416,7 +456,7 @@ function MisSesionesContent() {
                     className="flex-1 text-sm bg-background shadow-md hover:shadow-lg"
                     onClick={() => handleEditSessionClick(sesion.id)}
                     title="Editar sesión"
-                    disabled={sesion.type === 'AI'}
+                    disabled={sesion.type === 'AI' || !isRegisteredUser}
                   >
                     <Edit2 className="mr-2 h-4 w-4" /> Editar
                   </Button>
@@ -424,6 +464,7 @@ function MisSesionesContent() {
                     variant="destructive"
                     className="flex-1 text-sm shadow-md hover:shadow-lg"
                     onClick={() => handleDeleteSessionClick(sesion.id)}
+                    disabled={!isRegisteredUser}
                   >
                     <Trash2 className="mr-2 h-4 w-4" /> Borrar
                   </Button>

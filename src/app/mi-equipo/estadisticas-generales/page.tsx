@@ -27,6 +27,22 @@ interface Stats {
   tarjetasRojas: number;
 }
 
+const guestDemoStats: Stats = {
+    numEjerciciosUtilizados: 23,
+    ejercicioMasUtilizado: "Rondo 4 vs 2",
+    numSesiones: 5,
+    numPartidos: 3,
+    partidosGanados: 2,
+    partidosPerdidos: 1,
+    golesFavor: 14,
+    golesContra: 9,
+    faltasCometidas: 28,
+    faltasRecibidas: 35,
+    tarjetasAmarillas: 6,
+    tarjetasRojas: 1,
+};
+
+
 const StatCard = ({ title, value, icon, isText = false }: { title: string, value: string | number, icon: React.ReactNode, isText?: boolean }) => (
     <Card className="shadow-md text-center">
         <CardHeader className="pb-2">
@@ -51,6 +67,7 @@ function EstadisticasGeneralesContent() {
 
     const calculateStats = useCallback(async () => {
         if (!user) {
+            setStats(guestDemoStats);
             setIsLoading(false);
             return;
         }
@@ -150,40 +167,6 @@ function EstadisticasGeneralesContent() {
         );
     }
     
-    if (!isRegisteredUser) {
-        return (
-            <div className="container mx-auto px-4 py-8 md:px-6">
-                <header className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
-                            <TrendingUp className="mr-3 h-8 w-8" />
-                            Mis Estadísticas Generales
-                        </h1>
-                        <p className="text-lg text-foreground/80">
-                            Un resumen de tu actividad y el rendimiento de tu equipo.
-                        </p>
-                    </div>
-                    <Button asChild variant="outline">
-                        <Link href="/mi-equipo">
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Volver al Panel
-                        </Link>
-                    </Button>
-                </header>
-                <Alert variant="default" className="bg-accent/10 border-accent">
-                    <Info className="h-5 w-5 text-accent" />
-                    <AlertTitle className="font-headline text-accent">Función para Usuarios Registrados</AlertTitle>
-                    <AlertDescription className="text-accent/90">
-                        Para ver tus estadísticas, necesitas una cuenta. Las estadísticas se calculan a partir de tus sesiones y partidos guardados.{" "}
-                        <Link href="/register" className="font-bold underline hover:text-accent/70">
-                            Regístrate
-                        </Link> para empezar.
-                    </AlertDescription>
-                </Alert>
-            </div>
-        )
-    }
-
     if (!stats) {
         return (
             <div className="text-center py-12">
@@ -211,6 +194,18 @@ function EstadisticasGeneralesContent() {
                     </Link>
                 </Button>
             </header>
+
+            {!isRegisteredUser && (
+                <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
+                    <Info className="h-4 w-4 text-blue-700" />
+                    <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
+                    <AlertDescription>
+                        Estás viendo estadísticas de ejemplo. Para ver las de tu propio equipo, por favor{" "}
+                        <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                        <Link href="/login" className="font-bold underline">inicia sesión</Link>.
+                    </AlertDescription>
+                </Alert>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <StatCard title="Ejercicios Utilizados" value={stats.numEjerciciosUtilizados} icon={<BookOpen className="h-6 w-6"/>} />

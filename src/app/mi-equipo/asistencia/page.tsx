@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { v4 as uuidv4 } from 'uuid';
 
 interface RosterPlayer {
   id: string;
@@ -51,6 +52,32 @@ interface DisplayPlayerStats {
     asistenciaPct: number;
 }
 
+const createGuestPlayers = (): RosterPlayer[] => [
+    { id: uuidv4(), dorsal: '1', nombre: 'A. García' },
+    { id: uuidv4(), dorsal: '4', nombre: 'J. López' },
+    { id: uuidv4(), dorsal: '7', nombre: 'M. Pérez' },
+    { id: uuidv4(), dorsal: '10', nombre: 'C. Ruiz' },
+    { id: uuidv4(), dorsal: '8', nombre: 'S. Torres' },
+];
+
+const createGuestHistoryStats = (players: RosterPlayer[]): DisplayPlayerStats[] => players.map(p => {
+    const presente = Math.floor(Math.random() * 15) + 5; // 5-19
+    const ausente = Math.floor(Math.random() * 3); // 0-2
+    const justificado = Math.floor(Math.random() * 2); // 0-1
+    const lesionado = Math.floor(Math.random() * 2); // 0-1
+    const totalEsperado = presente + ausente + justificado;
+    const pct = totalEsperado > 0 ? Math.round((presente / totalEsperado) * 100) : 0;
+    return {
+        id: p.id,
+        dorsal: p.dorsal,
+        nombre: p.nombre,
+        presente, ausente, justificado, lesionado,
+        totalRegistros: totalEsperado + lesionado,
+        asistenciaPct: pct
+    };
+});
+
+
 function AsistenciaPageContent() {
     const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
     const { toast } = useToast();
@@ -66,6 +93,9 @@ function AsistenciaPageContent() {
 
     const fetchFullData = useCallback(async () => {
         if (!isRegisteredUser) {
+          const guestPlayers = createGuestPlayers();
+          setPlayers(guestPlayers);
+          setHistoryStats(createGuestHistoryStats(guestPlayers));
           setIsLoading(false);
           return;
         }
@@ -113,6 +143,7 @@ function AsistenciaPageContent() {
     }, [selectedDate, players, allAttendanceData]);
 
     useEffect(() => {
+        if (!isRegisteredUser) return; // Only for registered users
         if (players.length === 0) {
             setHistoryStats([]);
             return;
@@ -150,7 +181,7 @@ function AsistenciaPageContent() {
         });
         
         setHistoryStats(finalHistoryStats);
-    }, [players, allAttendanceData]);
+    }, [players, allAttendanceData, isRegisteredUser]);
 
 
     const handleAttendanceChange = (playerId: string, status: AttendanceStatus) => {
@@ -199,35 +230,6 @@ function AsistenciaPageContent() {
             </div>
         );
     }
-    
-    if (!isRegisteredUser) {
-        return (
-            <div className="container mx-auto px-4 py-8 md:px-6">
-                 <header className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-primary mb-1 font-headline">Control de Asistencia</h1>
-                        <p className="text-lg text-foreground/80">
-                            Registra la asistencia de tus jugadores a los entrenamientos.
-                        </p>
-                    </div>
-                </header>
-                <Alert variant="default" className="bg-accent/10 border-accent">
-                    <Info className="h-5 w-5 text-accent" />
-                    <AlertTitle className="font-headline text-accent">Función para Usuarios Registrados</AlertTitle>
-                    <AlertDescription className="text-accent/90">
-                        Para registrar la asistencia, necesitas una cuenta.{" "}
-                        <Link href="/register" className="font-bold underline hover:text-accent/70">
-                            Regístrate
-                        </Link> o{" "}
-                        <Link href="/login" className="font-bold underline hover:text-accent/70">
-                            inicia sesión
-                        </Link> para empezar.
-                    </AlertDescription>
-                </Alert>
-            </div>
-        );
-    }
-
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
@@ -245,6 +247,18 @@ function AsistenciaPageContent() {
                     </Link>
                 </Button>
             </header>
+
+            {!isRegisteredUser && (
+                <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200 text-blue-800">
+                    <Info className="h-4 w-4 text-blue-700" />
+                    <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
+                    <AlertDescription>
+                        Estás viendo un ejemplo. Para registrar la asistencia de tu propio equipo, por favor{" "}
+                        <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                        <Link href="/login" className="font-bold underline">inicia sesión</Link>.
+                    </AlertDescription>
+                </Alert>
+            )}
 
             <Card>
                 <CardHeader>
@@ -309,11 +323,12 @@ function AsistenciaPageContent() {
                                                     value={attendance[player.id] || 'presente'}
                                                     onValueChange={(value) => handleAttendanceChange(player.id, value as AttendanceStatus)}
                                                     className="flex justify-end gap-2 sm:gap-4"
+                                                    disabled={!isRegisteredUser}
                                                 >
                                                     {ATTENDANCE_OPTIONS.map(opt => (
                                                         <div key={opt.value} className="flex items-center space-x-2">
                                                             <RadioGroupItem value={opt.value} id={`${player.id}-${opt.value}`} />
-                                                            <Label htmlFor={`${player.id}-${opt.value}`} className="text-xs sm:text-sm">{opt.label}</Label>
+                                                            <Label htmlFor={`${player.id}-${opt.value}`} className={cn("text-xs sm:text-sm", !isRegisteredUser && "cursor-not-allowed")}>{opt.label}</Label>
                                                         </div>
                                                     ))}
                                                 </RadioGroup>

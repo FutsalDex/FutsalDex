@@ -79,6 +79,20 @@ const createInitialTeamStats = () => ({
   timeouts: { firstHalf: 0, secondHalf: 0 },
 });
 
+const createGuestMatches = (): SavedMatch[] => {
+    const today = new Date();
+    const createDate = (daysAgo: number) => {
+        const date = new Date(today);
+        date.setDate(date.getDate() - daysAgo);
+        return date.toISOString().split('T')[0];
+    };
+    return [
+        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: 5 }], opponentPlayers: [{ goals: 3 }], createdAt: Timestamp.now() },
+        { id: 'demo2', myTeamName: 'Furia Roja', opponentTeamName: 'FutsalDex Demo', fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: 2 }], opponentPlayers: [{ goals: 2 }], createdAt: Timestamp.now() },
+        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: 7 }], opponentPlayers: [{ goals: 4 }], createdAt: Timestamp.now() },
+    ];
+};
+
 
 function HistorialPageContent() {
     const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
@@ -109,6 +123,7 @@ function HistorialPageContent() {
     });
 
     useEffect(() => {
+        if (!isRegisteredUser) return;
         const fetchRosterInfo = async () => {
           if (!user) return;
           try {
@@ -134,10 +149,11 @@ function HistorialPageContent() {
         };
         fetchRosterInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
+    }, [user, isRegisteredUser]);
 
     const fetchMatches = useCallback(async () => {
         if (!isRegisteredUser) {
+            setMatches(createGuestMatches());
             setIsLoading(false);
             return;
         }
@@ -278,38 +294,6 @@ function HistorialPageContent() {
             </div>
         );
     }
-    
-    if (!isRegisteredUser) {
-        return (
-            <div className="container mx-auto px-4 py-8 md:px-6">
-                <header className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
-                            <History className="mr-3 h-8 w-8"/>
-                            Mis Partidos
-                        </h1>
-                        <p className="text-lg text-foreground/80">
-                            Gestiona tus partidos. Añade nuevos encuentros, edita los existentes o consulta sus estadísticas.
-                        </p>
-                    </div>
-                </header>
-                <Alert variant="default" className="bg-accent/10 border-accent">
-                    <Info className="h-5 w-5 text-accent" />
-                    <AlertTitle className="font-headline text-accent">Función para Usuarios Registrados</AlertTitle>
-                    <CardDescription className="text-accent/90">
-                        Para ver tu historial de partidos, necesitas una cuenta.{" "}
-                        <Link href="/register" className="font-bold underline hover:text-accent/70">
-                            Regístrate
-                        </Link> o{" "}
-                        <Link href="/login" className="font-bold underline hover:text-accent/70">
-                            inicia sesión
-                        </Link> para empezar.
-                    </CardDescription>
-                </Alert>
-            </div>
-        );
-    }
-
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
@@ -395,6 +379,18 @@ function HistorialPageContent() {
                 </div>
             </header>
 
+            {!isRegisteredUser && (
+                 <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
+                    <Info className="h-4 w-4 text-blue-700" />
+                    <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
+                    <AlertDescription>
+                        Estás viendo un historial de partidos de ejemplo. Para guardar y gestionar tus propios partidos, por favor{" "}
+                        <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                        <Link href="/login" className="font-bold underline">inicia sesión</Link>.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {matches.length === 0 ? (
                 <Card className="text-center py-12">
                     <CardHeader>
@@ -422,13 +418,13 @@ function HistorialPageContent() {
                                 {match.tipoPartido && <Badge variant="secondary" className="mt-2">{match.tipoPartido}</Badge>}
                             </CardContent>
                             <CardFooter className="flex justify-center gap-2">
-                                <Button asChild variant="ghost" size="icon" title="Ver Detalles">
+                                <Button asChild variant="ghost" size="icon" title="Ver Detalles" disabled={!isRegisteredUser}>
                                   <Link href={`/estadisticas/historial/${match.id}`}><Eye className="h-4 w-4"/></Link>
                                 </Button>
-                                <Button asChild variant="ghost" size="icon" title="Editar Estadísticas">
+                                <Button asChild variant="ghost" size="icon" title="Editar Estadísticas" disabled={!isRegisteredUser}>
                                   <Link href={`/estadisticas/edit/${match.id}`}><Edit className="h-4 w-4"/></Link>
                                 </Button>
-                                <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)}>
+                                <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)} disabled={!isRegisteredUser}>
                                   <Trash2 className="h-4 w-4 text-destructive"/>
                                 </Button>
                             </CardFooter>
