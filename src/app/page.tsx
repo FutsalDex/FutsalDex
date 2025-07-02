@@ -57,7 +57,7 @@ export default function HomePage() {
                     <li>Diseñar hasta <strong>2 sesiones de entrenamiento</strong> para ver cómo funciona.</li>
                 </ul>
                  <p className="text-sm text-foreground/90 pt-2">
-                    ¡Regístrate para desbloquear todo el contenido y guardar tu progreso!
+                    ¡Suscríbete para desbloquear todo el contenido y guardar tu progreso!
                 </p>
               </CardContent>
             </Card>
