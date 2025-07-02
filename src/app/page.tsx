@@ -28,11 +28,11 @@ export default function HomePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-md text-foreground/90">
-                  Regístrate para acceder al catálogo completo de ejercicios y desbloquea las herramientas avanzadas de gestión de equipos con una suscripción.
+                  Subscríbete a uno de los planes para acceder al catálogo completo de ejercicios y desbloquear las herramientas avanzadas de gestión de equipos.
                 </p>
                 <Button asChild size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                  <Link href="/register">
-                    Regístrate Ahora <ArrowRight className="ml-2 h-5 w-5" />
+                  <Link href="/suscripcion">
+                    Ver Planes <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
               </CardContent>
