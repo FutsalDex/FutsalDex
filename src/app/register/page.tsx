@@ -22,10 +22,13 @@ import { useEffect, useState } from "react";
 import { registerSchema } from "@/lib/schemas";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 export default function RegisterPage() {
   const { register, error: authError, clearError, user } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -51,7 +54,17 @@ export default function RegisterPage() {
     const registeredUser = await register(values);
     setIsLoading(false);
     if (registeredUser) {
-      router.push("/"); // Or to a profile completion page
+      toast({
+          title: "¡Bienvenido a FutsalDex!",
+          description: "Tu cuenta ha sido creada. ¡Disfruta de acceso completo a todas las funciones durante 48 horas! Para mantener el acceso, te recomendamos suscribirte.",
+          duration: 10000,
+          action: (
+              <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>
+                  Ver Planes
+              </ToastAction>
+          ),
+      });
+      router.push("/");
     }
   }
 

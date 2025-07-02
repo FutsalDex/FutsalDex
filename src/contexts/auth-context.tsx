@@ -9,7 +9,7 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
 
@@ -44,23 +44,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userDocRef = doc(db, "usuarios", currentUser.uid);
         const docSnap = await getDoc(userDocRef);
 
-        // An admin is determined by having the ADMIN_EMAIL or by having the 'admin' role in the database.
-        // This makes the check more robust.
         const isAdminByEmail = currentUser.email === ADMIN_EMAIL;
         const isAdminByRole = docSnap.exists() && docSnap.data().role === 'admin';
         const finalIsAdmin = isAdminByEmail || isAdminByRole;
         
         setIsAdmin(finalIsAdmin);
 
-        // Subscription status is based purely on the database field.
-        // The admin gets access to protected routes via the `isAdmin` flag, not by being "subscribed".
+        // --- Subscription & Trial Logic ---
+        let finalIsSubscribed = false;
         if (docSnap.exists()) {
-          setIsSubscribed(docSnap.data().subscriptionStatus === 'active');
-        } else {
-          setIsSubscribed(false);
+            const userData = docSnap.data();
+            // Case 1: User has a real, active subscription.
+            if (userData.subscriptionStatus === 'active') {
+                finalIsSubscribed = true;
+            } 
+            // Case 2: User is not subscribed, but might be on trial.
+            else if (userData.trialEndsAt instanceof Timestamp) {
+                // Check if the trial period is still valid.
+                if (new Date() < userData.trialEndsAt.toDate()) {
+                    finalIsSubscribed = true; // Trial is active
+                }
+            }
         }
+        setIsSubscribed(finalIsSubscribed);
+
       } else {
-        // No user logged in
+        // No user logged in, reset all flags
         setIsAdmin(false);
         setIsSubscribed(false);
       }
@@ -91,13 +100,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (newUser) {
         const userRole = newUser.email === ADMIN_EMAIL ? 'admin' : 'user';
         const userDocRef = doc(db, "usuarios", newUser.uid);
+
+        // Calculate trial end date: 48 hours from now
+        const trialEnds = new Date();
+        trialEnds.setHours(trialEnds.getHours() + 48);
+
         await setDoc(userDocRef, {
             uid: newUser.uid,
             email: newUser.email,
             createdAt: serverTimestamp(),
             role: userRole,
             subscriptionStatus: 'inactive', // New users are not subscribed by default
+            trialEndsAt: Timestamp.fromDate(trialEnds),
         });
+        
         // onAuthStateChanged will handle setting admin/subscription state
         return newUser;
       }
