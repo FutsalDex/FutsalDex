@@ -1,8 +1,6 @@
 
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
-import { SubscriptionGuard } from "@/components/subscription-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import Link from 'next/link';
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -28,6 +27,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToastAction } from "@/components/ui/toast";
 
 // --- Helper Components ---
 
@@ -122,8 +122,9 @@ const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
 
 
 function EstadisticasPageContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
 
   // Roster & Match Info
   const [rosterInfo, setRosterInfo] = useState({ name: '', campeonato: '' });
@@ -200,8 +201,12 @@ function EstadisticasPageContent() {
         setIsLoadingRoster(false);
       }
     };
-    fetchTeamRoster();
-  }, [getTeamDocRef, toast]);
+    if (isRegisteredUser) {
+        fetchTeamRoster();
+    } else {
+        setIsLoadingRoster(false);
+    }
+  }, [getTeamDocRef, toast, isRegisteredUser]);
 
 
   const handleStatChange = (
@@ -291,10 +296,15 @@ function EstadisticasPageContent() {
   };
 
   const handleSaveStats = async () => {
-    if (!user) {
-        toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
+    if (!isRegisteredUser) {
+        toast({ title: "Acción Requerida", description: "Debes iniciar sesión para guardar estadísticas.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
         return;
     }
+    if (!isSubscribed && !isAdmin) {
+        toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para guardar estadísticas.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
+        return;
+    }
+    if (!user) return;
 
     if (!localTeamName || !visitorTeamName || !fecha) {
         toast({ title: "Faltan datos", description: "Completa el nombre de los equipos y la fecha.", variant: "destructive" });
@@ -681,10 +691,6 @@ function EstadisticasPageContent() {
 
 export default function EstadisticasPage() {
   return (
-    <AuthGuard>
-      <SubscriptionGuard>
-        <EstadisticasPageContent />
-      </SubscriptionGuard>
-    </AuthGuard>
+    <EstadisticasPageContent />
   );
 }

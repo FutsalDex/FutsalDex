@@ -1,7 +1,6 @@
 
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
@@ -9,7 +8,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays } from "lucide-react";
+import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, Info } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -24,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseDurationToMinutes } from "@/lib/utils";
-import { SubscriptionGuard } from "@/components/subscription-guard";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 interface EjercicioInfo {
@@ -76,16 +75,12 @@ const getYearsRange = () => {
 
 export default function MisSesionesPage() {
   return (
-    <AuthGuard>
-      <SubscriptionGuard>
-        <MisSesionesContent />
-      </SubscriptionGuard>
-    </AuthGuard>
+      <MisSesionesContent />
   );
 }
 
 function MisSesionesContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
@@ -99,7 +94,10 @@ function MisSesionesContent() {
   const [activeFilter, setActiveFilter] = useState<{ year: number; month: number | 'ALL' } | null>(null);
 
   const fetchSesiones = useCallback(async (filter?: { year: number; month: number | 'ALL' } | null) => {
-    if (!user) return;
+    if (!user) {
+        setIsLoading(false);
+        return;
+    };
     setIsLoading(true);
 
     let q_constraints = [
@@ -165,13 +163,17 @@ function MisSesionesContent() {
   }, [user, toast]);
 
   useEffect(() => {
-    const now = new Date();
-    const initialFilter = { year: now.getFullYear(), month: ALL_MONTHS as 'ALL' };
-    setActiveFilter(initialFilter);
-    setSelectedYear(initialFilter.year.toString());
-    setSelectedMonth(initialFilter.month);
-    fetchSesiones(initialFilter);
-  }, [fetchSesiones]);
+    if (isRegisteredUser) {
+        const now = new Date();
+        const initialFilter = { year: now.getFullYear(), month: ALL_MONTHS as 'ALL' };
+        setActiveFilter(initialFilter);
+        setSelectedYear(initialFilter.year.toString());
+        setSelectedMonth(initialFilter.month);
+        fetchSesiones(initialFilter);
+    } else {
+        setIsLoading(false);
+    }
+  }, [fetchSesiones, isRegisteredUser]);
 
   const handleApplyFilter = () => {
     if (selectedYear && selectedMonth) {
@@ -238,6 +240,10 @@ function MisSesionesContent() {
   };
 
   const confirmDeleteSession = async () => {
+    if (!isRegisteredUser || (!isSubscribed && !isAdmin)) {
+      toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para eliminar sesiones." });
+      return;
+    }
     if (!sessionToDeleteId) return;
     setIsDeleting(true);
     try {
@@ -328,16 +334,16 @@ function MisSesionesContent() {
           <CardHeader>
             <CalendarDays className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
             <CardTitle className="text-2xl font-headline text-primary">
-              {activeFilter ? "No Hay Sesiones para este Periodo" : "No Tienes Sesiones"}
+              {isRegisteredUser ? "No Hay Sesiones para este Periodo" : "No Tienes Sesiones Guardadas"}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <CardDescription className="mb-6 text-foreground/80">
-              {activeFilter
+              {isRegisteredUser
                 ? `No se encontraron sesiones para tu selección. Prueba con otro periodo.`
-                : "Parece que aún no has creado ninguna sesión de entrenamiento."}
+                : "Para guardar y ver tus sesiones, necesitas una cuenta."}
               <br/>
-              ¡Empieza ahora o ajusta los filtros!
+              {isRegisteredUser ? "¡Empieza ahora o ajusta los filtros!" : <Link href="/register" className="text-primary font-bold hover:underline">Regístrate gratis</Link>}
             </CardDescription>
             <div className="flex justify-center gap-4">
               <Button asChild variant="outline">

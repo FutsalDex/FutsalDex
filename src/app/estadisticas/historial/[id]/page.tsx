@@ -1,8 +1,6 @@
 
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
-import { SubscriptionGuard } from "@/components/subscription-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
@@ -152,7 +150,11 @@ function HistorialDetallePageContent() {
     const [notFound, setNotFound] = useState(false);
 
     const fetchMatch = useCallback(async () => {
-        if (!user || !matchId) return;
+        if (!user || !matchId) {
+            setNotFound(true);
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         try {
             const docRef = doc(db, "partidos_estadisticas", matchId);
@@ -285,10 +287,6 @@ function HistorialDetallePageContent() {
 
 export default function HistorialDetallePage() {
     return (
-        <AuthGuard>
-            <SubscriptionGuard>
-                <HistorialDetallePageContent />
-            </SubscriptionGuard>
-        </AuthGuard>
+        <HistorialDetallePageContent />
     );
 }

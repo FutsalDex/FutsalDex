@@ -1,16 +1,16 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { AuthGuard } from '@/components/auth-guard';
-import { SubscriptionGuard } from '@/components/subscription-guard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, TrendingUp, BookOpen, Repeat, Trophy, Goal, Shield, Square, TrendingDown, ClipboardList, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Loader2, ArrowLeft, TrendingUp, BookOpen, Repeat, Trophy, Goal, Shield, Square, TrendingDown, ClipboardList, AlertTriangle, ShieldAlert, Info } from 'lucide-react';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface Stats {
   numEjerciciosUtilizados: number;
@@ -45,7 +45,7 @@ const StatCard = ({ title, value, icon, isText = false }: { title: string, value
 
 
 function EstadisticasGeneralesContent() {
-    const { user } = useAuth();
+    const { user, isRegisteredUser } = useAuth();
     const [stats, setStats] = useState<Stats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -149,6 +149,40 @@ function EstadisticasGeneralesContent() {
             </div>
         );
     }
+    
+    if (!isRegisteredUser) {
+        return (
+            <div className="container mx-auto px-4 py-8 md:px-6">
+                <header className="mb-8 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
+                            <TrendingUp className="mr-3 h-8 w-8" />
+                            Mis Estadísticas Generales
+                        </h1>
+                        <p className="text-lg text-foreground/80">
+                            Un resumen de tu actividad y el rendimiento de tu equipo.
+                        </p>
+                    </div>
+                    <Button asChild variant="outline">
+                        <Link href="/mi-equipo">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver al Panel
+                        </Link>
+                    </Button>
+                </header>
+                <Alert variant="default" className="bg-accent/10 border-accent">
+                    <Info className="h-5 w-5 text-accent" />
+                    <AlertTitle className="font-headline text-accent">Función para Usuarios Registrados</AlertTitle>
+                    <AlertDescription className="text-accent/90">
+                        Para ver tus estadísticas, necesitas una cuenta. Las estadísticas se calculan a partir de tus sesiones y partidos guardados.{" "}
+                        <Link href="/register" className="font-bold underline hover:text-accent/70">
+                            Regístrate
+                        </Link> para empezar.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        )
+    }
 
     if (!stats) {
         return (
@@ -199,10 +233,6 @@ function EstadisticasGeneralesContent() {
 
 export default function EstadisticasGeneralesPage() {
     return (
-        <AuthGuard>
-            <SubscriptionGuard>
-                <EstadisticasGeneralesContent />
-            </SubscriptionGuard>
-        </AuthGuard>
+        <EstadisticasGeneralesContent />
     );
 }

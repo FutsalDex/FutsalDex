@@ -31,7 +31,6 @@ import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
-import { AuthGuard } from "@/components/auth-guard";
 
 
 interface Ejercicio {
@@ -60,9 +59,7 @@ function getMaxNumericSessionNumber(sessionNumbers: (string | undefined)[]): num
 
 export default function CrearSesionPage() {
     return (
-        <AuthGuard>
-            <CrearSesionContent />
-        </AuthGuard>
+        <CrearSesionContent />
     )
 }
 
@@ -193,7 +190,7 @@ function CrearSesionContent() {
 
 
   async function onSubmit(values: z.infer<typeof manualSessionSchema>) {
-    if (!user || !isRegisteredUser) {
+    if (!isRegisteredUser) {
         toast({
             title: "Acción Requerida",
             description: "Para guardar tu sesión, necesitas una cuenta. ¡Es gratis!",
@@ -222,6 +219,8 @@ function CrearSesionContent() {
         });
         return;
     }
+
+    if (!user) return; // Should not happen if other checks pass, but for type safety
 
     setIsSaving(true);
     form.clearErrors("numero_sesion"); 

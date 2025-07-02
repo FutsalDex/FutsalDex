@@ -13,7 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ArrowLeft, Save, Bot, ClockIcon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
-import { AuthGuard } from '@/components/auth-guard';
 import { parseDurationToMinutes } from '@/lib/utils';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -600,9 +599,6 @@ function SesionDetallePageContent() {
 
 export default function SesionDetallePage() {
     return (
-        <AuthGuard>
-            <SesionDetallePageContent />
-        </AuthGuard>
-    )
+        <SesionDetallePageContent />
+    );
 }
-

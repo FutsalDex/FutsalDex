@@ -3,8 +3,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { AuthGuard } from '@/components/auth-guard';
-import { SubscriptionGuard } from '@/components/subscription-guard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,10 +16,12 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { produce } from 'immer';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { ToastAction } from '@/components/ui/toast';
 
 interface RosterPlayer {
   id: string;
@@ -51,8 +51,9 @@ interface DisplayPlayerStats {
 }
 
 function AsistenciaPageContent() {
-    const { user } = useAuth();
+    const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
     const [players, setPlayers] = useState<RosterPlayer[]>([]);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
     const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
@@ -93,8 +94,12 @@ function AsistenciaPageContent() {
     }, [user, toast]);
     
     useEffect(() => {
-        fetchFullData();
-    }, [fetchFullData]);
+        if (isRegisteredUser) {
+            fetchFullData();
+        } else {
+            setIsLoading(false);
+        }
+    }, [fetchFullData, isRegisteredUser]);
 
     useEffect(() => {
         if (!selectedDate || players.length === 0) return;
@@ -160,6 +165,14 @@ function AsistenciaPageContent() {
     };
 
     const handleSaveAttendance = async () => {
+        if (!isRegisteredUser) {
+            toast({ title: "Acción Requerida", description: "Debes iniciar sesión para guardar la asistencia.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
+            return;
+        }
+        if (!isSubscribed && !isAdmin) {
+            toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para guardar la asistencia.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
+            return;
+        }
         if (!user || !selectedDate) return;
         setIsSaving(true);
         const dateString = format(selectedDate, 'yyyy-MM-dd');
@@ -231,7 +244,7 @@ function AsistenciaPageContent() {
                         </Popover>
                     </div>
                     
-                    {isLoading && players.length === 0 ? (
+                    {isLoading ? (
                         <div className="flex justify-center items-center py-10">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
@@ -350,10 +363,6 @@ function AsistenciaPageContent() {
 
 export default function AsistenciaPage() {
     return (
-        <AuthGuard>
-            <SubscriptionGuard>
-                <AsistenciaPageContent />
-            </SubscriptionGuard>
-        </AuthGuard>
+        <AsistenciaPageContent />
     );
 }

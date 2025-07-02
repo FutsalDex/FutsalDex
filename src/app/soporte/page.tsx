@@ -1,8 +1,6 @@
 
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
-import { SubscriptionGuard } from "@/components/subscription-guard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +13,8 @@ import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { askCoach } from "@/ai/flows/support-chat-flow";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { ToastAction } from "@/components/ui/toast";
 
 
 interface Message {
@@ -23,8 +23,9 @@ interface Message {
 }
 
 function SoportePageContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     { sender: 'ai', text: `¡Hola! Soy tu entrenador online de FutsalDex. ¿En qué puedo ayudarte hoy? Pregúntame sobre ejercicios, planificación de sesiones, tácticas, o cualquier otra duda que tengas.` }
   ]);
@@ -45,6 +46,15 @@ function SoportePageContent() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isRegisteredUser) {
+        toast({ title: "Acción Requerida", description: "Debes iniciar sesión para chatear con el soporte.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
+        return;
+    }
+    if (!isSubscribed && !isAdmin) {
+        toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para usar el soporte con IA.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
+        return;
+    }
+    
     const messageText = inputValue.trim();
     if (!messageText || isSending || !user) return;
 
@@ -165,10 +175,6 @@ function SoportePageContent() {
 
 export default function SoportePage() {
   return (
-    <AuthGuard>
-      <SubscriptionGuard>
-        <SoportePageContent />
-      </SubscriptionGuard>
-    </AuthGuard>
+    <SoportePageContent />
   );
 }

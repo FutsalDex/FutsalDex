@@ -1,7 +1,6 @@
 
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp } from "firebase/firestore";
@@ -9,7 +8,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Calendar as CalendarIconLucide, Loader2, CheckCircle, ArrowLeft } from "lucide-react";
+import { Calendar as CalendarIconLucide, Loader2, CheckCircle, ArrowLeft, Info } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Link from "next/link";
@@ -17,7 +16,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DayContentProps } from 'react-day-picker';
 import { cn } from "@/lib/utils";
-import { SubscriptionGuard } from "@/components/subscription-guard";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 interface CalendarEntry {
   id: string;
@@ -33,7 +33,7 @@ interface EntriesByDate {
 }
 
 function CalendarPageContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const router = useRouter();
   const [entriesByDate, setEntriesByDate] = useState<EntriesByDate>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -165,6 +165,20 @@ function CalendarPageContent() {
         </Button>
       </header>
 
+      { !isRegisteredUser && (
+        <Alert variant="default" className="mb-6 bg-accent/10 border-accent">
+            <Info className="h-5 w-5 text-accent" />
+            <AlertTitle className="font-headline text-accent">Modo Invitado</AlertTitle>
+            <AlertDescription className="text-accent/90">
+                Para ver tus sesiones y partidos guardados en el calendario, necesitas una cuenta.{" "}
+                <Link href="/register" className="font-bold underline hover:text-accent/70">
+                Regístrate
+                </Link>
+                .
+            </AlertDescription>
+        </Alert>
+      )}
+
       <Card className="shadow-xl">
         <CardContent className="p-0 md:p-6 flex justify-center">
             <Popover>
@@ -233,7 +247,7 @@ function CalendarPageContent() {
         </CardContent>
       </Card>
 
-       {Object.keys(entriesByDate).length === 0 && !isLoading && (
+       {isRegisteredUser && Object.keys(entriesByDate).length === 0 && !isLoading && (
         <Card className="mt-8 text-center py-12 bg-card shadow-md">
           <CardHeader>
             <CheckCircle className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
@@ -266,10 +280,6 @@ function CalendarPageContent() {
 
 export default function CalendarioPage() {
   return (
-    <AuthGuard>
-      <SubscriptionGuard>
-        <CalendarPageContent />
-      </SubscriptionGuard>
-    </AuthGuard>
+    <CalendarPageContent />
   );
 }

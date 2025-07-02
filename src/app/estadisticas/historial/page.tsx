@@ -1,13 +1,12 @@
 
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
-import { SubscriptionGuard } from "@/components/subscription-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs, Timestamp, deleteDoc, doc, addDoc, serverTimestamp, getDoc as getRosterDoc } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Eye, History, PlusCircle, Edit, Trash2 } from "lucide-react";
@@ -39,6 +38,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ToastAction } from "@/components/ui/toast";
 
 
 // New Match Schema
@@ -80,8 +80,9 @@ const createInitialTeamStats = () => ({
 
 
 function HistorialPageContent() {
-    const { user } = useAuth();
+    const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
     const [matches, setMatches] = useState<SavedMatch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -135,7 +136,10 @@ function HistorialPageContent() {
     }, [user]);
 
     const fetchMatches = useCallback(async () => {
-        if (!user) return;
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         try {
             const q = query(
@@ -177,6 +181,12 @@ function HistorialPageContent() {
     };
 
     const confirmDelete = async () => {
+        if (!isRegisteredUser || (!isSubscribed && !isAdmin)) {
+            toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para eliminar partidos." });
+            setIsDeleting(false);
+            setIsDeleteDialogOpen(false);
+            return;
+        }
         if (!matchToDeleteId) return;
         setIsDeleting(true);
         try {
@@ -194,6 +204,14 @@ function HistorialPageContent() {
     };
 
     const onAddMatchSubmit = async (values: NewMatchFormValues) => {
+        if (!isRegisteredUser) {
+            toast({ title: "Acción Requerida", description: "Debes iniciar sesión para añadir un partido.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
+            return;
+        }
+        if (!isSubscribed && !isAdmin) {
+            toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para añadir partidos.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
+            return;
+        }
         if (!user) return;
         
         const myTeamName = rosterSide === 'local' ? values.localTeamName : values.visitorTeamName;
@@ -410,10 +428,6 @@ function HistorialPageContent() {
 
 export default function HistorialEstadisticasPage() {
     return (
-        <AuthGuard>
-            <SubscriptionGuard>
-                <HistorialPageContent />
-            </SubscriptionGuard>
-        </AuthGuard>
+        <HistorialPageContent />
     );
 }

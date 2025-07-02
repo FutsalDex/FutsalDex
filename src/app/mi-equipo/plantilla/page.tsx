@@ -3,8 +3,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { AuthGuard } from '@/components/auth-guard';
-import { SubscriptionGuard } from '@/components/subscription-guard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +17,8 @@ import { produce } from 'immer';
 import { POSICIONES_FUTSAL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ToastAction } from '@/components/ui/toast';
 
 // Player data structure for the roster (what is saved to DB)
 interface RosterPlayer {
@@ -60,8 +60,9 @@ const createNewPlayer = (): RosterPlayer => ({
 });
 
 function MiPlantillaPageContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [players, setPlayers] = useState<DisplayPlayer[]>([]);
   const [club, setClub] = useState('');
   const [equipo, setEquipo] = useState('');
@@ -147,8 +148,12 @@ function MiPlantillaPageContent() {
   
 
   useEffect(() => {
-    fetchTeamAndAggregateStats();
-  }, [fetchTeamAndAggregateStats]);
+    if (isRegisteredUser) {
+        fetchTeamAndAggregateStats();
+    } else {
+        setIsLoading(false);
+    }
+  }, [fetchTeamAndAggregateStats, isRegisteredUser]);
   
   const handlePlayerChange = (id: string, field: keyof RosterPlayer, value: string | number) => {
     setPlayers(
@@ -186,11 +191,17 @@ function MiPlantillaPageContent() {
   };
 
   const handleSaveTeam = async () => {
-    const docRef = getTeamDocRef();
-    if (!docRef) {
-      toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
-      return;
+    if (!isRegisteredUser) {
+        toast({ title: "Acción Requerida", description: "Debes iniciar sesión para guardar tu plantilla.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
+        return;
     }
+    if (!isSubscribed && !isAdmin) {
+        toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para guardar tu plantilla.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
+        return;
+    }
+    const docRef = getTeamDocRef();
+    if (!docRef) return; // Should not happen
+    
     setIsSaving(true);
     try {
       const rosterToSave = players.map(p => ({
@@ -358,10 +369,6 @@ function MiPlantillaPageContent() {
 
 export default function MiPlantillaPage() {
   return (
-    <AuthGuard>
-      <SubscriptionGuard>
-        <MiPlantillaPageContent />
-      </SubscriptionGuard>
-    </AuthGuard>
+    <MiPlantillaPageContent />
   );
 }

@@ -1,8 +1,6 @@
 
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
-import { SubscriptionGuard } from "@/components/subscription-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,12 +20,13 @@ import { generateSession, type GeneratedSessionOutput, type GenerateSessionInput
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { ToastAction } from "@/components/ui/toast";
 
 
 type AiSessionFormValues = Zod.infer<typeof aiSessionSchema>;
 
 function AiSessionGeneratorPageContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser, isAdmin, isSubscribed } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -53,6 +52,15 @@ function AiSessionGeneratorPageContent() {
   });
 
   const onSubmit = async (values: AiSessionFormValues) => {
+    if (!isRegisteredUser) {
+        toast({ title: "Acción Requerida", description: "Regístrate gratis para usar el generador IA.", action: <ToastAction altText="Registrarse" onClick={() => router.push('/register')}>Registrarse</ToastAction> });
+        return;
+    }
+    if (!isSubscribed && !isAdmin) {
+        toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para generar sesiones con IA.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
+        return;
+    }
+
     setIsLoading(true);
     setError(null);
     setGeneratedSession(null);
@@ -89,6 +97,8 @@ function AiSessionGeneratorPageContent() {
   };
 
   const handleSaveSession = async () => {
+    // This action is implicitly protected as `generatedSession` will only be non-null if onSubmit succeeds,
+    // and onSubmit is already guarded. A user check is sufficient here.
     if (!generatedSession || !user) return;
     setIsSaving(true);
     
@@ -281,10 +291,6 @@ function AiSessionGeneratorPageContent() {
 
 export default function AiSessionGeneratorPage() {
     return (
-        <AuthGuard>
-            <SubscriptionGuard>
-                <AiSessionGeneratorPageContent />
-            </SubscriptionGuard>
-        </AuthGuard>
+        <AiSessionGeneratorPageContent />
     );
 }

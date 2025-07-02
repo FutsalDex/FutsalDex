@@ -1,7 +1,6 @@
+
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
-import { SubscriptionGuard } from "@/components/subscription-guard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, BarChart2, BookUser, CalendarDays, ArrowRight, LifeBuoy, ClipboardCheck, Activity } from "lucide-react";
@@ -61,7 +60,7 @@ function MiEquipoDashboardContent() {
             <header className="mb-8 text-center">
                 <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Panel de Mi Equipo</h1>
                 <p className="text-lg text-foreground/80">
-                    Bienvenido, {user?.email}. Aquí tienes el centro de mando para tu equipo.
+                    Bienvenido, {user?.email || 'Entrenador'}. Aquí tienes el centro de mando para tu equipo.
                 </p>
             </header>
 
@@ -93,10 +92,6 @@ function MiEquipoDashboardContent() {
 
 export default function MiEquipoPage() {
     return (
-        <AuthGuard>
-            <SubscriptionGuard>
-                <MiEquipoDashboardContent />
-            </SubscriptionGuard>
-        </AuthGuard>
+        <MiEquipoDashboardContent />
     );
 }

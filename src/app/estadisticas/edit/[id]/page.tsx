@@ -1,8 +1,6 @@
 
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
-import { SubscriptionGuard } from "@/components/subscription-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useParams, useRouter } from 'next/navigation';
+import { ToastAction } from "@/components/ui/toast";
 
 // --- Helper Components ---
 interface StatCounterProps {
@@ -107,7 +106,7 @@ const createInitialTeamStats = (): TeamStats => ({
 
 
 function EditMatchPageContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
@@ -138,7 +137,10 @@ function EditMatchPageContent() {
 
   useEffect(() => {
     const fetchMatchAndRoster = async () => {
-      if (!user || !matchId) return;
+      if (!user || !matchId) {
+        setIsLoading(false); // Can't load if no user or id
+        return;
+      }
       setIsLoading(true);
 
       try {
@@ -237,6 +239,14 @@ function EditMatchPageContent() {
   }, [user, matchId, toast]);
 
   const handleUpdateStats = async () => {
+    if (!isRegisteredUser) {
+        toast({ title: "Acción Requerida", description: "Debes iniciar sesión para editar un partido.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
+        return;
+    }
+    if (!isSubscribed && !isAdmin) {
+        toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para editar partidos.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
+        return;
+    }
      if (!user || !matchId) return;
 
      if (!myTeamSide) {
@@ -673,10 +683,6 @@ function EditMatchPageContent() {
 
 export default function EditMatchPage() {
   return (
-    <AuthGuard>
-      <SubscriptionGuard>
-        <EditMatchPageContent />
-      </SubscriptionGuard>
-    </AuthGuard>
+    <EditMatchPageContent />
   );
 }
