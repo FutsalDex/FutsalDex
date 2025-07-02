@@ -339,11 +339,11 @@ export default function EjerciciosPage() {
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
                   {ej.categoria && <Badge variant="secondary" className="mt-1 truncate self-start" title={ej.categoria}>{ej.categoria}</Badge>}
-                  <CardDescription className="text-xs pt-2 space-y-0.5">
+                  <div className="text-xs pt-2 space-y-0.5 text-muted-foreground">
                     <div><strong>Fase:</strong> {ej.fase}</div>
                     <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
                     <div><strong>Duración:</strong> {formatDuracion(ej.duracion)} min</div>
-                  </CardDescription>
+                  </div>
                 </CardHeader>
                 <CardContent className="flex-grow">
                   <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
