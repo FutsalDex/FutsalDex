@@ -14,6 +14,7 @@ const basicFeatures = [
   "Exportación de ejercicios individuales a PDF",
   "Guardado de ejercicios 'Favoritos'",
   "Guardado y gestión de 'Mis Sesiones'",
+  "Calendario de Equipo integrado",
 ];
 
 const topFeatures = [
@@ -21,7 +22,6 @@ const topFeatures = [
   "Gestión de Plantilla y Estadísticas de Jugadores",
   "Control de Asistencia a entrenamientos",
   "Registro y gestión de Partidos y Estadísticas",
-  "Calendario de Equipo integrado",
   "Dashboard con Estadísticas Generales del equipo",
   "Soporte técnico con Entrenador IA",
 ];
