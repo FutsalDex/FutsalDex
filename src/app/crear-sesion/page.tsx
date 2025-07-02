@@ -193,7 +193,7 @@ function CrearSesionContent() {
     if (!isRegisteredUser) {
         toast({
             title: "Acción Requerida",
-            description: "Para guardar tu sesión, necesitas una cuenta. ¡Es gratis!",
+            description: "Para guardar tu sesión, necesitas una cuenta.",
             variant: "default",
             duration: 10000,
             action: (
