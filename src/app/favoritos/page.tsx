@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -60,49 +59,38 @@ function FavoritosPageContent() {
       }
 
       const exercisesData: Ejercicio[] = [];
-      const CHUNK_SIZE = 30; 
+      const CHUNK_SIZE = 30; // Firestore 'in' query supports up to 30 values
       for (let i = 0; i < favoriteExerciseIds.length; i += CHUNK_SIZE) {
         const chunkIds = favoriteExerciseIds.slice(i, i + CHUNK_SIZE);
         if (chunkIds.length > 0) {
-            // Only fetch exercises that are visible
+            // Fetch by ID first, then filter by visibility on the client
+            // This avoids complex queries that might require a composite index and cause permission errors if the index is missing.
             const exercisesQuery = firestoreQuery(
               firestoreCollection(db, "ejercicios_futsal"), 
-              where("__name__", "in", chunkIds),
-              where("isVisible", "==", true) // Added visibility filter
+              where("__name__", "in", chunkIds)
             );
             const exercisesSnapshot = await firestoreGetDocs(exercisesQuery);
             exercisesSnapshot.forEach(docSnap => {
               const data = docSnap.data();
-              exercisesData.push({ 
-                id: docSnap.id, 
-                isVisible: data.isVisible === undefined ? true : data.isVisible, // Default to true if undefined
-                ...data 
-              } as Ejercicio);
+              // A document is considered visible if isVisible is not explicitly false.
+              if (data.isVisible !== false) {
+                  exercisesData.push({ 
+                    id: docSnap.id, 
+                    ...data 
+                  } as Ejercicio);
+              }
             });
         }
       }
-      setFavoriteExercises(exercisesData);
+      setFavoriteExercises(exercisesData.sort((a, b) => a.ejercicio.localeCompare(b.ejercicio)));
     } catch (error: any) {
       console.error("Error fetching favorite exercises:", error);
-      if (error.code === 'failed-precondition' && error.message.includes('isVisible')) {
-         toast({
-          title: "Índice Requerido por Firestore",
-          description: (
-            <div className="text-sm">
-              <p>La consulta para cargar tus favoritos, filtrando por visibilidad, necesita un índice en Firestore.</p>
-              <p className="mt-1">Abre la consola del desarrollador (F12), busca el error de Firebase y usa el enlace proporcionado para crear el índice.</p>
-            </div>
-          ),
-          variant: "destructive",
-          duration: 30000,
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar tus ejercicios favoritos.",
-          variant: "destructive",
-        });
-      }
+      // The toast for missing index is removed as the query is now simpler.
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar tus ejercicios favoritos. " + error.message,
+        variant: "destructive",
+      });
       setFavoriteExercises([]);
     }
     setIsLoading(false);
