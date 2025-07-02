@@ -54,11 +54,9 @@ export default function HomePage() {
                 </p>
                 <ul className="list-disc list-inside text-sm text-foreground/80 space-y-1">
                     <li>Explorar una selección de <strong>15 ejercicios</strong> de nuestra biblioteca.</li>
-                    <li>Diseñar hasta <strong>2 sesiones de entrenamiento</strong> para ver cómo funciona.</li>
+                    <li>Navegar y visualizar todas las herramientas que te ofrecemos</li>
+                    <li>Y si te registras disfruta de <strong>48 horas</strong> de todos los ejercicios y herramientas, antes de decidir tu suscripción</li>
                 </ul>
-                 <p className="text-sm text-foreground/90 pt-2">
-                    ¡Suscríbete para desbloquear todo el contenido y guardar tu progreso!
-                </p>
               </CardContent>
             </Card>
         </div>
