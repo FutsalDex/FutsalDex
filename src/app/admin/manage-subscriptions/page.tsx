@@ -9,7 +9,7 @@ import { AlertTriangle, ArrowLeft, Users, Loader2, Search, ChevronLeft, ChevronR
 import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, query, orderBy as firestoreOrderBy, limit, startAfter, QueryDocumentSnapshot, DocumentData, updateDoc, serverTimestamp, getCountFromServer, where, QueryConstraint } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -23,13 +23,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { getAllUsers } from '@/ai/flows/admin-users-flow';
+
 
 interface UserSubscription {
   id: string;
   email: string;
   role: 'admin' | 'user';
   subscriptionStatus: 'active' | 'inactive';
-  updatedAt?: DocumentData;
+  updatedAt?: number;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -40,7 +42,7 @@ function ManageSubscriptionsPageContent() {
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
 
-  const [users, setUsers] = useState<UserSubscription[]>([]);
+  const [allUsers, setAllUsers] = useState<UserSubscription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
@@ -48,102 +50,77 @@ function ManageSubscriptionsPageContent() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [pageDocSnapshots, setPageDocSnapshots] = useState<{ last: (QueryDocumentSnapshot<DocumentData> | null)[] }>({ last: [] });
-  
   const [sortField, setSortField] = useState<SortableField>('email');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-   useEffect(() => {
+  useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
       setCurrentPage(1); 
-      setPageDocSnapshots({ last: [] }); 
     }, 500); 
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  const fetchTotalCount = useCallback(async (term: string) => {
-    try {
-      const qConstraints: QueryConstraint[] = [];
-      if (term) {
-        qConstraints.push(where('email', '>=', term));
-        qConstraints.push(where('email', '<=', term + '\uf8ff'));
+  const fetchAllUsers = useCallback(async () => {
+      if (!isAdmin) {
+          setIsLoading(false);
+          return;
       }
-      const countQuery = query(collection(db, "usuarios"), ...qConstraints);
-      const snapshot = await getCountFromServer(countQuery);
-      setTotalUsers(snapshot.data().count);
-    } catch (error) {
-      console.error("Error fetching total user count: ", error);
-      toast({ title: "Error", description: "No se pudo obtener el número total de usuarios.", variant: "destructive" });
-    }
-  }, [toast]);
-
-  const fetchUsers = useCallback(async (newPage: number, currentSortField: SortableField, currentSortDirection: SortDirection, term: string) => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const qConstraints: QueryConstraint[] = [];
-      
-      if (term) {
-        qConstraints.push(where('email', '>=', term));
-        qConstraints.push(where('email', '<=', term + '\uf8ff'));
+      setIsLoading(true);
+      try {
+          const usersFromFlow = await getAllUsers();
+          setAllUsers(usersFromFlow as UserSubscription[]);
+      } catch (error: any) {
+          console.error("Error fetching users from flow:", error);
+          toast({ title: "Error al cargar usuarios", description: error.message || "No se pudieron obtener los datos de los usuarios.", variant: "destructive" });
       }
-      
-      qConstraints.push(firestoreOrderBy(currentSortField, currentSortDirection));
-      if (currentSortField !== 'email') { // Add secondary sort for consistent pagination
-          qConstraints.push(firestoreOrderBy('email', 'asc'));
-      }
-
-      qConstraints.push(limit(ITEMS_PER_PAGE));
-      
-      if (newPage > 1 && pageDocSnapshots.last[newPage - 2]) {
-         qConstraints.push(startAfter(pageDocSnapshots.last[newPage - 2]!));
-      }
-
-      const q = query(collection(db, "usuarios"), ...qConstraints);
-      const querySnapshot = await getDocs(q);
-
-      const fetchedUsers = querySnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        email: docSnap.data().email,
-        role: docSnap.data().role,
-        subscriptionStatus: docSnap.data().subscriptionStatus,
-        updatedAt: docSnap.data().updatedAt,
-      } as UserSubscription));
-
-      setUsers(fetchedUsers);
-      setCurrentPage(newPage);
-
-      if (querySnapshot.docs.length > 0) {
-        const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1] as QueryDocumentSnapshot<DocumentData>;
-        setPageDocSnapshots(prev => {
-            const newLast = [...prev.last];
-            newLast[newPage - 1] = lastDoc;
-            return { last: newLast };
-        });
-      }
-    } catch (error: any) {
-        console.error("Error fetching users:", error);
-        toast({ title: "Error al cargar usuarios", description: error.message, variant: "destructive" });
-    }
-    setIsLoading(false);
-  }, [user, toast, pageDocSnapshots.last]);
+      setIsLoading(false);
+  }, [isAdmin, toast]);
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchTotalCount(debouncedSearchTerm);
-      fetchUsers(currentPage, sortField, sortDirection, debouncedSearchTerm);
+    fetchAllUsers();
+  }, [fetchAllUsers]);
+
+  const filteredAndSortedUsers = useMemo(() => {
+    let users = [...allUsers];
+
+    if (debouncedSearchTerm) {
+      users = users.filter(u => u.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, sortField, sortDirection, debouncedSearchTerm, currentPage]);
+
+    users.sort((a, b) => {
+        const valA = a[sortField];
+        const valB = b[sortField];
+
+        if (valA === undefined || valA === null) return 1;
+        if (valB === undefined || valB === null) return -1;
+        
+        let comparison = 0;
+        if (typeof valA === 'string' && typeof valB === 'string') {
+            comparison = valA.localeCompare(valB);
+        } else if (typeof valA === 'number' && typeof valB === 'number') {
+            comparison = valA - valB;
+        }
+
+        return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    return users;
+  }, [allUsers, debouncedSearchTerm, sortField, sortDirection]);
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAndSortedUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredAndSortedUsers, currentPage]);
+
+  const totalUsers = filteredAndSortedUsers.length;
+  const totalPages = Math.ceil(totalUsers / ITEMS_PER_PAGE);
   
   const handleSort = (field: SortableField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(newDirection);
     setCurrentPage(1); 
-    setPageDocSnapshots({ last: [] });
   };
   
   const handleSubscriptionChange = async (userId: string, newStatus: 'active' | 'inactive') => {
@@ -158,8 +135,8 @@ function ManageSubscriptionsPageContent() {
         title: "Suscripción Actualizada",
         description: `El estado del usuario se ha cambiado a ${newStatus === 'active' ? 'activo' : 'inactivo'}.`,
       });
-      // Optimistic update
-      setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, subscriptionStatus: newStatus, updatedAt: new Date() } : u));
+      // Optimistic update in the main list, which will trigger re-render of sorted/paginated list
+      setAllUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, subscriptionStatus: newStatus, updatedAt: Date.now() } : u));
     } catch (error) {
       console.error("Error updating subscription:", error);
       toast({ title: "Error al Actualizar", description: "No se pudo cambiar el estado de la suscripción.", variant: "destructive" });
@@ -175,20 +152,7 @@ function ManageSubscriptionsPageContent() {
     return <ArrowDownUp className="ml-1 h-3 w-3 opacity-30" />;
   };
 
-  const handleNextPage = () => {
-    const nextPage = currentPage + 1;
-    if (nextPage <= Math.ceil(totalUsers / ITEMS_PER_PAGE)) {
-      setCurrentPage(nextPage);
-    }
-  };
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-    }
-  };
-
-  if (!isAdmin) {
+  if (!isAdmin && !isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
         <Card className="w-full max-w-md text-center shadow-lg">
@@ -225,12 +189,12 @@ function ManageSubscriptionsPageContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && users.length === 0 ? (
+              {isLoading ? (
                 <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
-              ) : !isLoading && users.length === 0 ? (
+              ) : paginatedUsers.length === 0 ? (
                 <TableRow><TableCell colSpan={4} className="h-24 text-center">No se encontraron usuarios.</TableCell></TableRow>
               ) : (
-                users.map((u) => (
+                paginatedUsers.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.email}</TableCell>
                     <TableCell><Badge variant={u.role === 'admin' ? 'destructive' : 'secondary'}>{u.role}</Badge></TableCell>
@@ -251,19 +215,21 @@ function ManageSubscriptionsPageContent() {
                         </Select>
                       )}
                     </TableCell>
-                    <TableCell>{u.updatedAt ? new Date(u.updatedAt.seconds * 1000).toLocaleString('es-ES') : 'N/A'}</TableCell>
+                    <TableCell>{u.updatedAt ? new Date(u.updatedAt).toLocaleString('es-ES') : 'N/A'}</TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
-          <Pagination className="mt-8">
-            <PaginationContent>
-              <PaginationItem><Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1 || isLoading}><ChevronLeft className="h-4 w-4 mr-1" />Anterior</Button></PaginationItem>
-              <PaginationItem className="font-medium text-sm px-3 text-muted-foreground">Página {currentPage} de {Math.ceil(totalUsers / ITEMS_PER_PAGE)}</PaginationItem>
-              <PaginationItem><Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage * ITEMS_PER_PAGE >= totalUsers || isLoading}><ChevronRight className="h-4 w-4 ml-1" />Siguiente</Button></PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          {totalPages > 1 && (
+            <Pagination className="mt-8">
+              <PaginationContent>
+                <PaginationItem><Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1 || isLoading}><ChevronLeft className="h-4 w-4 mr-1" />Anterior</Button></PaginationItem>
+                <PaginationItem className="font-medium text-sm px-3 text-muted-foreground">Página {currentPage} de {totalPages}</PaginationItem>
+                <PaginationItem><Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages || isLoading}><ChevronRight className="h-4 w-4 ml-1" />Siguiente</Button></PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </CardContent>
       </Card>
     </div>
