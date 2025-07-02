@@ -17,7 +17,7 @@ export default function HomePage() {
           ¡Bienvenido a FutsalDex!
         </h1>
         <p className="mb-8 max-w-3xl text-lg text-foreground/80 md:text-xl">
-          Tu compañero definitivo para el entrenamiento de fútbol sala. Descubre cientos de ejercicios, diseña sesiones con nuestra IA, gestiona tu equipo y analiza su rendimiento.
+          Tu compañero definitivo para el entrenamiento de fútbol sala. Descubre cientos de ejercicios, diseña sesiones, gestiona tu equipo y analiza su rendimiento.
         </p>
 
         {/* CTA Cards */}
