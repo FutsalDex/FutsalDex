@@ -34,7 +34,7 @@ interface Ejercicio {
 
 
 function FavoritosPageContent() {
-  const { user } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
   const [favoriteExercises, setFavoriteExercises] = useState<Ejercicio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -133,6 +133,28 @@ function FavoritosPageContent() {
       </div>
     );
   }
+
+  if (!isRegisteredUser) {
+    return (
+      <Card className="text-center py-12 shadow-lg">
+        <CardHeader>
+          <Heart className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+          <CardTitle className="text-2xl font-headline text-primary">Accede a tus Favoritos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CardDescription className="mb-6 text-foreground/80">
+            <Link href="/login" className="text-primary font-bold hover:underline">Inicia sesión</Link> o <Link href="/register" className="text-primary font-bold hover:underline">regrístrate</Link> para guardar y ver tus ejercicios favoritos.
+          </CardDescription>
+          <Button asChild>
+            <Link href="/ejercicios">
+              Explorar Ejercicios
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   if (favoriteExercises.length === 0) {
     return (

@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Eye, History, PlusCircle, Edit, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, History, PlusCircle, Edit, Trash2, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -39,6 +39,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ToastAction } from "@/components/ui/toast";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 
 
 // New Match Schema
@@ -136,7 +137,7 @@ function HistorialPageContent() {
     }, [user]);
 
     const fetchMatches = useCallback(async () => {
-        if (!user) {
+        if (!isRegisteredUser) {
             setIsLoading(false);
             return;
         }
@@ -169,7 +170,7 @@ function HistorialPageContent() {
             }
         }
         setIsLoading(false);
-    }, [user, toast]);
+    }, [user, toast, isRegisteredUser]);
 
     useEffect(() => {
         fetchMatches();
@@ -277,6 +278,38 @@ function HistorialPageContent() {
             </div>
         );
     }
+    
+    if (!isRegisteredUser) {
+        return (
+            <div className="container mx-auto px-4 py-8 md:px-6">
+                <header className="mb-8 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
+                            <History className="mr-3 h-8 w-8"/>
+                            Mis Partidos
+                        </h1>
+                        <p className="text-lg text-foreground/80">
+                            Gestiona tus partidos. Añade nuevos encuentros, edita los existentes o consulta sus estadísticas.
+                        </p>
+                    </div>
+                </header>
+                <Alert variant="default" className="bg-accent/10 border-accent">
+                    <Info className="h-5 w-5 text-accent" />
+                    <AlertTitle className="font-headline text-accent">Función para Usuarios Registrados</AlertTitle>
+                    <CardDescription className="text-accent/90">
+                        Para ver tu historial de partidos, necesitas una cuenta.{" "}
+                        <Link href="/register" className="font-bold underline hover:text-accent/70">
+                            Regístrate
+                        </Link> o{" "}
+                        <Link href="/login" className="font-bold underline hover:text-accent/70">
+                            inicia sesión
+                        </Link> para empezar.
+                    </CardDescription>
+                </Alert>
+            </div>
+        );
+    }
+
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">

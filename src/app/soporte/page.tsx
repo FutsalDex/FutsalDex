@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, LifeBuoy, Send, Loader2, Bot, User } from "lucide-react";
+import { ArrowLeft, LifeBuoy, Send, Loader2, Bot, User, Info } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { useState, useRef, useEffect } from "react";
@@ -15,6 +15,7 @@ import { askCoach } from "@/ai/flows/support-chat-flow";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 interface Message {
@@ -119,6 +120,21 @@ function SoportePageContent() {
           <CardTitle className="font-headline text-xl">Chat con el Entrenador Online</CardTitle>
           <CardDescription>Resuelve tus dudas en tiempo real con nuestra IA experta en futsal.</CardDescription>
         </CardHeader>
+        {!isRegisteredUser && (
+            <div className="px-6 pb-4">
+                <Alert variant="default" className="bg-accent/10 border-accent">
+                    <Info className="h-5 w-5 text-accent" />
+                    <AlertTitle className="font-headline text-accent">Modo Invitado</AlertTitle>
+                    <AlertDescription className="text-accent/90">
+                        <Link href="/login" className="font-bold underline hover:text-accent/70">
+                            Inicia sesión
+                        </Link>{" "}
+                        o{" "}
+                        <Link href="/register" className="font-bold underline hover:text-accent/70">regrístrate</Link> para chatear con nuestro entrenador IA.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        )}
         <CardContent className="flex-grow overflow-hidden p-0">
           <ScrollArea className="h-full" ref={scrollAreaRef}>
              <div className="p-6 space-y-4">
@@ -160,9 +176,9 @@ function SoportePageContent() {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Escribe tu pregunta aquí..."
               autoComplete="off"
-              disabled={isSending}
+              disabled={isSending || !isRegisteredUser}
             />
-            <Button type="submit" size="icon" disabled={isSending || !inputValue.trim()}>
+            <Button type="submit" size="icon" disabled={isSending || !inputValue.trim() || !isRegisteredUser}>
               {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}
               <span className="sr-only">Enviar</span>
             </Button>

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Save, Plus, Trash2, Users, ArrowLeft } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ToastAction } from '@/components/ui/toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Player data structure for the roster (what is saved to DB)
 interface RosterPlayer {
@@ -76,7 +77,7 @@ function MiPlantillaPageContent() {
   }, [user]);
 
   const fetchTeamAndAggregateStats = useCallback(async () => {
-    if (!user) {
+    if (!isRegisteredUser) {
         setIsLoading(false);
         return;
     }
@@ -144,16 +145,12 @@ function MiPlantillaPageContent() {
     } finally {
         setIsLoading(false);
     }
-  }, [user, getTeamDocRef, toast]);
+  }, [user, getTeamDocRef, toast, isRegisteredUser]);
   
 
   useEffect(() => {
-    if (isRegisteredUser) {
-        fetchTeamAndAggregateStats();
-    } else {
-        setIsLoading(false);
-    }
-  }, [fetchTeamAndAggregateStats, isRegisteredUser]);
+    fetchTeamAndAggregateStats();
+  }, [fetchTeamAndAggregateStats]);
   
   const handlePlayerChange = (id: string, field: keyof RosterPlayer, value: string | number) => {
     setPlayers(
@@ -233,6 +230,44 @@ function MiPlantillaPageContent() {
       </div>
     );
   }
+  
+    if (!isRegisteredUser) {
+    return (
+        <div className="container mx-auto px-4 py-8 md:px-6">
+             <header className="mb-8 flex items-center justify-between">
+                <div>
+                    <h1 className="text-4xl font-bold text-primary mb-2 font-headline flex items-center">
+                        <Users className="mr-3 h-10 w-10" />
+                        Mi Plantilla
+                    </h1>
+                    <p className="text-lg text-foreground/80">
+                        Gestiona la plantilla de tu equipo y consulta sus estadísticas de la temporada.
+                    </p>
+                </div>
+                <Button asChild variant="outline">
+                    <Link href="/mi-equipo">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver al Panel
+                    </Link>
+                </Button>
+            </header>
+            <Alert variant="default" className="bg-accent/10 border-accent">
+                <Info className="h-5 w-5 text-accent" />
+                <AlertTitle className="font-headline text-accent">Función para Usuarios Registrados</AlertTitle>
+                <AlertDescription className="text-accent/90">
+                    Para gestionar tu plantilla, necesitas una cuenta.{" "}
+                    <Link href="/register" className="font-bold underline hover:text-accent/70">
+                        Regístrate
+                    </Link> o{" "}
+                    <Link href="/login" className="font-bold underline hover:text-accent/70">
+                        inicia sesión
+                    </Link> para empezar.
+                </AlertDescription>
+            </Alert>
+        </div>
+    )
+  }
+
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">

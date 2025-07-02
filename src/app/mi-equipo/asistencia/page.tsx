@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, ArrowLeft, CalendarIcon, History } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, CalendarIcon, History, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -22,6 +22,7 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { ToastAction } from '@/components/ui/toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface RosterPlayer {
   id: string;
@@ -64,7 +65,7 @@ function AsistenciaPageContent() {
     const [historyStats, setHistoryStats] = useState<DisplayPlayerStats[]>([]);
 
     const fetchFullData = useCallback(async () => {
-        if (!user) {
+        if (!isRegisteredUser) {
           setIsLoading(false);
           return;
         }
@@ -91,15 +92,11 @@ function AsistenciaPageContent() {
         } finally {
             setIsLoading(false);
         }
-    }, [user, toast]);
+    }, [user, toast, isRegisteredUser]);
     
     useEffect(() => {
-        if (isRegisteredUser) {
-            fetchFullData();
-        } else {
-            setIsLoading(false);
-        }
-    }, [fetchFullData, isRegisteredUser]);
+        fetchFullData();
+    }, [fetchFullData]);
 
     useEffect(() => {
         if (!selectedDate || players.length === 0) return;
@@ -194,6 +191,43 @@ function AsistenciaPageContent() {
             setIsSaving(false);
         }
     };
+    
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        );
+    }
+    
+    if (!isRegisteredUser) {
+        return (
+            <div className="container mx-auto px-4 py-8 md:px-6">
+                 <header className="mb-8 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-primary mb-1 font-headline">Control de Asistencia</h1>
+                        <p className="text-lg text-foreground/80">
+                            Registra la asistencia de tus jugadores a los entrenamientos.
+                        </p>
+                    </div>
+                </header>
+                <Alert variant="default" className="bg-accent/10 border-accent">
+                    <Info className="h-5 w-5 text-accent" />
+                    <AlertTitle className="font-headline text-accent">Función para Usuarios Registrados</AlertTitle>
+                    <AlertDescription className="text-accent/90">
+                        Para registrar la asistencia, necesitas una cuenta.{" "}
+                        <Link href="/register" className="font-bold underline hover:text-accent/70">
+                            Regístrate
+                        </Link> o{" "}
+                        <Link href="/login" className="font-bold underline hover:text-accent/70">
+                            inicia sesión
+                        </Link> para empezar.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        );
+    }
+
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
