@@ -143,7 +143,7 @@ export default function SuscripcionPage() {
       </Card>
 
 
-      {/* Payment methods - kept from before */}
+      {/* Payment methods */}
       <Card className="shadow-xl mt-12">
         <CardHeader>
             <CardTitle className="text-2xl font-headline text-primary">
@@ -152,12 +152,8 @@ export default function SuscripcionPage() {
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="text-sm text-foreground/90">
-            <p>Elige el método de pago que prefieras. Ofrecemos varias opciones para tu comodidad.</p>
-            <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Las opciones de pago con Tarjeta y PayPal son <strong>inmediatas</strong>.</li>
-                <li>Con la opción de pago mediante transferencia bancaria recibirás el acceso en <strong>menos de 24 horas</strong>.</li>
-            </ul>
-             <p className="mt-2">Cualquier duda o consulta, puedes escribirnos a <strong className="text-accent">suscripciones@futsaldex.com</strong></p>
+                <p>Utilizamos pasarelas de pago seguras para procesar tu suscripción de forma inmediata. Aceptamos las principales tarjetas de crédito y débito, así como pagos a través de PayPal.</p>
+                <p className="mt-2">Cualquier duda o consulta, puedes escribirnos a <strong className="text-accent">suscripciones@futsaldex.com</strong></p>
             </div>
             <div className="space-y-3 pt-2">
                 <div className="flex items-center">
@@ -167,10 +163,6 @@ export default function SuscripcionPage() {
                  <div className="flex items-center">
                     <Wallet className="h-6 w-6 mr-3 text-primary" />
                     <span className="font-medium">PayPal</span>
-                </div>
-                <div className="flex items-center">
-                    <Landmark className="h-6 w-6 mr-3 text-primary" />
-                    <span className="font-medium">Transferencia Bancaria</span>
                 </div>
             </div>
         </CardContent>
