@@ -39,7 +39,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ToastAction } from "@/components/ui/toast";
-import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertTitle, AlertDescription as AlertDesc } from "@/components/ui/alert";
 
 
 // New Match Schema
@@ -383,11 +383,11 @@ function HistorialPageContent() {
                  <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
                     <Info className="h-4 w-4 text-blue-700" />
                     <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
-                    <AlertDescription>
+                    <AlertDesc>
                         Estás viendo un historial de partidos de ejemplo. Para guardar y gestionar tus propios partidos, por favor{" "}
                         <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
                         <Link href="/login" className="font-bold underline">inicia sesión</Link>.
-                    </AlertDescription>
+                    </AlertDesc>
                 </Alert>
             )}
 
