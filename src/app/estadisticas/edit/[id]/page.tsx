@@ -92,6 +92,20 @@ interface TeamStats {
   timeouts: HalfStats;
 }
 
+const initialHalfStats: HalfStats = { firstHalf: 0, secondHalf: 0 };
+
+const createInitialTeamStats = (): TeamStats => ({
+  shots: {
+    onTarget: { ...initialHalfStats },
+    offTarget: { ...initialHalfStats },
+    blocked: { ...initialHalfStats },
+  },
+  turnovers: { ...initialHalfStats },
+  steals: { ...initialHalfStats },
+  timeouts: { ...initialHalfStats },
+});
+
+
 function EditMatchPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -158,6 +172,24 @@ function EditMatchPageContent() {
             setMyTeamSide('visitante');
             setActiveTab('visitante');
         }
+
+        // Helper function to merge fetched stats with a complete default structure
+        const mergeWithDefaults = (data?: Partial<TeamStats>): TeamStats => {
+            const defaults = createInitialTeamStats();
+            if (!data) return defaults;
+            
+            // A simple deep merge for 2 levels
+            return {
+                shots: {
+                    onTarget: { ...defaults.shots.onTarget, ...data.shots?.onTarget },
+                    offTarget: { ...defaults.shots.offTarget, ...data.shots?.offTarget },
+                    blocked: { ...defaults.shots.blocked, ...data.shots?.blocked },
+                },
+                turnovers: { ...defaults.turnovers, ...data.turnovers },
+                steals: { ...defaults.steals, ...data.steals },
+                timeouts: { ...defaults.timeouts, ...data.timeouts },
+            };
+        };
         
         // Populate match info
         setFecha(matchData.fecha || "");
@@ -165,8 +197,9 @@ function EditMatchPageContent() {
         setCampeonato(matchData.campeonato || "");
         setJornada(matchData.jornada || "");
         setTipoPartido(matchData.tipoPartido || "");
-        setMyTeamStats(matchData.myTeamStats);
-        setOpponentTeamStats(matchData.opponentTeamStats);
+        // Use the merge function to ensure state is never partial
+        setMyTeamStats(mergeWithDefaults(matchData.myTeamStats));
+        setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
 
         // Fetch roster
         const roster: Player[] = rosterData.players || [];
@@ -300,7 +333,7 @@ function EditMatchPageContent() {
       }));
   }
 
-  const handleSetMyTeam = (side: 'local' | 'visitante') => {
+  const handleSetMyTeam = (side: 'local' | 'visitor') => {
     if (side === 'local') {
       setLocalTeamName(rosterInfo.name);
     } else { // visitor
