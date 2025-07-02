@@ -1,11 +1,10 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
 import { SubscriptionGuard } from "@/components/subscription-guard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BarChart2, BookUser, CalendarDays, ArrowRight, LifeBuoy, ClipboardCheck } from "lucide-react";
+import { Users, BarChart2, BookUser, CalendarDays, ArrowRight, LifeBuoy, ClipboardCheck, Activity } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -39,6 +38,12 @@ const featureCards = [
         description: "Visualiza todas tus sesiones de entrenamiento programadas en un calendario interactivo.",
         href: "/calendario",
         icon: CalendarDays,
+    },
+    {
+        title: "Mis Estadísticas",
+        description: "Visualiza un resumen de los datos más relevantes de tu equipo y tus sesiones.",
+        href: "/mi-equipo/estadisticas-generales",
+        icon: Activity,
     },
     {
         title: "Soporte Técnico",
