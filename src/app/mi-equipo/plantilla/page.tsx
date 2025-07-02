@@ -149,8 +149,36 @@ function MiPlantillaPageContent() {
   
 
   useEffect(() => {
-    fetchTeamAndAggregateStats();
-  }, [fetchTeamAndAggregateStats]);
+    if (isRegisteredUser) {
+        fetchTeamAndAggregateStats();
+    } else {
+        const createGuestPlayer = (id:string, dorsal:string, nombre:string, posicion:string, goles:number, amarillas:number, rojas:number, faltas:number, paradas:number, recibidos:number, uno:number): DisplayPlayer => ({
+            id: id,
+            dorsal: dorsal,
+            nombre: nombre,
+            posicion: posicion,
+            totalGoles: goles,
+            totalAmarillas: amarillas,
+            totalRojas: rojas,
+            totalFaltas: faltas,
+            totalParadas: paradas,
+            totalGolesRecibidos: recibidos,
+            totalUnoVsUno: uno,
+        });
+
+        setPlayers([
+            createGuestPlayer(uuidv4(), '1', 'A. García (Portero)', 'Portero', 0, 0, 0, 1, 12, 3, 5),
+            createGuestPlayer(uuidv4(), '4', 'J. López (Cierre)', 'Cierre', 2, 1, 0, 5, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '7', 'M. Pérez (Ala)', 'Ala', 8, 2, 0, 3, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '10', 'C. Ruiz (Pívot)', 'Pívot', 15, 0, 0, 4, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '8', 'S. Torres (Universal)', 'Universal', 5, 1, 1, 2, 0, 0, 0),
+        ]);
+        setClub('FutsalDex Club');
+        setEquipo('Equipo Demo');
+        setCampeonato('Liga de Exhibición');
+        setIsLoading(false);
+    }
+  }, [isRegisteredUser, fetchTeamAndAggregateStats]);
   
   const handlePlayerChange = (id: string, field: keyof RosterPlayer, value: string | number) => {
     setPlayers(
@@ -164,6 +192,10 @@ function MiPlantillaPageContent() {
   };
   
   const addPlayerRow = () => {
+    if (!isRegisteredUser) {
+        toast({ title: "Acción Requerida", description: "Debes iniciar sesión para añadir jugadores.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
+        return;
+    }
     setPlayers(produce(draft => {
       if (draft.length >= 12) {
         toast({ title: "Límite de Jugadores", description: "Puedes añadir un máximo de 12 jugadores a la plantilla.", variant: "default" });
@@ -184,6 +216,10 @@ function MiPlantillaPageContent() {
   };
 
   const removePlayerRow = (id: string) => {
+     if (!isRegisteredUser) {
+        toast({ title: "Acción Requerida", description: "Debes iniciar sesión para eliminar jugadores.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
+        return;
+    }
     setPlayers(players.filter(p => p.id !== id));
   };
 
@@ -230,44 +266,6 @@ function MiPlantillaPageContent() {
       </div>
     );
   }
-  
-    if (!isRegisteredUser) {
-    return (
-        <div className="container mx-auto px-4 py-8 md:px-6">
-             <header className="mb-8 flex items-center justify-between">
-                <div>
-                    <h1 className="text-4xl font-bold text-primary mb-2 font-headline flex items-center">
-                        <Users className="mr-3 h-10 w-10" />
-                        Mi Plantilla
-                    </h1>
-                    <p className="text-lg text-foreground/80">
-                        Gestiona la plantilla de tu equipo y consulta sus estadísticas de la temporada.
-                    </p>
-                </div>
-                <Button asChild variant="outline">
-                    <Link href="/mi-equipo">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver al Panel
-                    </Link>
-                </Button>
-            </header>
-            <Alert variant="default" className="bg-accent/10 border-accent">
-                <Info className="h-5 w-5 text-accent" />
-                <AlertTitle className="font-headline text-accent">Función para Usuarios Registrados</AlertTitle>
-                <AlertDescription className="text-accent/90">
-                    Para gestionar tu plantilla, necesitas una cuenta.{" "}
-                    <Link href="/register" className="font-bold underline hover:text-accent/70">
-                        Regístrate
-                    </Link> o{" "}
-                    <Link href="/login" className="font-bold underline hover:text-accent/70">
-                        inicia sesión
-                    </Link> para empezar.
-                </AlertDescription>
-            </Alert>
-        </div>
-    )
-  }
-
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -299,15 +297,15 @@ function MiPlantillaPageContent() {
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <Label htmlFor="club">Club</Label>
-                <Input id="club" value={club} onChange={(e) => setClub(e.target.value)} placeholder="Nombre de tu club" />
+                <Input id="club" value={club} onChange={(e) => setClub(e.target.value)} placeholder="Nombre de tu club" disabled={!isRegisteredUser} />
             </div>
             <div>
                 <Label htmlFor="equipo">Equipo</Label>
-                <Input id="equipo" value={equipo} onChange={(e) => setEquipo(e.target.value)} placeholder="Ej: Senior A, Cadete" />
+                <Input id="equipo" value={equipo} onChange={(e) => setEquipo(e.target.value)} placeholder="Ej: Senior A, Cadete" disabled={!isRegisteredUser} />
             </div>
             <div>
                 <Label htmlFor="campeonato">Campeonato Principal</Label>
-                <Input id="campeonato" value={campeonato} onChange={(e) => setCampeonato(e.target.value)} placeholder="Ej: Liga Local" />
+                <Input id="campeonato" value={campeonato} onChange={(e) => setCampeonato(e.target.value)} placeholder="Ej: Liga Local" disabled={!isRegisteredUser} />
             </div>
         </CardContent>
       </Card>
@@ -320,6 +318,17 @@ function MiPlantillaPageContent() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {!isRegisteredUser && (
+            <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200 text-blue-800">
+                <Info className="h-4 w-4 text-blue-700" />
+                <AlertTitle className="text-blue-800 font-semibold">Modo de Vista Previa</AlertTitle>
+                <AlertDescription>
+                    Estás viendo una plantilla de ejemplo. Para crear y guardar tu propia plantilla, por favor{" "}
+                    <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                    <Link href="/login" className="font-bold underline">inicia sesión</Link>.
+                </AlertDescription>
+            </Alert>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -347,6 +356,7 @@ function MiPlantillaPageContent() {
                           value={player.dorsal}
                           onChange={(e) => handlePlayerChange(player.id, 'dorsal', e.target.value)}
                           className="h-8 text-sm"
+                          disabled={!isRegisteredUser}
                         />
                       </TableCell>
                       <TableCell className="py-1 px-1">
@@ -355,12 +365,14 @@ function MiPlantillaPageContent() {
                           onChange={(e) => handlePlayerChange(player.id, 'nombre', e.target.value)}
                           className="h-8 text-sm"
                           placeholder="Nombre del jugador"
+                          disabled={!isRegisteredUser}
                         />
                       </TableCell>
                       <TableCell className="py-1 px-1">
                         <Select
                           value={player.posicion}
                           onValueChange={(value) => handlePlayerChange(player.id, 'posicion', value)}
+                          disabled={!isRegisteredUser}
                         >
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                           <SelectContent>
@@ -377,7 +389,7 @@ function MiPlantillaPageContent() {
                       <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalGolesRecibidos}</TableCell>
                       <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalUnoVsUno}</TableCell>
                       <TableCell className="py-1 px-1">
-                        <Button variant="ghost" size="icon" onClick={() => removePlayerRow(player.id)} title="Eliminar jugador" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" onClick={() => removePlayerRow(player.id)} title="Eliminar jugador" className="h-8 w-8" disabled={!isRegisteredUser}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </TableCell>
@@ -387,7 +399,7 @@ function MiPlantillaPageContent() {
               </TableBody>
             </Table>
           </div>
-          <Button onClick={addPlayerRow} variant="outline" className="mt-4">
+          <Button onClick={addPlayerRow} variant="outline" className="mt-4" disabled={!isRegisteredUser}>
             <Plus className="mr-2 h-4 w-4" /> Añadir Jugador
           </Button>
         </CardContent>
