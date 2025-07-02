@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit, Info } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -28,6 +28,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useParams, useRouter } from 'next/navigation';
 import { ToastAction } from "@/components/ui/toast";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+
 
 // --- Helper Components ---
 interface StatCounterProps {
@@ -104,6 +106,41 @@ const createInitialTeamStats = (): TeamStats => ({
   timeouts: { ...initialHalfStats },
 });
 
+// Demo data creators
+const createGuestPlayerRosterWithStats = (): Player[] => [
+    { dorsal: '1', nombre: 'A. García', posicion: 'Portero', goals: 0, yellowCards: 0, redCards: 0, faltas: 1, paradas: 8, golesRecibidos: 2, unoVsUno: 3 },
+    { dorsal: '4', nombre: 'J. López', posicion: 'Cierre', goals: 1, yellowCards: 1, redCards: 0, faltas: 3, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', goals: 2, yellowCards: 0, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', goals: 1, yellowCards: 0, redCards: 0, faltas: 1, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '8', nombre: 'S. Torres', posicion: 'Ala-Cierre', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+];
+
+const createGuestOpponentPlayersWithStats = (): OpponentPlayer[] => {
+    const players = [
+        { dorsal: '9', nombre: 'Delantero Estrella', goals: 1, yellowCards: 0, redCards: 0, faltas: 4, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+        { dorsal: '6', nombre: 'Medio Creativo', goals: 1, yellowCards: 1, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    ];
+    const emptyOpponents = Array.from({ length: Math.max(0, 12 - players.length) }, () => ({ dorsal: '', nombre: '', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
+    return [...players, ...emptyOpponents];
+};
+
+const createGuestTeamStats = (isMyTeam: boolean): TeamStats => {
+    if (isMyTeam) {
+        return {
+            shots: { onTarget: { firstHalf: 5, secondHalf: 7 }, offTarget: { firstHalf: 3, secondHalf: 4 }, blocked: { firstHalf: 1, secondHalf: 2 } },
+            turnovers: { firstHalf: 6, secondHalf: 8 },
+            steals: { firstHalf: 9, secondHalf: 11 },
+            timeouts: { firstHalf: 1, secondHalf: 0 }
+        };
+    }
+    return {
+        shots: { onTarget: { firstHalf: 4, secondHalf: 6 }, offTarget: { firstHalf: 2, secondHalf: 3 }, blocked: { firstHalf: 3, secondHalf: 1 } },
+        turnovers: { firstHalf: 10, secondHalf: 9 },
+        steals: { firstHalf: 5, secondHalf: 7 },
+        timeouts: { firstHalf: 0, secondHalf: 1 }
+    };
+};
+
 
 function EditMatchPageContent() {
   const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
@@ -136,9 +173,30 @@ function EditMatchPageContent() {
   const [activeTab, setActiveTab] = useState<'local' | 'visitante'>('local');
 
   useEffect(() => {
+    const setupDemoMode = () => {
+        setIsLoading(true);
+        setLocalTeamName("FutsalDex Demo");
+        setVisitorTeamName("Rivales Legendarios");
+        setFecha("2024-05-20");
+        setHora("20:00");
+        setCampeonato("Liga de Exhibición");
+        setJornada("Jornada 5");
+        setTipoPartido("Liga");
+        setMyTeamSide('local');
+        setActiveTab('local');
+        setNotFound(false);
+        
+        setMyTeamPlayers(createGuestPlayerRosterWithStats());
+        setOpponentPlayers(createGuestOpponentPlayersWithStats());
+        setMyTeamStats(createGuestTeamStats(true));
+        setOpponentTeamStats(createGuestTeamStats(false));
+
+        setIsLoading(false);
+    };
+
     const fetchMatchAndRoster = async () => {
       if (!user || !matchId) {
-        setIsLoading(false); // Can't load if no user or id
+        setIsLoading(false); 
         return;
       }
       setIsLoading(true);
@@ -174,13 +232,10 @@ function EditMatchPageContent() {
             setMyTeamSide('visitante');
             setActiveTab('visitante');
         }
-
-        // Helper function to merge fetched stats with a complete default structure
+        
         const mergeWithDefaults = (data?: Partial<TeamStats>): TeamStats => {
             const defaults = createInitialTeamStats();
             if (!data) return defaults;
-            
-            // A simple deep merge for 2 levels
             return {
                 shots: {
                     onTarget: { ...defaults.shots.onTarget, ...data.shots?.onTarget },
@@ -193,20 +248,15 @@ function EditMatchPageContent() {
             };
         };
         
-        // Populate match info
         setFecha(matchData.fecha || "");
         setHora(matchData.hora || "");
         setCampeonato(matchData.campeonato || "");
         setJornada(matchData.jornada || "");
         setTipoPartido(matchData.tipoPartido || "");
-        // Use the merge function to ensure state is never partial
         setMyTeamStats(mergeWithDefaults(matchData.myTeamStats));
         setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
 
-        // Fetch roster
         const roster: Player[] = rosterData.players || [];
-
-        // Merge roster with match player stats
         const enrichedMyTeamPlayers = roster.map(rosterPlayer => {
             const matchPlayer = matchData.myTeamPlayers?.find((p: Player) => p.dorsal === rosterPlayer.dorsal);
             return {
@@ -221,8 +271,7 @@ function EditMatchPageContent() {
             };
         });
         setMyTeamPlayers(enrichedMyTeamPlayers);
-
-        // Populate opponent players, padding with empty rows up to 12
+        
         const savedOpponents = matchData.opponentPlayers || [];
         const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
         setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
@@ -235,8 +284,13 @@ function EditMatchPageContent() {
         setIsLoading(false);
       }
     };
-    fetchMatchAndRoster();
-  }, [user, matchId, toast]);
+    
+    if (isRegisteredUser) {
+        fetchMatchAndRoster();
+    } else {
+        setupDemoMode();
+    }
+  }, [isRegisteredUser, user, matchId, toast]);
 
   const handleUpdateStats = async () => {
     if (!isRegisteredUser) {
@@ -295,7 +349,6 @@ function EditMatchPageContent() {
   };
 
 
-  // Re-use stat change handlers from the main stats page
    const handleStatChange = (
     team: 'myTeam' | 'opponentTeam',
     statPath: (string | number)[],
@@ -352,7 +405,6 @@ function EditMatchPageContent() {
     setMyTeamSide(side);
   };
 
-  // --- Render logic ---
   if (isLoading) {
     return (
         <div className="flex justify-center items-center py-12">
@@ -423,6 +475,7 @@ function EditMatchPageContent() {
                                         onChange={(e) => team === 'opponentTeam' && handleOpponentDorsalChange(index, e.target.value)}
                                         readOnly={team === 'myTeam'}
                                         type="text" 
+                                        disabled={!isRegisteredUser}
                                       />
                                     </TableCell>
                                     <TableCell className="font-medium text-xs px-1">
@@ -433,29 +486,30 @@ function EditMatchPageContent() {
                                                 placeholder="Nombre" 
                                                 value={(player as OpponentPlayer).nombre || ''}
                                                 onChange={(e) => team === 'opponentTeam' && handleOpponentNameChange(index, e.target.value)}
+                                                disabled={!isRegisteredUser}
                                             />
                                         }
                                     </TableCell>
                                     <TableCell>
-                                        <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} />
+                                        <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} disabled={!isRegisteredUser}/>
                                     </TableCell>
                                     <TableCell>
-                                        <StatCounter value={player.yellowCards} onIncrement={() => handlePlayerStatChange(team, index, 'yellowCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'yellowCards', -1)} />
+                                        <StatCounter value={player.yellowCards} onIncrement={() => handlePlayerStatChange(team, index, 'yellowCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'yellowCards', -1)} disabled={!isRegisteredUser}/>
                                     </TableCell>
                                     <TableCell>
-                                        <StatCounter value={player.redCards} onIncrement={() => handlePlayerStatChange(team, index, 'redCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'redCards', -1)} />
+                                        <StatCounter value={player.redCards} onIncrement={() => handlePlayerStatChange(team, index, 'redCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'redCards', -1)} disabled={!isRegisteredUser}/>
                                     </TableCell>
                                     <TableCell>
-                                        <StatCounter value={player.faltas} onIncrement={() => handlePlayerStatChange(team, index, 'faltas', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'faltas', -1)} />
+                                        <StatCounter value={player.faltas} onIncrement={() => handlePlayerStatChange(team, index, 'faltas', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'faltas', -1)} disabled={!isRegisteredUser}/>
                                     </TableCell>
                                     <TableCell>
-                                        <StatCounter value={player.paradas} onIncrement={() => handlePlayerStatChange(team, index, 'paradas', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'paradas', -1)} disabled={team === 'myTeam' && (player as Player).posicion !== 'Portero'} />
+                                        <StatCounter value={player.paradas} onIncrement={() => handlePlayerStatChange(team, index, 'paradas', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'paradas', -1)} disabled={!isRegisteredUser || (team === 'myTeam' && (player as Player).posicion !== 'Portero')} />
                                     </TableCell>
                                     <TableCell>
-                                        <StatCounter value={player.golesRecibidos} onIncrement={() => handlePlayerStatChange(team, index, 'golesRecibidos', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'golesRecibidos', -1)} disabled={team === 'myTeam' && (player as Player).posicion !== 'Portero'} />
+                                        <StatCounter value={player.golesRecibidos} onIncrement={() => handlePlayerStatChange(team, index, 'golesRecibidos', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'golesRecibidos', -1)} disabled={!isRegisteredUser || (team === 'myTeam' && (player as Player).posicion !== 'Portero')} />
                                     </TableCell>
                                     <TableCell>
-                                        <StatCounter value={player.unoVsUno} onIncrement={() => handlePlayerStatChange(team, index, 'unoVsUno', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'unoVsUno', -1)} disabled={team === 'myTeam' && (player as Player).posicion !== 'Portero'} />
+                                        <StatCounter value={player.unoVsUno} onIncrement={() => handlePlayerStatChange(team, index, 'unoVsUno', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'unoVsUno', -1)} disabled={!isRegisteredUser || (team === 'myTeam' && (player as Player).posicion !== 'Portero')} />
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -498,18 +552,18 @@ function EditMatchPageContent() {
                         <TableBody>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Portería</TableHead>
-                                <TableCell><StatCounter value={stats.shots.onTarget.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'onTarget', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'onTarget', 'firstHalf'], -1)}/></TableCell>
-                                <TableCell><StatCounter value={stats.shots.onTarget.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'onTarget', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'onTarget', 'secondHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.onTarget.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'onTarget', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'onTarget', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.onTarget.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'onTarget', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'onTarget', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Fuera</TableHead>
-                                <TableCell><StatCounter value={stats.shots.offTarget.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'offTarget', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'offTarget', 'firstHalf'], -1)}/></TableCell>
-                                <TableCell><StatCounter value={stats.shots.offTarget.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'offTarget', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'offTarget', 'secondHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.offTarget.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'offTarget', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'offTarget', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.offTarget.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'offTarget', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'offTarget', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Bloqueados</TableHead>
-                                <TableCell><StatCounter value={stats.shots.blocked.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'blocked', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'blocked', 'firstHalf'], -1)}/></TableCell>
-                                <TableCell><StatCounter value={stats.shots.blocked.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'blocked', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'blocked', 'secondHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.blocked.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'blocked', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'blocked', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.blocked.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'blocked', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'blocked', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -531,18 +585,18 @@ function EditMatchPageContent() {
                         <TableBody>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Tiempos Muertos</TableHead>
-                                <TableCell><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], -1)}/></TableCell>
-                                <TableCell><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                              <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Pérdidas</TableHead>
-                                <TableCell><StatCounter value={stats.turnovers.firstHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], -1)}/></TableCell>
-                                <TableCell><StatCounter value={stats.turnovers.secondHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.turnovers.firstHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.turnovers.secondHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Robos</TableHead>
-                                <TableCell><StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)}/></TableCell>
-                                <TableCell><StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(team, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'secondHalf'], -1)}/></TableCell>
+                                <TableCell><StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(team, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -573,7 +627,7 @@ function EditMatchPageContent() {
             </Button>
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" disabled={!isRegisteredUser}>
                   <FileText className="mr-2 h-4 w-4"/>
                   Datos del Partido
                 </Button>
@@ -624,12 +678,24 @@ function EditMatchPageContent() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button onClick={handleUpdateStats} disabled={isSaving}>
+            <Button onClick={handleUpdateStats} disabled={isSaving || !isRegisteredUser}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Actualizar Partido
             </Button>
         </div>
       </header>
+       
+       {!isRegisteredUser && (
+            <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
+                <Info className="h-4 w-4 text-blue-700" />
+                <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
+                <AlertDescription>
+                    Estás viendo la interfaz de edición con un partido de ejemplo. Las acciones de guardar, editar y los contadores están desactivados. Para usar esta función con tu equipo, por favor{" "}
+                    <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                    <Link href="/login" className="font-bold underline">inicia sesión</Link>.
+                </AlertDescription>
+            </Alert>
+        )}
 
       <Card className="mb-6">
         <CardHeader>
@@ -643,15 +709,15 @@ function EditMatchPageContent() {
                 <div>
                     <Label htmlFor="localTeamName">Equipo Local</Label>
                     <div className="flex gap-2 items-center">
-                        <Input id="localTeamName" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} placeholder="Nombre del equipo local" />
-                         <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('local')} className="px-3 text-xs shrink-0">Usar mi equipo</Button>
+                        <Input id="localTeamName" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} placeholder="Nombre del equipo local" disabled={!isRegisteredUser}/>
+                         <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('local')} className="px-3 text-xs shrink-0" disabled={!isRegisteredUser}>Usar mi equipo</Button>
                     </div>
                 </div>
                 <div>
                     <Label htmlFor="visitorTeamName">Equipo Visitante</Label>
                     <div className="flex gap-2 items-center">
-                        <Input id="visitorTeamName" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} placeholder="Nombre del equipo visitante" />
-                        <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('visitante')} className="px-3 text-xs shrink-0">Usar mi equipo</Button>
+                        <Input id="visitorTeamName" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} placeholder="Nombre del equipo visitante" disabled={!isRegisteredUser}/>
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('visitante')} className="px-3 text-xs shrink-0" disabled={!isRegisteredUser}>Usar mi equipo</Button>
                     </div>
                 </div>
             </div>
