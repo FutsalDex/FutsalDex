@@ -131,13 +131,13 @@ export default function SuscripcionPage() {
         </CardHeader>
         <CardContent className="text-center max-w-2xl mx-auto">
             <p className="text-foreground/90">
-                Durante todo el 2025, disfruta de un <strong className="text-primary">descuento del 50%</strong> en tu primer año de suscripción, tanto en el plan Básico como en el Top.
+                Durante todo el 2025, disfruta de un <strong className="text-primary">descuento del 25%</strong> en tu primer año de suscripción, tanto en el plan Básico como en el Top.
             </p>
              <p className="mt-4">
                 Usa el código <code className="font-bold bg-primary/20 text-primary p-1 rounded-md">futsaldex25</code> al momento de pagar para aplicar la bonificación.
             </p>
             <div className="mt-4 text-sm text-muted-foreground">
-                <p>Plan Básico por solo <strong>5,94€/año</strong>. Plan Top por solo <strong>11,94€/año</strong>.</p>
+                <p>Plan Básico por solo <strong>8,91€/año</strong>. Plan Top por solo <strong>17,91€/año</strong>.</p>
             </div>
         </CardContent>
       </Card>
