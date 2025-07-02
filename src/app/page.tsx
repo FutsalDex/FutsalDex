@@ -28,7 +28,7 @@ export default function HomePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-md text-foreground/90">
-                  Subscríbete a uno de los planes para acceder al catálogo completo de ejercicios y desbloquear las herramientas avanzadas de gestión de equipos.
+                  Suscríbete a uno de los planes para acceder al catálogo completo de ejercicios y desbloquear las herramientas avanzadas de gestión de equipos.
                 </p>
                 <Button asChild size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
                   <Link href="/suscripcion">
@@ -45,7 +45,7 @@ export default function HomePage() {
                     Acceso de Invitado
                 </CardTitle>
                 <CardDescription>
-                    ¿Quieres probar antes de registrarte?
+                    ¿Quieres probar antes de suscribirte?
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 text-left">
