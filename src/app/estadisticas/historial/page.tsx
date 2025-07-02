@@ -358,7 +358,7 @@ function HistorialPageContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {matches.map(match => (
                         <Card key={match.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow">
-                            <CardHeader className="pb-4">
+                            <CardHeader className="pb-4 text-center">
                                 <CardTitle className="text-lg font-headline truncate" title={`${match.myTeamName} vs ${match.opponentTeamName}`}>
                                     {match.myTeamName} vs {match.opponentTeamName}
                                 </CardTitle>
