@@ -18,8 +18,12 @@ const basicFeatures = [
 
 const topFeatures = [
   ...basicFeatures,
-  "Panel de 'Mi Equipo' (Plantilla, Estadísticas, Calendario)",
-  "Soporte técnico prioritario",
+  "Gestión de Plantilla y Estadísticas de Jugadores",
+  "Control de Asistencia a entrenamientos",
+  "Registro y gestión de Partidos y Estadísticas",
+  "Calendario de Equipo integrado",
+  "Dashboard con Estadísticas Generales del equipo",
+  "Soporte técnico con Entrenador IA",
 ];
 
 export default function SuscripcionPage() {
