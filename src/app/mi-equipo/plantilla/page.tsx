@@ -169,9 +169,9 @@ function MiPlantillaPageContent() {
         setPlayers([
             createGuestPlayer(uuidv4(), '1', 'A. García (Portero)', 'Portero', 0, 0, 0, 1, 12, 3, 5),
             createGuestPlayer(uuidv4(), '4', 'J. López (Cierre)', 'Cierre', 2, 1, 0, 5, 0, 0, 0),
-            createGuestPlayer(uuidv4(), '7', 'M. Pérez (Ala)', 'Ala', 8, 2, 0, 3, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '7', 'M. Pérez (Ala)', 'Ala', 8, 2, 0, 4, 0, 0, 0),
             createGuestPlayer(uuidv4(), '10', 'C. Ruiz (Pívot)', 'Pívot', 15, 0, 0, 4, 0, 0, 0),
-            createGuestPlayer(uuidv4(), '8', 'S. Torres (Universal)', 'Universal', 5, 1, 1, 2, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '8', 'S. Torres (Ala-Cierre)', 'Ala-Cierre', 5, 1, 1, 2, 0, 0, 0),
         ]);
         setClub('FutsalDex Club');
         setEquipo('Equipo Demo');
