@@ -67,7 +67,7 @@ export default function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <FeatureCard
                     title="Planificación de Sesiones"
-                    description="Navega por una biblioteca con más de 500 ejercicios o deja que nuestra IA diseñe entrenamientos personalizados. Guarda, gestiona y exporta tus sesiones en PDF."
+                    description="Navega por una biblioteca con más de 500 ejercicios. Guarda, gestiona y exporta tus sesiones de entrenamiento en PDF."
                     icon={<BookOpen className="h-6 w-6"/>}
                 />
                  <FeatureCard
