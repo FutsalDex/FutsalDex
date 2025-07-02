@@ -36,7 +36,7 @@ export default function Header() {
 
   const navLinks = [
     { href: '/ejercicios', label: 'Ver ejercicios', icon: <FileText className="mr-2 h-4 w-4" /> },
-    { href: '/crear-sesion-manual', label: 'Sesión Manual', icon: <Edit3 className="mr-2 h-4 w-4" /> },
+    { href: '/crear-sesion', label: 'Crear Sesión', icon: <Edit3 className="mr-2 h-4 w-4" /> },
     { href: '/mi-equipo', label: 'Mi Equipo', icon: <Users className="mr-2 h-4 w-4" /> },
     { href: '/favoritos', label: 'Favoritos', icon: <Heart className="mr-2 h-4 w-4" /> },
     { href: '/suscripcion', label: 'Suscripción', icon: <Star className="mr-2 h-4 w-4" /> },
