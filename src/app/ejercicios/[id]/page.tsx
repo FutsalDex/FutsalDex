@@ -170,6 +170,15 @@ export default function EjercicioDetallePage() {
   };
 
  const handlePrint = async () => {
+    if (!isRegisteredUser) {
+        toast({
+            title: "Función para usuarios registrados",
+            description: "Para descargar la ficha del ejercicio, necesitas una cuenta.",
+            variant: "default",
+            action: <Button asChild variant="outline"><Link href="/login">Iniciar Sesión</Link></Button>
+        });
+        return;
+    }
     const printArea = document.querySelector('.exercise-print-area') as HTMLElement;
     if (!printArea || !ejercicio) {
       toast({

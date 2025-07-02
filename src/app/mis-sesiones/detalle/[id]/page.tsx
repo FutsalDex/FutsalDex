@@ -231,7 +231,7 @@ function SesionDetallePageContent() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const sessionId = params.id as string;
 
   const [sessionData, setSessionData] = useState<SesionConDetallesEjercicio | null>(null);
@@ -324,6 +324,15 @@ function SesionDetallePageContent() {
   }, [fetchSessionAndExerciseDetails]);
 
   const handleSavePdf = async () => {
+    if (!isRegisteredUser) {
+        toast({
+            title: "Función para usuarios registrados",
+            description: "Para descargar la ficha de la sesión, necesitas una cuenta.",
+            variant: "default",
+            action: <Button asChild variant="outline"><Link href="/login">Iniciar Sesión</Link></Button>
+        });
+        return;
+    }
     const printArea = document.querySelector('.session-print-area') as HTMLElement;
     if (!printArea || !sessionData) {
       toast({ title: "Error", description: "Contenido de la sesión no encontrado para PDF.", variant: "destructive" });
