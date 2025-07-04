@@ -1,3 +1,4 @@
+
 // src/app/ejercicios/[id]/page.tsx
 "use client";
 
@@ -253,14 +254,12 @@ export default function EjercicioDetallePage() {
       </div>
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
-        <div className="px-4 py-2 flex justify-between items-center border-b border-gray-300">
-            <h1 className="text-2xl font-bold font-headline text-primary">FutsalDex</h1>
+        <div className="px-4 py-2 flex justify-start items-center border-b border-gray-300">
             <Image 
               src="https://i.ibb.co/RTck7Qzq/futsal-logo.png" 
               alt="FutsalDex Logo" 
-              width={70}
+              width={109}
               height={40}
-              className="h-10 w-auto"
             />
         </div>
         
