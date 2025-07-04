@@ -8,9 +8,9 @@ export default function HomePage() {
   return (
     <div className="container mx-auto px-4 py-12 md:px-6 md:py-16 lg:py-24">
       <div className="flex flex-col items-center text-center">
-        <div className="w-72 mb-6">
+        <div className="w-80 mb-6">
           <img 
-            src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
+            src="https://i.ibb.co/ZpM87Qz/logo-futsaldex-completo.png" 
             alt="FutsalDex Logo" 
             className="w-full h-auto"
           />

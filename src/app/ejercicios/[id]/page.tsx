@@ -264,9 +264,9 @@ export default function EjercicioDetallePage() {
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
         <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300">
-          <div className="w-80">
+          <div className="w-80 h-auto">
             <img
-              src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png"
+              src="https://i.ibb.co/ZpM87Qz/logo-futsaldex-completo.png"
               alt="FutsalDex Logo"
               className="w-full h-auto object-contain"
               crossOrigin="anonymous"
