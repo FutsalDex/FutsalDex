@@ -258,15 +258,7 @@ export default function EjercicioDetallePage() {
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
         <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300 min-h-[80px]">
-            <div className="relative w-[300px] h-[70px]">
-                <Image
-                    src="https://i.ibb.co/ZpM87Qz/logo-futsaldex-completo.png"
-                    alt="FutsalDex Logo"
-                    fill
-                    className="object-contain"
-                    crossOrigin="anonymous"
-                />
-            </div>
+            <h1 className="text-3xl font-bold text-gray-800 font-headline">FutsalDex</h1>
         </div>
         
         <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center">

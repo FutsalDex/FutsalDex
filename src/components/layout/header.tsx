@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -16,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 
 export default function Header() {
   const { user, signOut, loading, isAdmin } = useAuth();
@@ -43,14 +41,7 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2 text-2xl font-bold font-headline tracking-tight">
-          <Image 
-              src="https://i.ibb.co/SDSKthc/logo-futsaldex-solo.png"
-              alt="FutsalDex Icon"
-              width={36}
-              height={36}
-              className="h-9 w-9"
-          />
-          <span className="hidden sm:inline-block">FutsalDex</span>
+          <span>FutsalDex</span>
         </Link>
         <nav className="hidden items-center space-x-1 md:flex">
           {navLinks.map((link) => (

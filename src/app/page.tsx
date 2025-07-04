@@ -1,22 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight, Lock, BookOpen, Users, Bot } from "lucide-react";
 
 export default function HomePage() {
   return (
     <div className="container mx-auto px-4 py-12 md:px-6 md:py-16 lg:py-24">
       <div className="flex flex-col items-center text-center">
-        <div className="relative w-full max-w-md h-24 mb-4">
-          <Image
-            src="https://i.ibb.co/ZpM87Qz/logo-futsaldex-completo.png"
-            alt="FutsalDex Logo"
-            fill
-            className="object-contain"
-            priority
-          />
-        </div>
+        <h1 className="text-5xl md:text-6xl font-bold text-primary font-headline mb-4">
+          FutsalDex
+        </h1>
         <p className="mb-8 max-w-3xl text-lg text-foreground/80 md:text-xl">
           Tu compañero definitivo para el entrenamiento de fútbol sala. Descubre cientos de ejercicios, diseña sesiones de entrenamientos, gestiona tu equipo y analiza su rendimiento.
         </p>
