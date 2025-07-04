@@ -179,22 +179,16 @@ export default function EjercicioDetallePage() {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
       
-      // Calculate scale to fit width
       const widthScale = pdfWidth / canvasWidth;
       
-      // Calculate height based on maintaining aspect ratio from width
       const scaledHeight = canvasHeight * widthScale;
       
-      // If the scaled height is still too large for the PDF page,
-      // then we must scale based on height instead to ensure it fits.
       if (scaledHeight > pdfHeight) {
           const heightScale = pdfHeight / canvasHeight;
           const scaledWidth = canvasWidth * heightScale;
-          // Center horizontally
           const xOffset = (pdfWidth - scaledWidth) / 2;
           pdf.addImage(imgData, 'PNG', xOffset, 0, scaledWidth, pdfHeight);
       } else {
-          // Center vertically
           const yOffset = (pdfHeight - scaledHeight) / 2;
           pdf.addImage(imgData, 'PNG', 0, yOffset, pdfWidth, scaledHeight);
       }
@@ -264,14 +258,15 @@ export default function EjercicioDetallePage() {
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
         <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300 min-h-[80px]">
-            <Image
-                src="https://i.ibb.co/ZpM87Qz/logo-futsaldex-completo.png"
-                alt="FutsalDex Logo"
-                width={300}
-                height={80}
-                className="object-contain"
-                crossOrigin="anonymous"
-            />
+            <div className="relative w-[300px] h-[70px]">
+                <Image
+                    src="https://i.ibb.co/ZpM87Qz/logo-futsaldex-completo.png"
+                    alt="FutsalDex Logo"
+                    fill
+                    className="object-contain"
+                    crossOrigin="anonymous"
+                />
+            </div>
         </div>
         
         <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center">
@@ -300,15 +295,15 @@ export default function EjercicioDetallePage() {
             </div>
             <div className="flex flex-col md:flex-row gap-4 items-start">
                 <div className="w-full md:w-1/2 flex-shrink-0">
-                    <div className="relative aspect-[4/3] w-full border border-gray-300 rounded overflow-hidden">
+                    <div className="w-full border border-gray-300 rounded overflow-hidden">
                         <Image
                             src={ejercicio.imagen || `https://placehold.co/600x400.png`}
                             alt={`Diagrama de ${ejercicio.ejercicio}`}
-                            fill
-                            className="bg-gray-100 object-contain"
+                            width={600}
+                            height={400}
+                            className="w-full h-auto bg-gray-100 object-contain"
                             data-ai-hint="futsal court"
                             crossOrigin="anonymous"
-                            sizes="(max-width: 768px) 50vw, 300px"
                         />
                     </div>
                 </div>
