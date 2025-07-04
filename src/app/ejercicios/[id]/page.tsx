@@ -1,3 +1,4 @@
+
 // src/app/ejercicios/[id]/page.tsx
 "use client";
 
@@ -156,6 +157,7 @@ export default function EjercicioDetallePage() {
 
     setIsGeneratingPdf(true);
     
+    // Hide buttons for printing
     const elementsToHide = printArea.querySelectorAll('.hide-on-print');
     elementsToHide.forEach(el => (el as HTMLElement).style.display = 'none');
 
@@ -180,19 +182,23 @@ export default function EjercicioDetallePage() {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
       
-      const widthScale = pdfWidth / canvasWidth;
+      const ratio = canvasWidth / canvasHeight;
+      const pdfRatio = pdfWidth / pdfHeight;
+
+      let finalWidth, finalHeight;
       
-      const scaledHeight = canvasHeight * widthScale;
-      
-      if (scaledHeight > pdfHeight) {
-          const heightScale = pdfHeight / canvasHeight;
-          const scaledWidth = canvasWidth * heightScale;
-          const xOffset = (pdfWidth - scaledWidth) / 2;
-          pdf.addImage(imgData, 'PNG', xOffset, 0, scaledWidth, pdfHeight);
+      if (ratio > pdfRatio) {
+        finalWidth = pdfWidth;
+        finalHeight = pdfWidth / ratio;
       } else {
-          const yOffset = (pdfHeight - scaledHeight) / 2;
-          pdf.addImage(imgData, 'PNG', 0, yOffset, pdfWidth, scaledHeight);
+        finalHeight = pdfHeight;
+        finalWidth = pdfHeight * ratio;
       }
+      
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = (pdfHeight - finalHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
       
       pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
 
@@ -200,6 +206,7 @@ export default function EjercicioDetallePage() {
       console.error("Error generating PDF:", error);
       toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
     } finally {
+      // Show buttons again after printing
       elementsToHide.forEach(el => (el as HTMLElement).style.display = '');
       setIsGeneratingPdf(false);
     }
@@ -239,8 +246,8 @@ export default function EjercicioDetallePage() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-       <div className="mb-6 flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.push('/ejercicios')} className="hide-on-print">
+       <div className="mb-6 flex justify-between items-center hide-on-print">
+        <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver a Ejercicios
         </Button>
@@ -248,29 +255,32 @@ export default function EjercicioDetallePage() {
           <Button
             variant="ghost"
             size="icon"
-            className="ml-4 bg-background hover:bg-background/90 text-primary rounded-full h-10 w-10 shrink-0 hide-on-print"
+            className="ml-4 bg-transparent hover:bg-primary/10 text-primary rounded-full h-10 w-10 shrink-0"
             onClick={() => toggleFavorite(ejercicio.id)}
             title={favorites[ejercicio.id] ? "Quitar de favoritos" : "Añadir a favoritos"}
           >
-            <Heart className={cn("h-5 w-5", favorites[ejercicio.id] ? "fill-red-500 text-red-500" : "text-primary")} />
+            <Heart className={cn("h-6 w-6", favorites[ejercicio.id] ? "fill-red-500 text-red-500" : "text-primary")} />
           </Button>
         )}
       </div>
 
       <div className="exercise-print-area max-w-4xl mx-auto">
-        <Card className="shadow-lg border-muted">
-            <CardHeader className="bg-foreground text-primary-foreground p-4 rounded-t-lg">
-                <CardTitle className="text-2xl font-headline flex justify-between items-center">
-                    <span>{ejercicio.ejercicio}</span>
-                    <Badge variant="secondary" className="text-lg">{formatDuracion(ejercicio.duracion)}</Badge>
-                </CardTitle>
+        <Card className="shadow-lg border-muted overflow-hidden">
+            <CardHeader className="bg-foreground text-primary-foreground p-4">
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-2xl font-headline">
+                        <span>{ejercicio.ejercicio}</span>
+                    </CardTitle>
+                    <Badge variant="secondary" className="text-base">{formatDuracion(ejercicio.duracion)}</Badge>
+                </div>
             </CardHeader>
             <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    {/* Left Column */}
                     <div className="space-y-6">
                         <div className="relative w-full aspect-[4/3] bg-muted rounded-lg overflow-hidden border">
                            <Image
-                                src={ejercicio.imagen || `https://placehold.co/600x400.png`}
+                                src={ejercicio.imagen || `https://placehold.co/600x400.png?text=${encodeURIComponent('Diagrama')}`}
                                 alt={`Diagrama de ${ejercicio.ejercicio}`}
                                 fill
                                 className="object-contain"
@@ -281,18 +291,19 @@ export default function EjercicioDetallePage() {
                             />
                         </div>
                         <div>
-                            <h3 className="font-semibold text-lg text-primary mb-2">Consejos del Entrenador</h3>
+                            <h3 className="font-semibold text-lg text-primary mb-2 font-headline">Consejos del Entrenador</h3>
                             <p className="text-sm text-foreground/80">{ejercicio.consejos_entrenador || 'No hay consejos específicos para este ejercicio.'}</p>
                         </div>
                     </div>
 
+                    {/* Right Column */}
                     <div className="space-y-6">
                         <div>
-                            <h3 className="font-semibold text-lg text-primary mb-2">Descripción</h3>
+                            <h3 className="font-semibold text-lg text-primary mb-2 font-headline">Descripción</h3>
                             <p className="text-sm text-foreground/80">{ejercicio.descripcion}</p>
                         </div>
                         <div>
-                            <h3 className="font-semibold text-lg text-primary mb-2">Objetivos</h3>
+                            <h3 className="font-semibold text-lg text-primary mb-2 font-headline">Objetivos</h3>
                             <ul className="list-disc list-inside text-sm text-foreground/80 space-y-1">
                                 {objetivosList.map((obj, index) => (
                                     <li key={index}>{obj}</li>
@@ -300,17 +311,17 @@ export default function EjercicioDetallePage() {
                             </ul>
                         </div>
                         <div>
-                            <h3 className="font-semibold text-lg text-primary mb-2">Variantes</h3>
+                            <h3 className="font-semibold text-lg text-primary mb-2 font-headline">Variantes</h3>
                             <p className="text-sm text-foreground/80">{ejercicio.variantes || 'No se especifican variantes.'}</p>
                         </div>
                     </div>
                 </div>
             </CardContent>
-            <CardFooter className="bg-muted/50 p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm rounded-b-lg border-t">
-                 <p><strong className="font-semibold text-primary block">Fase:</strong> {ejercicio.fase}</p>
-                <p><strong className="font-semibold text-primary block">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</p>
-                <p><strong className="font-semibold text-primary block">Nº Jugadores:</strong> {ejercicio.jugadores}</p>
-                <p><strong className="font-semibold text-primary block">Materiales:</strong> {ejercicio.espacio_materiales}</p>
+            <CardFooter className="bg-muted/50 p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm border-t">
+                <div><strong className="font-semibold text-primary block font-headline">Fase:</strong> {ejercicio.fase}</div>
+                <div><strong className="font-semibold text-primary block font-headline">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</div>
+                <div><strong className="font-semibold text-primary block font-headline">Nº Jugadores:</strong> {ejercicio.jugadores}</div>
+                <div><strong className="font-semibold text-primary block font-headline">Materiales:</strong> {ejercicio.espacio_materiales}</div>
             </CardFooter>
         </Card>
       </div>
