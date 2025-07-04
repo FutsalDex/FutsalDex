@@ -379,54 +379,54 @@ export default function EjerciciosPage() {
           </>
         )}
 
-        <DialogContent className="max-w-4xl p-0 bg-primary text-primary-foreground border-primary-foreground/20">
+        <DialogContent className="max-w-6xl w-full p-0 bg-primary text-primary-foreground border-primary-foreground/20">
           {selectedExercise && (
             <>
               <DialogHeader className="sr-only">
                 <DialogTitle>{selectedExercise.ejercicio}</DialogTitle>
                 <DialogDescription>
-                  {`Ficha detallada del ejercicio: ${selectedExercise.ejercicio}. Objetivos: ${selectedExercise.objetivos}`}
+                  Ficha detallada del ejercicio: {selectedExercise.ejercicio}. Objetivos: {selectedExercise.objetivos}
                 </DialogDescription>
               </DialogHeader>
               <div className="exercise-print-area">
                 {/* Header */}
-                <div className="p-4 border-b border-white/30 flex justify-between items-center">
+                <div className="p-4 bg-gray-800 text-white flex justify-between items-center rounded-t-lg">
                     <h2 className="text-2xl font-bold font-headline">{selectedExercise.ejercicio}</h2>
-                    <div className="flex items-center justify-center bg-white text-primary rounded-full h-8 w-8 font-bold text-lg flex-shrink-0">
-                        <span>{selectedExercise.numero || '1'}</span>
+                    <div className="text-right">
+                        <p className="font-bold text-lg">Duración: {formatDuracion(selectedExercise.duracion)} min</p>
                     </div>
                 </div>
 
                 {/* Main Content */}
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-6 bg-white text-gray-800 grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Left Column */}
                     <div className="space-y-4">
-                        {/* Image */}
-                        <div className="bg-white/10 rounded-md overflow-hidden border border-white/20 aspect-video relative">
-                            <Image
+                        <div className="aspect-w-4 aspect-h-3 bg-gray-100 rounded overflow-hidden">
+                             <Image
                                 src={selectedExercise.imagen || `https://placehold.co/400x300.png`}
                                 alt={`Diagrama de ${selectedExercise.ejercicio}`}
-                                fill
-                                className="object-contain bg-white"
+                                width={400}
+                                height={300}
+                                className="w-full h-auto object-contain"
+                                priority
                                 data-ai-hint="futsal diagram"
                               />
                         </div>
-                        {/* Metadata */}
                         <div className="space-y-3">
                             <div>
-                                <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Unidad Didáctica</h4>
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Categoría</h4>
                                 <p>{selectedExercise.categoria}</p>
                             </div>
                             <div>
-                                <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Fase</h4>
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Fase</h4>
                                 <p>{selectedExercise.fase}</p>
                             </div>
-                             <div>
-                                <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Recursos Materiales</h4>
+                            <div>
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Recursos Materiales</h4>
                                 <p>{selectedExercise.espacio_materiales}</p>
                             </div>
                              <div>
-                                <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Número de jugadores</h4>
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Número de jugadores</h4>
                                 <p>{selectedExercise.jugadores}</p>
                             </div>
                         </div>
@@ -434,26 +434,31 @@ export default function EjerciciosPage() {
                     {/* Right Column */}
                     <div className="space-y-4">
                         <div>
-                            <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Descripción de la Tarea</h4>
+                            <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Descripción de la Tarea</h4>
                             <p className="whitespace-pre-wrap">{selectedExercise.descripcion}</p>
                         </div>
                         <div>
-                            <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Objetivos</h4>
+                            <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Objetivos</h4>
                             <p className="whitespace-pre-wrap">{selectedExercise.objetivos}</p>
                         </div>
                         {selectedExercise.variantes && (
                             <div>
-                                <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Variantes</h4>
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Variantes</h4>
                                 <p className="whitespace-pre-wrap">{selectedExercise.variantes}</p>
                             </div>
                         )}
                          {selectedExercise.consejos_entrenador && (
                             <div>
-                                <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Consejos para el Entrenador</h4>
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Consejos para el Entrenador</h4>
                                 <p className="whitespace-pre-wrap">{selectedExercise.consejos_entrenador}</p>
                             </div>
                         )}
                     </div>
+                </div>
+                 {/* Footer */}
+                <div className="p-3 bg-gray-100 border-t text-xs text-gray-600 rounded-b-lg flex justify-between">
+                    <span>FutsalDex - Herramienta para entrenadores</span>
+                    <span>Categorías de Edad: {Array.isArray(selectedExercise.edad) ? selectedExercise.edad.join(', ') : selectedExercise.edad}</span>
                 </div>
               </div>
             </>
@@ -464,5 +469,7 @@ export default function EjerciciosPage() {
     </Dialog>
   );
 }
+
+    
 
     
