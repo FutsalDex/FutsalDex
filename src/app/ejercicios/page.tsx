@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -65,6 +64,67 @@ interface FavoriteState {
   [exerciseId: string]: boolean;
 }
 
+const createGuestExercises = (): Ejercicio[] => {
+    const demoData: Omit<Ejercicio, 'id'>[] = [
+        {
+            ejercicio: "Rondo de Calentamiento 4 vs 1",
+            descripcion: "Un rondo clásico para iniciar la sesión, enfocado en la velocidad del pase y la movilidad. Los jugadores de fuera deben realizar pases a un toque, mientras el defensor presiona para recuperar.",
+            objetivos: "Mejorar la velocidad de circulación, la precisión en el pase y la reacción tras pérdida.",
+            espacio_materiales: "Un círculo de conos de 5 metros de diámetro, 1 balón.",
+            jugadores: "5 jugadores",
+            duracion: "10",
+            fase: "Inicial",
+            categoria: "Pase y control",
+            edad: ["Alevín (10-11 años)", "Infantil (12-13 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+            consejos_entrenador: "Insistir en la comunicación y el movimiento sin balón.",
+        },
+        {
+            ejercicio: "Finalización 2 vs 1 + Portero",
+            descripcion: "Dos atacantes parten desde el centro del campo contra un único defensor. Deben colaborar para superar al defensor y finalizar con un tiro a portería.",
+            objetivos: "Trabajar la toma de decisiones en superioridad numérica, los desmarques y la definición.",
+            espacio_materiales: "Media pista, 1 portería, varios balones.",
+            jugadores: "3 jugadores + 1 Portero",
+            duracion: "15",
+            fase: "Principal",
+            categoria: "Finalización",
+            edad: ["Cadete (14-15 años)", "Juvenil (16-18 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+            variantes: "Limitar el número de toques de los atacantes.",
+        },
+        {
+            ejercicio: "Juego de Posesión 3 vs 3 + Comodines",
+            descripcion: "Dos equipos de tres jugadores compiten por mantener la posesión en un espacio reducido. Se apoyan en dos comodines ofensivos que siempre juegan con el equipo que tiene el balón.",
+            objetivos: "Mejorar la conservación del balón bajo presión, la visión de juego y el apoyo constante.",
+            espacio_materiales: "Cuadrado de 20x20 metros, petos de dos colores, balones.",
+            jugadores: "8 jugadores",
+            duracion: "20",
+            fase: "Principal",
+            categoria: "Posesión y circulación del balón",
+            edad: ["Infantil (12-13 años)", "Cadete (14-15 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        {
+            ejercicio: "Estiramientos y Vuelta a la Calma",
+            descripcion: "Serie de estiramientos estáticos de los principales grupos musculares utilizados en el fútbol sala, combinados con una respiración profunda y controlada.",
+            objetivos: "Reducir la tensión muscular, mejorar la flexibilidad y facilitar la recuperación post-entrenamiento.",
+            espacio_materiales: "Ninguno.",
+            jugadores: "Todo el equipo",
+            duracion: "5",
+            fase: "Final",
+            categoria: "Calentamiento y activación",
+            edad: ["Benjamín (8-9 años)", "Alevín (10-11 años)", "Infantil (12-13 años)", "Cadete (14-15 años)", "Juvenil (16-18 años)", "Senior (+18 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+    ];
+    return demoData.map((ex, index) => ({...ex, id: `guest_ex_${index}`} as Ejercicio));
+};
+
+
 export default function EjerciciosPage() {
   const { user, isRegisteredUser, isAdmin, isSubscribed } = useAuth();
   const { toast } = useToast();
@@ -85,6 +145,13 @@ export default function EjerciciosPage() {
   useEffect(() => {
     const fetchAllExercises = async () => {
       setIsLoading(true);
+
+      if (!isRegisteredUser) {
+        setAllExercises(createGuestExercises());
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
         const qLimit = (isRegisteredUser && (isAdmin || isSubscribed)) ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
@@ -282,7 +349,7 @@ export default function EjerciciosPage() {
                 <Lock className="h-8 w-8 text-accent mr-4" />
                 <div>
                   <h3 className="text-lg font-semibold text-accent font-headline">Acceso Limitado</h3>
-                  <p className="text-sm text-accent/80">Estás viendo una vista previa ({GUEST_ITEM_LIMIT} ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.</p>
+                  <p className="text-sm text-accent/80">Estás viendo una vista previa de ejercicios de demostración. <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.</p>
                 </div>
               </div>
               <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
