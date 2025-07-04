@@ -258,7 +258,7 @@ export default function EjercicioDetallePage() {
           <img 
             src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
             alt="FutsalDex Logo" 
-            className="h-10 w-auto"
+            className="h-12 w-auto"
             crossOrigin="anonymous"
           />
         </div>
@@ -289,9 +289,9 @@ export default function EjercicioDetallePage() {
             </div>
             <div className="flex flex-col md:flex-row gap-4 items-start">
                 <div className="w-full md:w-1/2 flex-shrink-0">
-                    <div className="relative aspect-[4/3] w-full border border-gray-300 rounded overflow-hidden">
+                    <div className="relative aspect-video w-full border border-gray-300 rounded overflow-hidden">
                         <Image
-                            src={ejercicio.imagen || `https://placehold.co/400x300.png`}
+                            src={ejercicio.imagen || `https://placehold.co/600x400.png`}
                             alt={`Diagrama de ${ejercicio.ejercicio}`}
                             layout="fill"
                             objectFit="contain"
