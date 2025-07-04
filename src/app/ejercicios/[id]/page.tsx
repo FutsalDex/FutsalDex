@@ -39,37 +39,6 @@ interface FavoriteState {
   [exerciseId: string]: boolean;
 }
 
-const futsalDexIconSVGString = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M12 1.6a10.4 10.4 0 1 0 0 20.8 10.4 10.4 0 0 0 0-20.8z"/>
-  <path d="M12 1.6a10.4 10.4 0 0 0-7.35 3.05M12 1.6a10.4 10.4 0 0 1 7.35 3.05M1.6 12a10.4 10.4 0 0 0 3.05 7.35M1.6 12a10.4 10.4 0 0 1 3.05-7.35M22.4 12a10.4 10.4 0 0 0-3.05-7.35M22.4 12a10.4 10.4 0 0 1-3.05 7.35M12 22.4a10.4 10.4 0 0 0 7.35-3.05M12 22.4a10.4 10.4 0 0 1-7.35-3.05"/>
-  <path d="M5.75 5.75l3.5 3.5M14.75 5.75l-3.5 3.5M5.75 14.75l3.5-3.5M14.75 14.75l-3.5-3.5"/>
-</svg>`;
-
-const convertSvgStringToPngDataURL = (svgString: string, width: number, height: number): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-
-    img.onload = () => {
-      if (ctx) {
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/png'));
-      } else {
-        reject(new Error('Could not get canvas context'));
-      }
-    };
-    img.onerror = (err) => {
-      reject(err);
-    };
-    img.src = `data:image/svg+xml;base64,${btoa(svgString)}`;
-  });
-};
-
-
 export default function EjercicioDetallePage() {
   const params = useParams();
   const router = useRouter();
@@ -165,7 +134,7 @@ export default function EjercicioDetallePage() {
     }
   };
 
- const handlePrint = async () => {
+  const handlePrint = async () => {
     if (!isRegisteredUser) {
         toast({
             title: "Función para usuarios registrados",
@@ -186,75 +155,53 @@ export default function EjercicioDetallePage() {
     }
 
     setIsGeneratingPdf(true);
-    const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
-    const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
-    if (printButtonContainer) printButtonContainer.style.display = 'none';
+    
+    // Ocultar botones y elementos no deseados durante la captura
+    const elementsToHide = printArea.querySelectorAll('.hide-on-print');
+    elementsToHide.forEach(el => (el as HTMLElement).style.display = 'none');
 
     try {
       const canvas = await html2canvas(printArea, {
-        scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff',
-        onclone: (document) => {
-          const clonedPrintArea = document.querySelector('.exercise-print-area') as HTMLElement;
-          if (clonedPrintArea) {
-            const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container), td, th, a, button, label, [class*="text-"]');
-            textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
-            
-            const darkBgHeaders = clonedPrintArea.querySelectorAll('.dark-bg-header');
-            darkBgHeaders.forEach(el => { 
-                (el as HTMLElement).style.backgroundColor = '#374151 !important';
-                (el as HTMLElement).style.color = '#FFFFFF !important';
-            });
-            
-            clonedPrintArea.style.backgroundColor = '#ffffff !important';
-            const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
-            if (btnContainer) btnContainer.style.display = 'none';
-            document.body.style.backgroundColor = '#ffffff !important';
-          }
-        }
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
       });
-
+      
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      const PT_PER_CM = 28.346; const MARGIN_CM = 1; const HEADER_RESERVED_CM = 3; const LOGO_SIZE_CM = 1.5;
-      const margin = MARGIN_CM * PT_PER_CM; const headerReservedHeight = HEADER_RESERVED_CM * PT_PER_CM; const logoSize = LOGO_SIZE_CM * PT_PER_CM;
-      const pdfPageWidth = pdf.internal.pageSize.getWidth(); const pdfPageHeight = pdf.internal.pageSize.getHeight();
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4'
+      });
       
-      const logoPngDataUrl = await convertSvgStringToPngDataURL(futsalDexIconSVGString, 100, 100); 
-      pdf.addImage(logoPngDataUrl, 'PNG', margin, margin, logoSize, logoSize);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const ratio = canvasWidth / canvasHeight;
       
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(24);
-      const titleText = "Ficha de Ejercicio";
-      const titleTextWidth = pdf.getStringUnitWidth(titleText) * pdf.getFontSize() / pdf.internal.scaleFactor;
-      pdf.text(titleText, pdfPageWidth - margin - titleTextWidth, margin + logoSize / 1.5, { align: 'left' });
-
-      const contentStartY = margin + headerReservedHeight;
-      const contentPrintableWidth = pdfPageWidth - (margin * 2);
-      const contentPrintableHeight = pdfPageHeight - margin - contentStartY;
-
-      const img = new window.Image();
-      img.onload = () => {
-        const originalImgWidth = img.width; const originalImgHeight = img.height;
-        const scaleFactor = contentPrintableWidth / originalImgWidth;
-        const pdfImageWidth = contentPrintableWidth;
-        const pdfImageHeight = originalImgHeight * scaleFactor;
-        
-        pdf.addImage(imgData, 'PNG', margin, contentStartY, pdfImageWidth, pdfImageHeight);
-        pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
-
-        if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
-        setIsGeneratingPdf(false);
-      };
-      img.src = imgData;
+      const pdfImageWidth = pdfWidth;
+      const pdfImageHeight = pdfImageWidth / ratio;
+      
+      // Si la imagen es más alta que la página, la escalamos para que quepa
+      if (pdfImageHeight > pdfHeight) {
+        // En este caso, no es probable para una ficha, pero es buena práctica tenerlo
+      }
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfImageWidth, pdfImageHeight);
+      pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
 
     } catch (error: any) {
       console.error("Error generating PDF:", error);
       toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
-      if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
+    } finally {
+      // Volver a mostrar los elementos ocultos
+      elementsToHide.forEach(el => (el as HTMLElement).style.display = '');
       setIsGeneratingPdf(false);
     }
   };
-
+  
   const formatDuracion = (duracion: string | undefined) => duracion ? `${duracion} min` : 'N/A';
 
   if (isLoading) {
@@ -289,7 +236,7 @@ export default function EjercicioDetallePage() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex justify-between items-center hide-on-print">
         <Button variant="outline" onClick={() => router.push('/ejercicios')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver a Ejercicios
@@ -307,79 +254,81 @@ export default function EjercicioDetallePage() {
         )}
       </div>
 
-      <div className="exercise-print-area bg-white text-gray-800 shadow-lg m-0 rounded-md border border-gray-700">
-        <div className="dark-bg-header px-3 py-2 border-b bg-gray-800 text-white rounded-t-md">
-            <div className="flex items-center">
-                <div className="w-1/3 text-xs text-gray-300">
-                    <p>CATEGORÍA: {ejercicio.categoria}</p>
-                </div>
-                <div className="w-1/3 text-center">
-                    <h2 className="text-lg font-bold uppercase text-white mb-1">FICHA DE EJERCICIO</h2>
-                </div>
-                <div className="w-1/3 text-xs text-gray-300 text-right">
-                    <p>Nº EJERCICIO: {ejercicio.numero || 'N/A'}</p>
-                </div>
-            </div>
+      <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
+        
+        {/* Top Header */}
+        <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center rounded-t-md">
+            <span className="text-xs">CATEGORÍA: {ejercicio.categoria}</span>
+            <h2 className="text-lg font-bold">FICHA DE EJERCICIO</h2>
+            <span className="text-xs">Nº EJERCICIO: {ejercicio.numero || 'N/A'}</span>
         </div>
 
-        <div className="p-3 border-b border-gray-300">
-            <div className="dark-bg-header flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-2 rounded">
-                <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
+        {/* Objetivos Section */}
+        <div className="p-4 border-b border-gray-300">
+            <div className="bg-[#2D3748] text-white px-3 py-1 mb-3 rounded">
+                <h3 className="font-semibold uppercase">OBJETIVOS</h3>
             </div>
             {objetivosList.length > 0 ? (
-                <ul className="list-disc pl-5 space-y-1 text-md text-gray-700 grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                <ul className="text-sm grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
                 {objetivosList.map((obj, index) => (
-                    <li key={index}>{obj}{obj.endsWith('.') || obj.endsWith(';') ? '' : '.'}</li>
+                    <li key={index} className="before:content-['•'] before:mr-2">{obj}</li>
                 ))}
                 </ul>
-            ) : <p className="text-md text-gray-600">No especificados.</p>}
+            ) : <p className="text-sm text-gray-600">No especificados.</p>}
         </div>
 
-        <div className="p-3 border-b border-gray-300">
-            <div className="dark-bg-header flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-2 rounded">
-                <h3 className="font-semibold text-lg uppercase">{ejercicio.ejercicio}</h3>
-                <span className="text-sm">{formatDuracion(ejercicio.duracion)}</span>
+        {/* Ejercicio Section */}
+        <div className="p-4 border-b border-gray-300">
+            <div className="bg-[#2D3748] text-white px-3 py-1 mb-3 flex justify-between items-center rounded">
+                <h3 className="font-semibold uppercase truncate pr-4">{ejercicio.ejercicio}</h3>
+                <span className="text-sm bg-white text-gray-800 font-bold px-2 py-0.5 rounded-sm shrink-0">{formatDuracion(ejercicio.duracion)}</span>
             </div>
-            <div className="flex flex-col md:flex-row gap-4 items-start mt-2">
-                <div className="md:w-1/3 flex-shrink-0">
-                    <Image
-                        src={ejercicio.imagen || `https://placehold.co/600x400.png`}
-                        alt={ejercicio.ejercicio}
-                        width={300}
-                        height={200}
-                        className="rounded border border-gray-400 object-contain w-full aspect-[3/2]"
-                        data-ai-hint="futsal game"
-                    />
+            <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="w-full md:w-1/2 flex-shrink-0">
+                    <div className="relative aspect-[4/3] w-full border border-gray-300 rounded overflow-hidden">
+                        <Image
+                            src={ejercicio.imagen || `https://placehold.co/400x300.png`}
+                            alt={`Diagrama de ${ejercicio.ejercicio}`}
+                            layout="fill"
+                            objectFit="contain"
+                            className="bg-gray-100"
+                            data-ai-hint="futsal court"
+                        />
+                    </div>
                 </div>
-                <div className="flex-1">
-                    <p className="text-md text-gray-700">{ejercicio.descripcion}</p>
+                <div className="w-full md:w-1/2">
+                    <p className="text-sm text-gray-700">{ejercicio.descripcion}</p>
                 </div>
             </div>
         </div>
-        
-        <div className="p-3 border-b border-gray-300 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-md">
+
+        {/* Info Grid Section */}
+        <div className="p-4 border-b border-gray-300 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <p><strong className="font-semibold text-gray-900">Fase:</strong> {ejercicio.fase}</p>
             <p><strong className="font-semibold text-gray-900">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</p>
             <p><strong className="font-semibold text-gray-900">Nº Jugadores:</strong> {ejercicio.jugadores}</p>
             <p><strong className="font-semibold text-gray-900">Materiales y Espacio:</strong> {ejercicio.espacio_materiales}</p>
         </div>
 
+        {/* Variantes */}
         {ejercicio.variantes && (
-        <div className="p-3 border-b border-gray-300">
-          <h3 className="font-semibold text-lg mb-1 text-gray-900">Variantes</h3>
-          <p className="text-md text-gray-700">{ejercicio.variantes}</p>
+        <div className="p-4 border-b border-gray-300">
+          <h3 className="font-semibold text-md mb-1 text-gray-900">Variantes</h3>
+          <p className="text-sm text-gray-700">{ejercicio.variantes}</p>
         </div>
         )}
 
+        {/* Consejos del Entrenador */}
         {ejercicio.consejos_entrenador && (
-        <div className="p-3">
-          <h3 className="font-semibold text-lg mb-1 text-gray-900">Consejos del Entrenador</h3>
-          <p className="text-md text-gray-700">{ejercicio.consejos_entrenador}</p>
+        <div className="p-4">
+          <h3 className="font-semibold text-md mb-1 text-gray-900">Consejos del Entrenador</h3>
+          <p className="text-sm text-gray-700">{ejercicio.consejos_entrenador}</p>
         </div>
         )}
         
-        <div className="print-button-container p-3 mt-3 text-center border-t border-gray-300">
-            <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isGeneratingPdf}>
+        {/* PDF Button */}
+        <div className="hide-on-print p-4 mt-2 text-center border-t border-gray-300">
+            <Button onClick={handlePrint} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isGeneratingPdf ? 'Generando PDF...' : 'Guardar Ficha en PDF'}
             </Button>
