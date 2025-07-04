@@ -1,3 +1,4 @@
+
 // src/app/ejercicios/[id]/page.tsx
 "use client";
 
@@ -268,13 +269,12 @@ export default function EjercicioDetallePage() {
             <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
-                        <div className="w-full bg-muted rounded-lg overflow-hidden border">
+                        <div className="relative w-full aspect-[4/3] bg-muted rounded-lg overflow-hidden border">
                            <Image
                                 src={ejercicio.imagen || `https://placehold.co/600x400.png`}
                                 alt={`Diagrama de ${ejercicio.ejercicio}`}
-                                width={600}
-                                height={400}
-                                className="object-contain w-full h-auto"
+                                fill
+                                className="object-contain"
                                 sizes="(max-width: 768px) 90vw, (max-width: 1200px) 40vw, 33vw"
                                 data-ai-hint="futsal court"
                                 crossOrigin="anonymous"
