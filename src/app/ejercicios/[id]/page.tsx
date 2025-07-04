@@ -255,8 +255,13 @@ export default function EjercicioDetallePage() {
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
         <div className="px-4 py-2 flex justify-between items-center border-b border-gray-300">
             <h1 className="text-2xl font-bold font-headline text-primary">FutsalDex</h1>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="https://i.ibb.co/RTck7Qzq/futsal-logo.png" alt="FutsalDex Logo" className="h-10 w-auto" />
+            <Image 
+              src="https://i.ibb.co/RTck7Qzq/futsal-logo.png" 
+              alt="FutsalDex Logo" 
+              width={70}
+              height={40}
+              className="h-10 w-auto"
+            />
         </div>
         
         <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center">
