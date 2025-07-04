@@ -43,9 +43,10 @@ export default function Header() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center">
           <img 
-            src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
+            src="https://i.ibb.co/Wc1P0Cq/logo-futsaldex-icono.png" 
             alt="FutsalDex Logo" 
             className="h-9 w-auto"
+            crossOrigin="anonymous"
           />
         </Link>
         <nav className="hidden items-center space-x-1 md:flex">
