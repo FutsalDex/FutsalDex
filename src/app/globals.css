@@ -5,86 +5,57 @@
 
 @layer base {
   :root {
-    --background: 6 70% 97%; /* Very light, warm pinkish-white */
-    --foreground: 6 15% 30%; /* Dark, warm red-brown for text */
+    --background: 200 71% 89%; /* #D0EBF7 */
+    --foreground: 210 30% 20%; /* Dark Blue */
 
-    --card: 6 70% 99%; /* Almost white card background */
-    --card-foreground: 6 15% 30%;
+    --card: 0 0% 100%; /* White cards for better readability on light blue bg */
+    --card-foreground: 210 30% 20%;
 
-    --popover: 6 70% 99%;
-    --popover-foreground: 6 15% 30%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 30% 20%;
 
-    --primary: 4 80% 65%; /* The salmon-red from the image */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 197 78% 52%; /* #29ABE2 */
+    --primary-foreground: 0 0% 100%; /* White text on primary blue */
 
-    --secondary: 4 75% 90%; /* A lighter, muted salmon */
-    --secondary-foreground: 4 70% 30%; /* Darker salmon for text on secondary */
+    --secondary: 197 70% 80%; /* Lighter blue for secondary elements */
+    --secondary-foreground: 210 30% 20%;
 
-    --muted: 6 70% 95%; /* Slightly darker background color */
-    --muted-foreground: 6 25% 55%; /* Muted warm gray text color */
+    --muted: 200 60% 85%;
+    --muted-foreground: 210 25% 45%;
 
-    --accent: 4 80% 65%; /* Same as primary for consistency */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 27 78% 52%; /* #E28729 */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 4 70% 85%; /* Warm light border, a bit desaturated */
-    --input: 4 70% 92%; /* Warm light input background */
-    --ring: 4 80% 65%; /* Accent color for focus rings */
+    --border: 197 60% 80%;
+    --input: 0 0% 100%;
+    --ring: 197 78% 52%;
 
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-
-    /* Sidebar variables can be adjusted if a complex sidebar is used */
-    --sidebar-background: 6 70% 97%;
-    --sidebar-foreground: 6 15% 30%;
-    --sidebar-primary: 4 80% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 6 70% 92%;
-    --sidebar-accent-foreground: 6 15% 30%;
-    --sidebar-border: 4 70% 85%;
-    --sidebar-ring: 4 80% 65%;
   }
 
   .dark {
-    /* A dark version of the new theme */
-    --background: 6 10% 10%;
-    --foreground: 6 20% 90%;
-    --card: 6 10% 12%;
-    --card-foreground: 6 20% 90%;
-    --popover: 6 10% 10%;
-    --popover-foreground: 6 20% 90%;
-    --primary: 4 70% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 6 10% 20%;
-    --secondary-foreground: 6 20% 90%;
-    --muted: 6 10% 17%;
-    --muted-foreground: 6 15% 60%;
-    --accent: 4 80% 65%;
+    --background: 210 30% 15%;
+    --foreground: 200 71% 90%;
+    --card: 210 30% 20%;
+    --card-foreground: 200 71% 90%;
+    --popover: 210 30% 20%;
+    --popover-foreground: 200 71% 90%;
+    --primary: 197 78% 52%;
+    --primary-foreground: 210 30% 15%;
+    --secondary: 197 70% 30%;
+    --secondary-foreground: 200 71% 90%;
+    --muted: 210 30% 25%;
+    --muted-foreground: 200 71% 70%;
+    --accent: 27 78% 52%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 6 10% 25%;
-    --input: 6 10% 25%;
-    --ring: 4 80% 65%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 6 10% 10%;
-    --sidebar-foreground: 6 20% 90%;
-    --sidebar-primary: 4 70% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 6 10% 15%;
-    --sidebar-accent-foreground: 6 20% 90%;
-    --sidebar-border: 6 10% 25%;
-    --sidebar-ring: 4 80% 65%;
+    --border: 197 70% 30%;
+    --input: 210 30% 25%;
+    --ring: 197 78% 52%;
   }
 }
 

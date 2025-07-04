@@ -42,16 +42,8 @@ export default function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-        <Link href="/" className="flex items-center">
-          <div className="relative w-9 h-9">
-            <Image
-              src="https://i.ibb.co/SDSKthc/logo-futsaldex-solo.png"
-              alt="FutsalDex Logo"
-              fill
-              className="object-contain"
-              sizes="36px"
-            />
-          </div>
+        <Link href="/" className="flex items-center text-2xl font-bold font-headline tracking-tight">
+          FutsalDex
         </Link>
         <nav className="hidden items-center space-x-1 md:flex">
           {navLinks.map((link) => (
@@ -59,7 +51,7 @@ export default function Header() {
               key={link.href}
               variant={pathname === link.href ? 'secondary' : 'ghost'}
               asChild
-              className={pathname === link.href ? 'text-primary-foreground bg-primary/80 hover:bg-primary/70' : 'hover:bg-primary/80'}
+              className={pathname === link.href ? 'text-secondary-foreground bg-secondary hover:bg-secondary/90' : 'hover:bg-primary/80'}
             >
               <Link href={link.href}>
                 <span className="flex items-center">
@@ -74,7 +66,7 @@ export default function Header() {
               key={link.href}
               variant={pathname.startsWith(link.href) ? 'secondary' : 'ghost'}
               asChild
-              className={pathname.startsWith(link.href) ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'hover:bg-primary/80 text-red-300'}
+              className={pathname.startsWith(link.href) ? 'text-destructive-foreground bg-destructive hover:bg-destructive/90' : 'hover:bg-primary/80 text-destructive'}
             >
               <Link href={link.href}>
                 <span className="flex items-center">
