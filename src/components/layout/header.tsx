@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -43,9 +44,9 @@ export default function Header() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center">
           <img 
-            src="https://i.ibb.co/Wc1P0Cq/logo-futsaldex-icono.png" 
+            src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
             alt="FutsalDex Logo" 
-            className="h-9 w-auto"
+            className="h-12 w-auto"
             crossOrigin="anonymous"
           />
         </Link>
