@@ -1,4 +1,3 @@
-
 // src/app/ejercicios/[id]/page.tsx
 "use client";
 
