@@ -3,16 +3,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { ArrowRight, Lock, BookOpen, Users, Bot } from "lucide-react";
+import Image from "next/image";
 
 export default function HomePage() {
   return (
     <div className="container mx-auto px-4 py-12 md:px-6 md:py-16 lg:py-24">
       <div className="flex flex-col items-center text-center">
-        <div className="w-80 mb-6">
-          <img 
+        <div className="relative w-80 h-20 mb-6">
+          <Image 
             src="https://i.ibb.co/ZpM87Qz/logo-futsaldex-completo.png" 
             alt="FutsalDex Logo" 
-            className="w-full h-auto"
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 320px"
           />
         </div>
         <h1 className="mb-4 text-4xl font-bold tracking-tight text-primary md:text-5xl lg:text-6xl font-headline">
