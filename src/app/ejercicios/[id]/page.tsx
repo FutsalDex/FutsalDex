@@ -259,47 +259,51 @@ export default function EjercicioDetallePage() {
 
       <div className="exercise-print-area max-w-4xl mx-auto">
         <Card className="shadow-lg border-muted">
-            <CardHeader className="bg-foreground text-background flex flex-row items-center justify-between rounded-t-lg p-4">
-                <CardTitle className="text-2xl font-headline">{ejercicio.ejercicio}</CardTitle>
-                <Badge variant="secondary" className="text-lg">{formatDuracion(ejercicio.duracion)}</Badge>
+            <CardHeader className="bg-foreground text-primary-foreground p-4 rounded-t-lg">
+                <CardTitle className="text-2xl font-headline flex justify-between items-center">
+                    <span>{ejercicio.ejercicio}</span>
+                    <Badge variant="secondary" className="text-lg">{formatDuracion(ejercicio.duracion)}</Badge>
+                </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                    <div className="relative w-full aspect-video rounded-lg overflow-hidden border">
-                       <Image
-                            src={ejercicio.imagen || `https://placehold.co/600x400.png`}
-                            alt={`Diagrama de ${ejercicio.ejercicio}`}
-                            fill
-                            className="object-contain bg-muted"
-                            sizes="(max-width: 768px) 90vw, 40vw"
-                            data-ai-hint="futsal court"
-                            crossOrigin="anonymous"
-                        />
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-lg text-primary mb-2">Consejos del Entrenador</h3>
-                        <p className="text-sm text-foreground/80">{ejercicio.consejos_entrenador || 'No hay consejos específicos para este ejercicio.'}</p>
-                    </div>
-                </div>
-
-                <div className="space-y-6">
-                    <div>
-                        <h3 className="font-semibold text-lg text-primary mb-2">Descripción</h3>
-                        <p className="text-sm text-foreground/80">{ejercicio.descripcion}</p>
+            <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        <div className="w-full bg-muted rounded-lg overflow-hidden border">
+                           <Image
+                                src={ejercicio.imagen || `https://placehold.co/600x400.png`}
+                                alt={`Diagrama de ${ejercicio.ejercicio}`}
+                                width={600}
+                                height={400}
+                                className="object-contain w-full h-auto"
+                                sizes="(max-width: 768px) 90vw, (max-width: 1200px) 40vw, 33vw"
+                                data-ai-hint="futsal court"
+                                crossOrigin="anonymous"
+                                priority
+                            />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-lg text-primary mb-2">Consejos del Entrenador</h3>
+                            <p className="text-sm text-foreground/80">{ejercicio.consejos_entrenador || 'No hay consejos específicos para este ejercicio.'}</p>
+                        </div>
                     </div>
 
-                    <div>
-                        <h3 className="font-semibold text-lg text-primary mb-2">Objetivos</h3>
-                        <ul className="list-disc list-inside text-sm text-foreground/80 space-y-1">
-                            {objetivosList.map((obj, index) => (
-                                <li key={index}>{obj}</li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h3 className="font-semibold text-lg text-primary mb-2">Variantes</h3>
-                        <p className="text-sm text-foreground/80">{ejercicio.variantes || 'No se especifican variantes.'}</p>
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="font-semibold text-lg text-primary mb-2">Descripción</h3>
+                            <p className="text-sm text-foreground/80">{ejercicio.descripcion}</p>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-lg text-primary mb-2">Objetivos</h3>
+                            <ul className="list-disc list-inside text-sm text-foreground/80 space-y-1">
+                                {objetivosList.map((obj, index) => (
+                                    <li key={index}>{obj}</li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-lg text-primary mb-2">Variantes</h3>
+                            <p className="text-sm text-foreground/80">{ejercicio.variantes || 'No se especifican variantes.'}</p>
+                        </div>
                     </div>
                 </div>
             </CardContent>
