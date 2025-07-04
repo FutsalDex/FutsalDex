@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -250,13 +251,12 @@ function FavoritosPageContent() {
                     {/* Left Column */}
                     <div className="space-y-4">
                         {/* Image */}
-                        <div className="bg-white/10 rounded-md overflow-hidden border border-white/20">
+                        <div className="bg-white/10 rounded-md overflow-hidden border border-white/20 aspect-video relative">
                             <Image
                                 src={selectedExercise.imagen || `https://placehold.co/400x300.png`}
                                 alt={`Diagrama de ${selectedExercise.ejercicio}`}
-                                width={400}
-                                height={300}
-                                className="w-full h-auto object-contain bg-white"
+                                fill
+                                className="object-contain bg-white"
                                 data-ai-hint="futsal diagram"
                               />
                         </div>
@@ -325,3 +325,5 @@ export default function FavoritosPage() {
     </div>
   );
 }
+
+    
