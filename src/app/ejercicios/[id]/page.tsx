@@ -179,17 +179,16 @@ export default function EjercicioDetallePage() {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
       
-      // Calculate scale factors to fit image within the PDF page without distortion
       const widthScale = pdfWidth / canvasWidth;
       const heightScale = pdfHeight / canvasHeight;
-      const scale = Math.min(widthScale, heightScale); // Use the smaller scale to fit both dimensions
+      const scale = Math.min(widthScale, heightScale); 
       
-      // Calculate final dimensions and position
       const finalWidth = canvasWidth * scale;
       const finalHeight = canvasHeight * scale;
-      const xOffset = (pdfWidth - finalWidth) / 2; // Center horizontally
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = (pdfHeight - finalHeight) / 2;
       
-      pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, finalHeight); // Align to top
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset > 0 ? yOffset : 0, finalWidth, finalHeight);
       pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
 
     } catch (error: any) {
@@ -254,8 +253,13 @@ export default function EjercicioDetallePage() {
       </div>
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
+        <div className="px-4 py-2 flex justify-between items-center border-b border-gray-300">
+            <h1 className="text-2xl font-bold font-headline text-primary">FutsalDex</h1>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="https://i.ibb.co/RTck7Qzq/futsal-logo.png" alt="FutsalDex Logo" className="h-10 w-auto" />
+        </div>
         
-        <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center rounded-t-md">
+        <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center">
             <span className="text-xs">CATEGORÍA: {ejercicio.categoria}</span>
             <h2 className="text-lg font-bold">FICHA DE EJERCICIO</h2>
             <span className="text-xs">Nº EJERCICIO: {ejercicio.numero || 'N/A'}</span>
