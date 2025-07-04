@@ -20,9 +20,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect, useCallback } from "react";
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
+import { updateExercise } from "@/ai/flows/admin-exercise-flow";
 
 function EditExercisePageContent() {
   const { isAdmin } = useAuth();
@@ -116,16 +117,8 @@ function EditExercisePageContent() {
     if (!exerciseId) return;
     setIsLoading(true);
     try {
-      const docRef = doc(db, "ejercicios_futsal", exerciseId);
-      await updateDoc(docRef, {
-        ...data,
-        numero: data.numero || null,
-        variantes: data.variantes || null,
-        consejos_entrenador: data.consejos_entrenador || null,
-        imagen: data.imagen || `https://placehold.co/400x300.png?text=${encodeURIComponent(data.ejercicio)}`,
-        isVisible: data.isVisible === undefined ? true : data.isVisible,
-        updatedAt: serverTimestamp(),
-      });
+      // Call the server-side flow instead of updateDoc
+      await updateExercise({ id: exerciseId, ...data });
       toast({
         title: "Ejercicio Actualizado",
         description: `El ejercicio "${data.ejercicio}" ha sido actualizado.`,
