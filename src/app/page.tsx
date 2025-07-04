@@ -12,7 +12,6 @@ export default function HomePage() {
             src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
             alt="FutsalDex Logo" 
             className="h-20 w-auto mb-6"
-            crossOrigin="anonymous"
           />
         <h1 className="mb-4 text-4xl font-bold tracking-tight text-primary md:text-5xl lg:text-6xl font-headline">
           ¡Bienvenido a FutsalDex!

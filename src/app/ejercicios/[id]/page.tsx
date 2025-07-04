@@ -1,9 +1,9 @@
+
 // src/app/ejercicios/[id]/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, serverTimestamp } from 'firebase/firestore';
@@ -254,11 +254,11 @@ export default function EjercicioDetallePage() {
       </div>
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
-        <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300">
+        <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300 h-20">
           <img 
             src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
             alt="FutsalDex Logo" 
-            className="h-12 w-auto"
+            className="h-16 w-auto"
             crossOrigin="anonymous"
           />
         </div>
@@ -290,13 +290,12 @@ export default function EjercicioDetallePage() {
             <div className="flex flex-col md:flex-row gap-4 items-start">
                 <div className="w-full md:w-1/2 flex-shrink-0">
                     <div className="relative aspect-video w-full border border-gray-300 rounded overflow-hidden">
-                        <Image
+                        <img
                             src={ejercicio.imagen || `https://placehold.co/600x400.png`}
                             alt={`Diagrama de ${ejercicio.ejercicio}`}
-                            layout="fill"
-                            objectFit="contain"
-                            className="bg-gray-100"
+                            className="bg-gray-100 object-contain w-full h-full"
                             data-ai-hint="futsal court"
+                            crossOrigin="anonymous"
                         />
                     </div>
                 </div>
