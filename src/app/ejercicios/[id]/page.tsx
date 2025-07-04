@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import Image from 'next/image';
 
 interface Ejercicio {
   id: string;
@@ -180,16 +181,22 @@ export default function EjercicioDetallePage() {
       const canvasHeight = canvas.height;
       
       const widthScale = pdfWidth / canvasWidth;
-      const heightScale = pdfHeight / canvasHeight;
-      const scale = Math.min(widthScale, heightScale, 1);
       
-      const finalWidth = canvasWidth * scale;
-      const finalHeight = canvasHeight * scale;
-
-      const xOffset = (pdfWidth - finalWidth) / 2;
-      const yOffset = (pdfHeight - finalHeight) > 0 ? (pdfHeight - finalHeight) / 2 : 0;
+      // Calculate height based on maintaining aspect ratio from width
+      const scaledHeight = canvasHeight * widthScale;
       
-      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+      // If the scaled height is still too large for the PDF page,
+      // then we must scale based on height instead.
+      if (scaledHeight > pdfHeight) {
+          const heightScale = pdfHeight / canvasHeight;
+          const scaledWidth = canvasWidth * heightScale;
+          const xOffset = (pdfWidth - scaledWidth) / 2;
+          pdf.addImage(imgData, 'PNG', xOffset, 0, scaledWidth, pdfHeight);
+      } else {
+          const yOffset = (pdfHeight - scaledHeight) / 2;
+          pdf.addImage(imgData, 'PNG', 0, yOffset, pdfWidth, scaledHeight);
+      }
+      
       pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
 
     } catch (error: any) {
@@ -254,11 +261,11 @@ export default function EjercicioDetallePage() {
       </div>
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
-        <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300 h-20">
+        <div className="px-4 py-2 flex justify-start items-center border-b border-gray-300">
           <img 
             src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
             alt="FutsalDex Logo" 
-            className="h-16 w-auto"
+            className="h-14 w-auto"
             crossOrigin="anonymous"
           />
         </div>
@@ -289,7 +296,7 @@ export default function EjercicioDetallePage() {
             </div>
             <div className="flex flex-col md:flex-row gap-4 items-start">
                 <div className="w-full md:w-1/2 flex-shrink-0">
-                    <div className="relative aspect-video w-full border border-gray-300 rounded overflow-hidden">
+                    <div className="relative aspect-auto w-full border border-gray-300 rounded overflow-hidden">
                         <img
                             src={ejercicio.imagen || `https://placehold.co/600x400.png`}
                             alt={`Diagrama de ${ejercicio.ejercicio}`}

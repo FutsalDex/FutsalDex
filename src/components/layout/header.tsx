@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 
 export default function Header() {
@@ -46,7 +47,7 @@ export default function Header() {
           <img 
             src="https://i.ibb.co/GfbvT6cq/logo-futsaldex-solo.png" 
             alt="FutsalDex Logo" 
-            className="h-12 w-auto"
+            className="h-10 w-auto"
           />
         </Link>
         <nav className="hidden items-center space-x-1 md:flex">
