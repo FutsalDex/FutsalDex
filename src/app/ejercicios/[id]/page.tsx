@@ -1,4 +1,3 @@
-
 // src/app/ejercicios/[id]/page.tsx
 "use client";
 
@@ -180,19 +179,22 @@ export default function EjercicioDetallePage() {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
       
+      // Calculate scale to fit width
       const widthScale = pdfWidth / canvasWidth;
       
       // Calculate height based on maintaining aspect ratio from width
       const scaledHeight = canvasHeight * widthScale;
       
       // If the scaled height is still too large for the PDF page,
-      // then we must scale based on height instead.
+      // then we must scale based on height instead to ensure it fits.
       if (scaledHeight > pdfHeight) {
           const heightScale = pdfHeight / canvasHeight;
           const scaledWidth = canvasWidth * heightScale;
+          // Center horizontally
           const xOffset = (pdfWidth - scaledWidth) / 2;
           pdf.addImage(imgData, 'PNG', xOffset, 0, scaledWidth, pdfHeight);
       } else {
+          // Center vertically
           const yOffset = (pdfHeight - scaledHeight) / 2;
           pdf.addImage(imgData, 'PNG', 0, yOffset, pdfWidth, scaledHeight);
       }
@@ -261,11 +263,11 @@ export default function EjercicioDetallePage() {
       </div>
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
-        <div className="px-4 py-2 flex justify-start items-center border-b border-gray-300">
-          <img 
-            src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
-            alt="FutsalDex Logo" 
-            className="h-14 w-auto"
+        <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300">
+          <img
+            src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png"
+            alt="FutsalDex Logo"
+            className="h-16 w-auto"
             crossOrigin="anonymous"
           />
         </div>
@@ -296,7 +298,7 @@ export default function EjercicioDetallePage() {
             </div>
             <div className="flex flex-col md:flex-row gap-4 items-start">
                 <div className="w-full md:w-1/2 flex-shrink-0">
-                    <div className="relative aspect-auto w-full border border-gray-300 rounded overflow-hidden">
+                    <div className="relative aspect-[4/3] w-full border border-gray-300 rounded overflow-hidden">
                         <img
                             src={ejercicio.imagen || `https://placehold.co/600x400.png`}
                             alt={`Diagrama de ${ejercicio.ejercicio}`}
