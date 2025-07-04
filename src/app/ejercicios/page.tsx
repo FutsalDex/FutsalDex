@@ -348,13 +348,6 @@ export default function EjerciciosPage() {
                 <CardContent className="flex-grow">
                   <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
                 </CardContent>
-                <CardFooter>
-                  <Button asChild variant="outline" className="w-full">
-                    <Link href={`/ejercicios/${ej.id}`}>
-                      <ArrowRight className="mr-2 h-4 w-4" /> Ver Detalles
-                    </Link>
-                  </Button>
-                </CardFooter>
               </Card>
             ))}
           </div>

@@ -211,60 +211,6 @@ function FavoritosPageContent() {
           <CardContent className="flex-grow">
             <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
           </CardContent>
-          <CardFooter>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  <Eye className="mr-2 h-4 w-4" /> Ver Detalles
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <div className="flex justify-between items-start">
-                        <DialogTitle className="text-2xl text-primary font-headline">{ej.ejercicio}</DialogTitle>
-                        {ej.categoria && <Badge variant="default" className="ml-2 shrink-0 text-sm py-1 px-2">{ej.categoria}</Badge>}
-                    </div>
-                      <div className="text-sm text-muted-foreground pt-1">
-                      <p><strong className="font-semibold text-foreground/90">Fase:</strong> {ej.fase}</p>
-                      <p><strong className="font-semibold text-foreground/90">Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</p>
-                      <p><strong className="font-semibold text-foreground/90">Duración:</strong> {formatDuracion(ej.duracion)}</p>
-                    </div>
-                  </DialogHeader>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                    <div className="relative aspect-video">
-                        <Image src={ej.imagen || `https://placehold.co/600x400.png`} alt={ej.ejercicio} layout="fill" objectFit="contain" className="rounded-md" data-ai-hint="futsal game"/>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg mb-1">Descripción</h3>
-                      <p className="text-sm mb-3">{ej.descripcion}</p>
-                      
-                      <div>
-                        <h3 className="font-semibold text-lg mb-1">Objetivos</h3>
-                        {ej.objetivos && ej.objetivos.length > 0 ? (
-                            <ul className="list-disc pl-5 space-y-1 text-sm mb-3">
-                            {ej.objetivos.split(/[.;]+/) 
-                                .map(obj => obj.trim())
-                                .filter(obj => obj.length > 0)
-                                .map((obj, index) => (
-                                <li key={index}>{obj}{obj.endsWith('.') || obj.endsWith(';') ? '' : '.'}</li>
-                            ))}
-                            </ul>
-                        ) : (
-                          <p className="text-sm mb-3 text-muted-foreground">No especificados.</p>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
-                  <div className="mt-4 space-y-3 text-sm">
-                    <p><strong className="font-semibold">Materiales y Espacio:</strong> {ej.espacio_materiales}</p>
-                    <p><strong className="font-semibold">Nº Jugadores:</strong> {ej.jugadores}</p>
-                    <p><strong className="font-semibold">Variantes:</strong> {ej.variantes || 'No especificadas.'}</p>
-                    <p><strong className="font-semibold">Consejos del Entrenador:</strong> {ej.consejos_entrenador || 'No disponibles.'}</p>
-                  </div>
-              </DialogContent>
-            </Dialog>
-          </CardFooter>
         </Card>
       ))}
     </div>
