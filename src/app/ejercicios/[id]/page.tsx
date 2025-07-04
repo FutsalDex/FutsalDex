@@ -1,4 +1,3 @@
-
 // src/app/ejercicios/[id]/page.tsx
 "use client";
 
@@ -156,7 +155,6 @@ export default function EjercicioDetallePage() {
 
     setIsGeneratingPdf(true);
     
-    // Ocultar botones y elementos no deseados durante la captura
     const elementsToHide = printArea.querySelectorAll('.hide-on-print');
     elementsToHide.forEach(el => (el as HTMLElement).style.display = 'none');
 
@@ -177,26 +175,27 @@ export default function EjercicioDetallePage() {
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
+      
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      const ratio = canvasWidth / canvasHeight;
       
-      const pdfImageWidth = pdfWidth;
-      const pdfImageHeight = pdfImageWidth / ratio;
+      // Calculate scale factors to fit image within the PDF page without distortion
+      const widthScale = pdfWidth / canvasWidth;
+      const heightScale = pdfHeight / canvasHeight;
+      const scale = Math.min(widthScale, heightScale); // Use the smaller scale to fit both dimensions
       
-      // Si la imagen es más alta que la página, la escalamos para que quepa
-      if (pdfImageHeight > pdfHeight) {
-        // En este caso, no es probable para una ficha, pero es buena práctica tenerlo
-      }
+      // Calculate final dimensions and position
+      const finalWidth = canvasWidth * scale;
+      const finalHeight = canvasHeight * scale;
+      const xOffset = (pdfWidth - finalWidth) / 2; // Center horizontally
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfImageWidth, pdfImageHeight);
+      pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, finalHeight); // Align to top
       pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
 
     } catch (error: any) {
       console.error("Error generating PDF:", error);
       toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
     } finally {
-      // Volver a mostrar los elementos ocultos
       elementsToHide.forEach(el => (el as HTMLElement).style.display = '');
       setIsGeneratingPdf(false);
     }
@@ -256,14 +255,12 @@ export default function EjercicioDetallePage() {
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
         
-        {/* Top Header */}
         <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center rounded-t-md">
             <span className="text-xs">CATEGORÍA: {ejercicio.categoria}</span>
             <h2 className="text-lg font-bold">FICHA DE EJERCICIO</h2>
             <span className="text-xs">Nº EJERCICIO: {ejercicio.numero || 'N/A'}</span>
         </div>
 
-        {/* Objetivos Section */}
         <div className="p-4 border-b border-gray-300">
             <div className="bg-[#2D3748] text-white px-3 py-1 mb-3 rounded">
                 <h3 className="font-semibold uppercase">OBJETIVOS</h3>
@@ -277,7 +274,6 @@ export default function EjercicioDetallePage() {
             ) : <p className="text-sm text-gray-600">No especificados.</p>}
         </div>
 
-        {/* Ejercicio Section */}
         <div className="p-4 border-b border-gray-300">
             <div className="bg-[#2D3748] text-white px-3 py-1 mb-3 flex justify-between items-center rounded">
                 <h3 className="font-semibold uppercase truncate pr-4">{ejercicio.ejercicio}</h3>
@@ -302,7 +298,6 @@ export default function EjercicioDetallePage() {
             </div>
         </div>
 
-        {/* Info Grid Section */}
         <div className="p-4 border-b border-gray-300 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <p><strong className="font-semibold text-gray-900">Fase:</strong> {ejercicio.fase}</p>
             <p><strong className="font-semibold text-gray-900">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</p>
@@ -310,7 +305,6 @@ export default function EjercicioDetallePage() {
             <p><strong className="font-semibold text-gray-900">Materiales y Espacio:</strong> {ejercicio.espacio_materiales}</p>
         </div>
 
-        {/* Variantes */}
         {ejercicio.variantes && (
         <div className="p-4 border-b border-gray-300">
           <h3 className="font-semibold text-md mb-1 text-gray-900">Variantes</h3>
@@ -318,7 +312,6 @@ export default function EjercicioDetallePage() {
         </div>
         )}
 
-        {/* Consejos del Entrenador */}
         {ejercicio.consejos_entrenador && (
         <div className="p-4">
           <h3 className="font-semibold text-md mb-1 text-gray-900">Consejos del Entrenador</h3>
@@ -326,7 +319,6 @@ export default function EjercicioDetallePage() {
         </div>
         )}
         
-        {/* PDF Button */}
         <div className="hide-on-print p-4 mt-2 text-center border-t border-gray-300">
             <Button onClick={handlePrint} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
