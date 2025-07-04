@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { produce } from 'immer';
 import { POSICIONES_FUTSAL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { saveRoster } from '@/ai/flows/user-actions-flow';
 
 // Player data structure for the roster (what is saved to DB)
 interface RosterPlayer {
@@ -232,8 +233,7 @@ function MiPlantillaPageContent() {
         toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para guardar tu plantilla.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
         return;
     }
-    const docRef = getTeamDocRef();
-    if (!docRef) return; // Should not happen
+    if (!user) return;
     
     setIsSaving(true);
     try {
@@ -243,12 +243,12 @@ function MiPlantillaPageContent() {
         nombre: p.nombre,
         posicion: p.posicion,
       }));
-      await setDoc(docRef, {
+      await saveRoster({
+        userId: user.uid,
         club,
         equipo,
         campeonato,
         players: rosterToSave,
-        updatedAt: serverTimestamp(),
       });
       toast({ title: "Equipo Guardado", description: "Los datos de tu equipo se han guardado correctamente." });
     } catch (error) {

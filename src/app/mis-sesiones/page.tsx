@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp } from "firebase/firestore";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { deleteSession } from "@/ai/flows/user-actions-flow";
 
 
 interface EjercicioInfo {
@@ -275,7 +276,7 @@ function MisSesionesContent() {
     if (!sessionToDeleteId) return;
     setIsDeleting(true);
     try {
-      await deleteDoc(doc(db, "mis_sesiones", sessionToDeleteId));
+      await deleteSession({ sessionId: sessionToDeleteId });
       if (activeFilter) {
         fetchSesiones(activeFilter);
       } else {

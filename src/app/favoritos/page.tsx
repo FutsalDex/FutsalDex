@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Heart, ListChecks, Loader2, Eye, Trash2, XCircle, FileDown, ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { collection as firestoreCollection, getDocs as firestoreGetDocs, doc as firestoreDoc, query as firestoreQuery, where, deleteDoc as firestoreDeleteDoc } from 'firebase/firestore';
+import { collection as firestoreCollection, getDocs as firestoreGetDocs, doc as firestoreDoc, query as firestoreQuery, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Image from 'next/image';
 import {
@@ -16,13 +16,13 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { toggleFavorite } from "@/ai/flows/user-actions-flow";
 
 
 interface Ejercicio {
@@ -115,8 +115,7 @@ function FavoritosPageContent() {
     setFavoriteExercises(prev => prev.filter(ex => ex.id !== exerciseId));
 
     try {
-      const favDocRef = firestoreDoc(db, "usuarios", user.uid, "user_favorites", exerciseId);
-      await firestoreDeleteDoc(favDocRef);
+      await toggleFavorite({ userId: user.uid, exerciseId, isFavorite: false });
       toast({
         title: "Favorito Eliminado",
         description: "El ejercicio ha sido eliminado de tus favoritos.",
@@ -270,12 +269,10 @@ function FavoritosPageContent() {
               <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
             </CardContent>
             <CardFooter className="flex justify-between items-center gap-2 border-t pt-4">
-              <DialogTrigger asChild>
-                <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
-                    <Eye className="mr-2 h-4 w-4" />
-                    Ver Ficha
-                </Button>
-              </DialogTrigger>
+              <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
+                  <Eye className="mr-2 h-4 w-4" />
+                  Ver Ficha
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -307,22 +304,18 @@ function FavoritosPageContent() {
                 </div>
                 <div className="p-6 bg-white text-gray-800 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="aspect-w-4 aspect-h-3 bg-gray-100 rounded overflow-hidden">
+                    <div className="w-full h-auto">
                       <Image
                         src={selectedExercise.imagen || `https://placehold.co/400x300.png`}
                         alt={`Diagrama de ${selectedExercise.ejercicio}`}
                         width={400}
                         height={300}
-                        className="w-full h-auto object-contain"
+                        className="w-full h-auto object-contain rounded border"
                         priority
                         data-ai-hint="futsal diagram"
                       />
                     </div>
                     <div className="space-y-3">
-                      <div>
-                        <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Categoría</h4>
-                        <p>{selectedExercise.categoria}</p>
-                      </div>
                       <div>
                         <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Fase</h4>
                         <p>{selectedExercise.fase}</p>
@@ -331,13 +324,17 @@ function FavoritosPageContent() {
                         <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Recursos Materiales</h4>
                         <p>{selectedExercise.espacio_materiales}</p>
                       </div>
-                      <div>
+                       <div>
                         <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Número de jugadores</h4>
                         <p>{selectedExercise.jugadores}</p>
                       </div>
                     </div>
                   </div>
                   <div className="space-y-4">
+                    <div>
+                        <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Categoría</h4>
+                        <p>{selectedExercise.categoria}</p>
+                    </div>
                     <div>
                       <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Descripción de la Tarea</h4>
                       <p className="whitespace-pre-wrap">{selectedExercise.descripcion}</p>

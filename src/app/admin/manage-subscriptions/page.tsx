@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, ArrowLeft, Users, Loader2, Search, ChevronLeft, ChevronRight, ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -23,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { getAllUsers } from '@/ai/flows/admin-users-flow';
+import { getAllUsers, updateUserSubscription } from '@/ai/flows/admin-users-flow';
 
 
 interface UserSubscription {
@@ -126,11 +124,7 @@ function ManageSubscriptionsPageContent() {
   const handleSubscriptionChange = async (userId: string, newStatus: 'active' | 'inactive') => {
     setIsUpdating(userId);
     try {
-      const userDocRef = doc(db, "usuarios", userId);
-      await updateDoc(userDocRef, {
-        subscriptionStatus: newStatus,
-        updatedAt: serverTimestamp()
-      });
+      await updateUserSubscription({ userId, newStatus });
       toast({
         title: "Suscripción Actualizada",
         description: `El estado del usuario se ha cambiado a ${newStatus === 'active' ? 'activo' : 'inactivo'}.`,

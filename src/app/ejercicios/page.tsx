@@ -1,14 +1,14 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection as firestoreCollection, getDocs, limit, query, orderBy as firestoreOrderBy, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection as firestoreCollection, getDocs, limit, query, orderBy as firestoreOrderBy } from 'firebase/firestore';
 import Image from 'next/image';
 import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, Eye, FileDown, ArrowLeft } from 'lucide-react';
 import {
@@ -17,7 +17,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -35,6 +34,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { toggleFavorite } from '@/ai/flows/user-actions-flow';
+import Link from 'next/link';
 
 
 interface Ejercicio {
@@ -245,7 +246,7 @@ export default function EjerciciosPage() {
     }
   }, [user, isRegisteredUser, toast]);
 
-  const toggleFavorite = async (exerciseId: string) => {
+  const handleToggleFavorite = async (exerciseId: string) => {
     if (!user || !isRegisteredUser) {
       toast({ title: "Acción Requerida", description: "Inicia sesión para guardar tus ejercicios favoritos.", variant: "default", action: <Button asChild variant="outline"><Link href="/login">Iniciar Sesión</Link></Button> });
       return;
@@ -254,14 +255,8 @@ export default function EjerciciosPage() {
     const newFavoritesState = { ...favorites, [exerciseId]: !isCurrentlyFavorite };
     setFavorites(newFavoritesState);
     try {
-      const favDocRef = doc(db, "usuarios", user.uid, "user_favorites", exerciseId);
-      if (!isCurrentlyFavorite) {
-        await setDoc(favDocRef, { addedAt: serverTimestamp() });
-        toast({ title: "Favorito Añadido", description: "El ejercicio se ha añadido a tus favoritos." });
-      } else {
-        await deleteDoc(favDocRef);
-        toast({ title: "Favorito Eliminado", description: "El ejercicio se ha eliminado de tus favoritos." });
-      }
+      await toggleFavorite({ userId: user.uid, exerciseId, isFavorite: !isCurrentlyFavorite });
+      toast({ title: `Favorito ${!isCurrentlyFavorite ? 'Añadido' : 'Eliminado'}`, description: `El ejercicio se ha ${!isCurrentlyFavorite ? 'añadido a' : 'eliminado de'} tus favoritos.` });
     } catch (error) {
       console.error("Error updating favorite status:", error);
       setFavorites(favorites); 
@@ -274,7 +269,7 @@ export default function EjerciciosPage() {
     return selectedAgeFilter;
   };
   
-  const formatDuracion = (duracion: string) => duracion ? `${duracion}` : 'N/A';
+  const formatDuracion = (duracion: string) => duracion ? `${duracion} min` : 'N/A';
 
   const handleSavePdf = async (exercise: Ejercicio | null) => {
     if (!isRegisteredUser) {
@@ -349,7 +344,7 @@ export default function EjerciciosPage() {
                 <Lock className="h-8 w-8 text-accent mr-4" />
                 <div>
                   <h3 className="text-lg font-semibold text-accent font-headline">Acceso Limitado</h3>
-                  <p className="text-sm text-accent/80">Estás viendo una vista previa de ejercicios de demostración. <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.</p>
+                  <p className="text-sm text-accent/80">Estás viendo una vista previa ({GUEST_ITEM_LIMIT} ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.</p>
                 </div>
               </div>
               <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
@@ -455,25 +450,23 @@ export default function EjerciciosPage() {
                     <div className="text-xs pt-2 space-y-0.5 text-muted-foreground">
                       <div><strong>Fase:</strong> {ej.fase}</div>
                       <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
-                      <div><strong>Duración:</strong> {formatDuracion(ej.duracion)} min</div>
+                      <div><strong>Duración:</strong> {formatDuracion(ej.duracion)}</div>
                     </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
                     <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
                   </CardContent>
                   <CardFooter className="flex justify-between items-center gap-2 border-t pt-4">
-                    <DialogTrigger asChild>
-                      <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
-                        <Eye className="mr-2 h-4 w-4" />
-                        Ver Ficha
-                      </Button>
-                    </DialogTrigger>
+                    <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver Ficha
+                    </Button>
                     {isRegisteredUser && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="bg-background/70 hover:bg-background/90 text-primary rounded-full h-8 w-8"
-                        onClick={() => toggleFavorite(ej.id)}
+                        onClick={() => handleToggleFavorite(ej.id)}
                         title={favorites[ej.id] ? "Quitar de favoritos" : "Añadir a favoritos"}
                       >
                         <Heart className={cn("h-4 w-4", favorites[ej.id] ? "fill-red-500 text-red-500" : "text-primary")} />
@@ -520,32 +513,28 @@ export default function EjerciciosPage() {
                   <div className="p-4 bg-gray-800 text-white flex justify-between items-center">
                     <h2 className="text-2xl font-bold font-headline">{selectedExercise.ejercicio}</h2>
                     <div className="text-right">
-                      <p className="font-bold text-lg">Duración: {formatDuracion(selectedExercise.duracion)} min</p>
+                      <p className="font-bold text-lg">Duración: {formatDuracion(selectedExercise.duracion)}</p>
                     </div>
                   </div>
                   <div className="p-6 bg-white text-gray-800 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
-                      <div className="aspect-w-4 aspect-h-3 bg-gray-100 rounded overflow-hidden">
+                      <div className="w-full h-auto">
                         <Image
                           src={selectedExercise.imagen || `https://placehold.co/400x300.png`}
                           alt={`Diagrama de ${selectedExercise.ejercicio}`}
                           width={400}
                           height={300}
-                          className="w-full h-auto object-contain"
+                          className="w-full h-auto object-contain rounded border"
                           priority
                           data-ai-hint="futsal diagram"
                         />
                       </div>
                       <div className="space-y-3">
                         <div>
-                          <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Categoría</h4>
-                          <p>{selectedExercise.categoria}</p>
-                        </div>
-                        <div>
                           <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Fase</h4>
                           <p>{selectedExercise.fase}</p>
                         </div>
-                         <div>
+                        <div>
                           <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Recursos Materiales</h4>
                           <p>{selectedExercise.espacio_materiales}</p>
                         </div>
@@ -556,6 +545,10 @@ export default function EjerciciosPage() {
                       </div>
                     </div>
                     <div className="space-y-4">
+                       <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Categoría</h4>
+                          <p>{selectedExercise.categoria}</p>
+                        </div>
                       <div>
                         <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Descripción de la Tarea</h4>
                         <p className="whitespace-pre-wrap">{selectedExercise.descripcion}</p>

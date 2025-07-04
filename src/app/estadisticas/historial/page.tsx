@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp, deleteDoc, doc, addDoc, serverTimestamp, getDoc as getRosterDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp, getDoc as getRosterDoc } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -40,6 +40,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertTitle, AlertDescription as AlertDesc } from "@/components/ui/alert";
+import { deleteMatch, saveMatch } from "@/ai/flows/user-actions-flow";
 
 
 // New Match Schema
@@ -152,7 +153,7 @@ function HistorialPageContent() {
     }, [user, isRegisteredUser]);
 
     const fetchMatches = useCallback(async () => {
-        if (!isRegisteredUser) {
+        if (!user || !isRegisteredUser) {
             setMatches(createGuestMatches());
             setIsLoading(false);
             return;
@@ -207,7 +208,7 @@ function HistorialPageContent() {
         if (!matchToDeleteId) return;
         setIsDeleting(true);
         try {
-            await deleteDoc(doc(db, "partidos_estadisticas", matchToDeleteId));
+            await deleteMatch({ matchId: matchToDeleteId });
             toast({ title: "Partido Eliminado", description: "El partido ha sido eliminado correctamente." });
             setMatches(prevMatches => prevMatches.filter(match => match.id !== matchToDeleteId));
         } catch (error) {
@@ -246,18 +247,17 @@ function HistorialPageContent() {
           myTeamWasHome: rosterSide === 'local',
           fecha: values.fecha,
           hora: values.hora || null,
-          campeonato: values.campeonato || null,
-          jornada: values.jornada || null,
+          campeonato: values.campeonato || '',
+          jornada: values.jornada || '',
           tipoPartido: values.tipoPartido || null,
           myTeamStats: createInitialTeamStats(),
           opponentTeamStats: createInitialTeamStats(),
           myTeamPlayers: [],
           opponentPlayers: [],
-          createdAt: serverTimestamp(),
         };
 
         try {
-            await addDoc(collection(db, "partidos_estadisticas"), newMatchData);
+            await saveMatch({ matchData: newMatchData as any });
             toast({ title: "Partido Añadido", description: "El nuevo partido se ha guardado. Ahora puedes editarlo para añadir estadísticas." });
             setIsAddMatchDialogOpen(false);
             fetchMatches(); // Refresh the list

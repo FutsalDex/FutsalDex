@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { DURACION_EJERCICIO_OPCIONES_VALUES } from './constants';
+import { DURACION_EJERCICIO_OPCIONES_VALUES, POSICIONES_FUTSAL } from './constants';
 
 export const loginSchema = z.object({
   email: z.string().email({ message: "Correo electrónico inválido." }),
@@ -64,6 +64,56 @@ export const addExerciseSchema = z.object({
   imagen: z.string().url({ message: "Debe ser una URL válida para la imagen." }).optional().or(z.literal('')),
   isVisible: z.boolean().optional().default(true),
 });
+
+export const RosterPlayerSchema = z.object({
+  id: z.string(),
+  dorsal: z.string(),
+  nombre: z.string(),
+  posicion: z.string(),
+});
+
+export const AttendanceDataSchema = z.record(z.enum(['presente', 'ausente', 'justificado', 'lesionado']));
+
+const HalfStatsSchema = z.object({
+  firstHalf: z.number(),
+  secondHalf: z.number(),
+});
+
+export const TeamStatsSchema = z.object({
+  shots: z.object({
+    onTarget: HalfStatsSchema,
+    offTarget: HalfStatsSchema,
+    blocked: HalfStatsSchema,
+  }),
+  turnovers: HalfStatsSchema,
+  steals: HalfStatsSchema,
+  timeouts: HalfStatsSchema,
+});
+
+export const MatchStatsSchema = z.object({
+  dorsal: z.string(),
+  nombre: z.string(),
+  goals: z.number(),
+  yellowCards: z.number(),
+  redCards: z.number(),
+  faltas: z.number(),
+  paradas: z.number(),
+  golesRecibidos: z.number(),
+  unoVsUno: z.number(),
+});
+
+export const OpponentPlayerSchema = z.object({
+    dorsal: z.string(),
+    nombre: z.string().optional(),
+    goals: z.number(),
+    yellowCards: z.number(),
+    redCards: z.number(),
+    faltas: z.number(),
+    paradas: z.number(),
+    golesRecibidos: z.number(),
+    unoVsUno: z.number(),
+});
+
 
 export type AddExerciseFormValues = z.infer<typeof addExerciseSchema>;
 export type ManualSessionFormValues = z.infer<typeof manualSessionSchema>;

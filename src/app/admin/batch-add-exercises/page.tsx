@@ -12,10 +12,9 @@ import { Input } from "@/components/ui/input";
 import { useState, type ChangeEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
-import { db } from '@/lib/firebase';
-import { collection, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas';
 import { DURACION_EJERCICIO_OPCIONES_VALUES } from "@/lib/constants";
+import { batchAddExercises } from "@/ai/flows/admin-exercise-flow";
 
 const EXPECTED_HEADERS = {
   numero: "Número",
@@ -169,24 +168,8 @@ function BatchAddExercisesPageContent() {
           }
 
           if (exercisesToSave.length > 0) {
-            const MAX_BATCH_SIZE = 499;
-            for (let i = 0; i < exercisesToSave.length; i += MAX_BATCH_SIZE) {
-                const batch = writeBatch(db);
-                const chunk = exercisesToSave.slice(i, i + MAX_BATCH_SIZE);
-                chunk.forEach(exData => {
-                    const newExerciseRef = doc(collection(db, "ejercicios_futsal"));
-                    batch.set(newExerciseRef, {
-                        ...exData,
-                        createdAt: serverTimestamp(),
-                        numero: exData.numero || null,
-                        variantes: exData.variantes || null,
-                        consejos_entrenador: exData.consejos_entrenador || null,
-                        isVisible: exData.isVisible === undefined ? true : exData.isVisible, // Ensure isVisible is set
-                    });
-                });
-                await batch.commit();
-                successCount += chunk.length;
-            }
+            const result = await batchAddExercises(exercisesToSave);
+            successCount = result.successCount;
           }
 
           setProcessedStats({ success: successCount, failed: failureCount, total: totalRows });

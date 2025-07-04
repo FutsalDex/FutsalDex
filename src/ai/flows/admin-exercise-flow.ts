@@ -12,7 +12,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { addExerciseSchema } from '@/lib/schemas';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 
 // --- Add Exercise Flow ---
 
@@ -97,6 +97,57 @@ const updateExerciseFlow = ai.defineFlow(
     return {
       exerciseId: id,
       message: `Exercise "${data.ejercicio}" updated successfully.`,
+    };
+  }
+);
+
+
+// --- Batch Add Exercises Flow ---
+
+const BatchAddExercisesInputSchema = z.array(addExerciseSchema);
+export type BatchAddExercisesInput = z.infer<typeof BatchAddExercisesInputSchema>;
+
+const BatchAddExercisesOutputSchema = z.object({
+  successCount: z.number(),
+  message: z.string(),
+});
+export type BatchAddExercisesOutput = z.infer<typeof BatchAddExercisesOutputSchema>;
+
+export async function batchAddExercises(input: BatchAddExercisesInput): Promise<BatchAddExercisesOutput> {
+  return batchAddExercisesFlow(input);
+}
+
+const batchAddExercisesFlow = ai.defineFlow(
+  {
+    name: 'batchAddExercisesFlow',
+    inputSchema: BatchAddExercisesInputSchema,
+    outputSchema: BatchAddExercisesOutputSchema,
+  },
+  async (exercisesToSave) => {
+    const MAX_BATCH_SIZE = 499;
+    let successCount = 0;
+    
+    for (let i = 0; i < exercisesToSave.length; i += MAX_BATCH_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = exercisesToSave.slice(i, i + MAX_BATCH_SIZE);
+      chunk.forEach(exData => {
+        const newExerciseRef = doc(collection(db, "ejercicios_futsal"));
+        batch.set(newExerciseRef, {
+          ...exData,
+          createdAt: serverTimestamp(),
+          numero: exData.numero || null,
+          variantes: exData.variantes || null,
+          consejos_entrenador: exData.consejos_entrenador || null,
+          isVisible: exData.isVisible === undefined ? true : exData.isVisible,
+        });
+      });
+      await batch.commit();
+      successCount += chunk.length;
+    }
+
+    return {
+      successCount,
+      message: `${successCount} exercises added successfully via batch operation.`
     };
   }
 );

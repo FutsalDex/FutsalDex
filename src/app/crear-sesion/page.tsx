@@ -19,7 +19,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { manualSessionSchema } from "@/lib/schemas";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, limit, orderBy as firestoreOrderBy, serverTimestamp, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, query, where, limit, orderBy as firestoreOrderBy } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, Info, Filter } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,6 +31,7 @@ import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
+import { saveSession } from "@/ai/flows/user-actions-flow";
 
 
 interface Ejercicio {
@@ -223,25 +224,7 @@ function CrearSesionContent() {
     if (!user) return; // Should not happen if other checks pass, but for type safety
 
     setIsSaving(true);
-    form.clearErrors("numero_sesion"); 
-
-    if (values.numero_sesion) {
-        try {
-            const q = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid), where("numero_sesion", "==", values.numero_sesion));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-              form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
-              setIsSaving(false);
-              return;
-            }
-        } catch (error) {
-            console.error("Error checking duplicate session number:", error);
-            toast({ title: "Error de Validación", description: "No se pudo verificar el número de sesión. Inténtalo de nuevo.", variant: "destructive" });
-            setIsSaving(false);
-            return;
-        }
-    }
-
+    
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
     const coolDownDoc = vueltaCalmaEjercicios.find(e => e.id === values.coolDownExerciseId);
@@ -266,9 +249,7 @@ function CrearSesionContent() {
     }
     const titleToSave = `Sesión - ${formattedDate}`;
 
-
     const sessionDataToSave = {
-      userId: user.uid,
       type: "Manual" as "Manual" | "AI",
       sessionTitle: titleToSave,
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio, duracion: warmUpDoc.duracion } : null,
@@ -281,11 +262,10 @@ function CrearSesionContent() {
       club: values.club || null,
       equipo: values.equipo || null,
       duracionTotalManualEstimada: totalDuration,
-      createdAt: serverTimestamp(),
     };
 
     try {
-      await addDoc(collection(db, "mis_sesiones"), sessionDataToSave);
+      await saveSession({ userId: user.uid, sessionData: sessionDataToSave });
       toast({
         title: "¡Sesión Guardada!",
         description: "Tu sesión ha sido guardada en 'Mis Sesiones'.",
@@ -317,13 +297,16 @@ function CrearSesionContent() {
             fetchNextSessionNumber();
         }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving manual session:", error);
       toast({
         title: "Error al Guardar",
-        description: "No se pudo guardar la sesión. Inténtalo de nuevo.",
+        description: error.message || "No se pudo guardar la sesión. Inténtalo de nuevo.",
         variant: "destructive",
       });
+      if (error.message.includes("Ya hay una sesión con este número.")) {
+        form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
+      }
     }
     setIsSaving(false);
   }

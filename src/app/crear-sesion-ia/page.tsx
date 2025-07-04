@@ -17,10 +17,9 @@ import { Slider } from "@/components/ui/slider";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { generateSession, type GeneratedSessionOutput, type GenerateSessionInput } from "@/ai/flows/generate-session-flow";
-import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
+import { saveSession } from "@/ai/flows/user-actions-flow";
 
 
 type AiSessionFormValues = Zod.infer<typeof aiSessionSchema>;
@@ -82,6 +81,10 @@ function AiSessionGeneratorPageContent() {
         temporada: values.temporada,
         club: values.club,
         equipo: values.equipo,
+        teamDescription: values.teamDescription,
+        trainingGoals: values.trainingGoals,
+        sessionFocus: values.sessionFocus,
+        preferredSessionLengthMinutes: values.preferredSessionLengthMinutes,
       });
     } catch (e: any) {
       console.error("Error generating AI session:", e);
@@ -97,22 +100,18 @@ function AiSessionGeneratorPageContent() {
   };
 
   const handleSaveSession = async () => {
-    // This action is implicitly protected as `generatedSession` will only be non-null if onSubmit succeeds,
-    // and onSubmit is already guarded. A user check is sufficient here.
     if (!generatedSession || !user) return;
     setIsSaving(true);
     
     const sessionDataToSave = {
-        userId: user.uid,
         type: "AI" as "AI",
         sessionTitle: `Sesión IA - ${sessionDetails?.fecha || new Date().toLocaleDateString('es-ES')}`,
-        ...generatedSession, // warmUp, mainExercises, coolDown, coachNotes
-        ...sessionDetails, // numero_sesion, fecha, etc.
-        createdAt: serverTimestamp(),
+        ...generatedSession,
+        ...sessionDetails,
     };
 
     try {
-      await addDoc(collection(db, "mis_sesiones"), sessionDataToSave);
+      await saveSession({ userId: user.uid, sessionData: sessionDataToSave });
       toast({
         title: "¡Sesión Guardada!",
         description: "Tu sesión generada por IA se ha guardado en 'Mis Sesiones'.",

@@ -5,12 +5,13 @@
  * This flow is intended to be called by an admin user. It fetches all
  * user documents from the 'usuarios' collection.
  * - getAllUsers - Fetches a list of all users from Firestore.
+ * - updateUserSubscription - Updates a user's subscription status.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, Timestamp, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 const UserSchema = z.object({
   id: z.string(),
@@ -55,5 +56,43 @@ const getAllUsersFlow = ai.defineFlow(
     });
 
     return usersList;
+  }
+);
+
+
+// --- Update User Subscription Flow ---
+
+const UpdateSubscriptionInputSchema = z.object({
+  userId: z.string(),
+  newStatus: z.enum(['active', 'inactive']),
+});
+export type UpdateSubscriptionInput = z.infer<typeof UpdateSubscriptionInputSchema>;
+
+const UpdateSubscriptionOutputSchema = z.object({
+  message: z.string(),
+});
+export type UpdateSubscriptionOutput = z.infer<typeof UpdateSubscriptionOutputSchema>;
+
+
+export async function updateUserSubscription(input: UpdateSubscriptionInput): Promise<UpdateSubscriptionOutput> {
+  return updateUserSubscriptionFlow(input);
+}
+
+const updateUserSubscriptionFlow = ai.defineFlow(
+  {
+    name: 'updateUserSubscriptionFlow',
+    inputSchema: UpdateSubscriptionInputSchema,
+    outputSchema: UpdateSubscriptionOutputSchema,
+  },
+  async ({ userId, newStatus }) => {
+    const userDocRef = doc(db, "usuarios", userId);
+    await updateDoc(userDocRef, {
+      subscriptionStatus: newStatus,
+      updatedAt: serverTimestamp(),
+    });
+    
+    return {
+      message: `User subscription status updated to ${newStatus}.`
+    };
   }
 );

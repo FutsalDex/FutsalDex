@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Save, ArrowLeft, CalendarIcon, History, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { produce } from 'immer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -24,6 +24,7 @@ import { Progress } from '@/components/ui/progress';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { v4 as uuidv4 } from 'uuid';
+import { saveAttendance } from '@/ai/flows/user-actions-flow';
 
 interface RosterPlayer {
   id: string;
@@ -96,6 +97,10 @@ function AsistenciaPageContent() {
           const guestPlayers = createGuestPlayers();
           setPlayers(guestPlayers);
           setHistoryStats(createGuestHistoryStats(guestPlayers));
+          setIsLoading(false);
+          return;
+        }
+        if (!user) {
           setIsLoading(false);
           return;
         }
@@ -205,14 +210,8 @@ function AsistenciaPageContent() {
         setIsSaving(true);
         const dateString = format(selectedDate, 'yyyy-MM-dd');
         
-        const attendanceCollectionDocRef = doc(db, 'usuarios', user.uid, 'team', 'attendance');
-
         try {
-            await setDoc(attendanceCollectionDocRef, {
-                [dateString]: attendance,
-                updatedAt: serverTimestamp()
-            }, { merge: true });
-            
+            await saveAttendance({ userId: user.uid, dateString, attendance });
             toast({ title: "Asistencia Guardada", description: `La asistencia para el ${format(selectedDate, 'PPP', { locale: es })} ha sido guardada.` });
             await fetchFullData(); // Re-fetch to update history
         } catch (error) {
