@@ -18,7 +18,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -402,12 +401,13 @@ export default function EjerciciosPage() {
                     {/* Left Column */}
                     <div className="space-y-4">
                         {/* Image */}
-                        <div className="aspect-[4/3] bg-white/10 rounded-md overflow-hidden border border-white/20 relative">
+                        <div className="bg-white/10 rounded-md overflow-hidden border border-white/20">
                             <Image
                                 src={selectedExercise.imagen || `https://placehold.co/400x300.png`}
                                 alt={`Diagrama de ${selectedExercise.ejercicio}`}
-                                fill
-                                className="object-contain bg-white"
+                                width={400}
+                                height={300}
+                                className="w-full h-auto object-contain bg-white"
                                 data-ai-hint="futsal diagram"
                               />
                         </div>
@@ -420,6 +420,14 @@ export default function EjerciciosPage() {
                             <div>
                                 <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Fase</h4>
                                 <p>{selectedExercise.fase}</p>
+                            </div>
+                             <div>
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Recursos Materiales</h4>
+                                <p>{selectedExercise.espacio_materiales}</p>
+                            </div>
+                             <div>
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Número de jugadores</h4>
+                                <p>{selectedExercise.jugadores}</p>
                             </div>
                         </div>
                     </div>
@@ -445,14 +453,6 @@ export default function EjerciciosPage() {
                                 <p className="whitespace-pre-wrap">{selectedExercise.consejos_entrenador}</p>
                             </div>
                         )}
-                        <div>
-                            <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Recursos Materiales</h4>
-                            <p>{selectedExercise.espacio_materiales}</p>
-                        </div>
-                         <div>
-                            <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Número de jugadores</h4>
-                            <p>{selectedExercise.jugadores}</p>
-                        </div>
                     </div>
                 </div>
               </div>
