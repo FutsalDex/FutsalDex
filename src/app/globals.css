@@ -5,33 +5,33 @@
 
 @layer base {
   :root {
-    --background: 30 50% 95%; /* Warm off-white for components like Card, Input etc. */
-    --foreground: 20 15% 25%; /* Dark warm gray for text */
+    --background: 10 60% 96%; /* Very light, warm pinkish-white */
+    --foreground: 10 30% 20%; /* Dark, warm red-brown for text */
 
-    --card: 30 50% 95%;
-    --card-foreground: 20 15% 25%;
+    --card: 10 60% 96%;
+    --card-foreground: 10 30% 20%;
 
-    --popover: 30 50% 95%;
-    --popover-foreground: 20 15% 25%;
+    --popover: 10 60% 96%;
+    --popover-foreground: 10 30% 20%;
 
-    --primary: 25 88% 70%; /* Pastel Orange: #F8A868 */
-    --primary-foreground: 20 15% 15%; /* Dark Brown for text on primary */
+    --primary: 15 90% 65%; /* Strong red-orange / salmon */
+    --primary-foreground: 10 30% 15%; /* Darker brown for text on primary */
 
-    --secondary: 25 80% 85%; /* Lighter pastel orange */
-    --secondary-foreground: 25 88% 30%; /* Darker orange for text */
+    --secondary: 15 85% 80%; /* Lighter red-orange */
+    --secondary-foreground: 15 80% 25%; /* Darker orange-red for text */
 
-    --muted: 30 50% 90%; /* Very light warm off-white */
-    --muted-foreground: 20 15% 45%; /* Muted warm gray text color */
+    --muted: 10 60% 92%; /* Slightly darker background color */
+    --muted-foreground: 10 25% 45%; /* Muted warm gray text color */
 
-    --accent: 5 80% 75%; /* Pastel Red: #F98F7C */
+    --accent: 0 85% 65%; /* Vibrant, clear red */
     --accent-foreground: 0 0% 100%; /* White */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 30 50% 85%; /* Warm light border */
-    --input: 30 50% 88%; /* Warm light input background */
-    --ring: 25 88% 70%; /* Primary color for focus rings */
+    --border: 10 60% 88%; /* Warm light border */
+    --input: 10 60% 90%; /* Warm light input background */
+    --ring: 0 85% 65%; /* Accent color for focus rings */
 
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
@@ -41,14 +41,14 @@
     --radius: 0.5rem;
 
     /* Sidebar variables can be adjusted if a complex sidebar is used */
-    --sidebar-background: 30 50% 96%;
-    --sidebar-foreground: 20 15% 25%;
-    --sidebar-primary: 25 88% 65%;
-    --sidebar-primary-foreground: 20 15% 15%;
-    --sidebar-accent: 30 50% 90%;
-    --sidebar-accent-foreground: 20 15% 25%;
-    --sidebar-border: 30 50% 85%;
-    --sidebar-ring: 25 88% 70%;
+    --sidebar-background: 10 40% 97%;
+    --sidebar-foreground: 10 30% 20%;
+    --sidebar-primary: 15 90% 60%;
+    --sidebar-primary-foreground: 10 30% 10%;
+    --sidebar-accent: 10 60% 92%;
+    --sidebar-accent-foreground: 10 30% 20%;
+    --sidebar-border: 10 60% 88%;
+    --sidebar-ring: 0 85% 65%;
   }
 
   .dark {
@@ -59,19 +59,19 @@
     --card-foreground: 30 30% 90%;
     --popover: 20 10% 10%;
     --popover-foreground: 30 30% 90%;
-    --primary: 25 88% 65%;
-    --primary-foreground: 20 15% 10%;
+    --primary: 15 85% 60%;
+    --primary-foreground: 10 30% 10%;
     --secondary: 20 10% 20%;
     --secondary-foreground: 30 30% 90%;
     --muted: 20 10% 20%;
     --muted-foreground: 30 20% 60%;
-    --accent: 5 80% 70%;
+    --accent: 0 80% 65%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 20 10% 25%;
     --input: 20 10% 25%;
-    --ring: 25 88% 70%;
+    --ring: 0 85% 65%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -79,12 +79,12 @@
     --chart-5: 340 75% 55%;
     --sidebar-background: 20 10% 10%;
     --sidebar-foreground: 30 30% 90%;
-    --sidebar-primary: 25 88% 65%;
-    --sidebar-primary-foreground: 20 15% 10%;
+    --sidebar-primary: 15 85% 60%;
+    --sidebar-primary-foreground: 10 30% 10%;
     --sidebar-accent: 20 10% 15%;
     --sidebar-accent-foreground: 30 30% 90%;
     --sidebar-border: 20 10% 25%;
-    --sidebar-ring: 25 88% 70%;
+    --sidebar-ring: 0 85% 65%;
   }
 }
 
@@ -93,7 +93,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-[hsl(30,50%,95%)] text-[hsl(20,15%,25%)]; /* Page background: warm off-white, default text color */
+    @apply bg-[hsl(10,60%,96%)] text-[hsl(10,30%,20%)]; /* Page background: warm off-white, default text color */
     @apply font-body;
   }
   h1, h2, h3, h4, h5, h6 {
