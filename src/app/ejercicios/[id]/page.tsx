@@ -15,7 +15,6 @@ import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { FutsalDexIcon } from '@/components/futsaldex-icon';
 
 interface Ejercicio {
   id: string;
@@ -256,10 +255,12 @@ export default function EjercicioDetallePage() {
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
         <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300">
-            <div className="flex items-center gap-3">
-              <FutsalDexIcon className="h-8 w-8 text-gray-800" />
-              <h1 className="text-3xl font-bold font-headline text-gray-800 tracking-wider">FUTSALDEX</h1>
-            </div>
+          <img 
+            src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
+            alt="FutsalDex Logo" 
+            className="h-10 w-auto"
+            crossOrigin="anonymous"
+          />
         </div>
         
         <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center">
