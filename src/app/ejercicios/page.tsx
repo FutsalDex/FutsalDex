@@ -10,8 +10,12 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection as firestoreCollection, getDocs, limit, query, orderBy as firestoreOrderBy, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
-import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, ArrowRight, Star } from 'lucide-react';
-import Link from 'next/link';
+import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, Eye } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +71,7 @@ export default function EjerciciosPage() {
   
   const [favorites, setFavorites] = useState<FavoriteState>({});
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedExercise, setSelectedExercise] = useState<Ejercicio | null>(null);
 
   useEffect(() => {
     const fetchAllExercises = async () => {
@@ -196,185 +201,255 @@ export default function EjerciciosPage() {
   const formatDuracion = (duracion: string) => duracion ? `${duracion}` : 'N/A';
 
   return (
-    <div className="container mx-auto px-4 py-8 md:px-6">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Biblioteca de Ejercicios</h1>
-        <p className="text-lg text-foreground/80">Explora nuestra colección de ejercicios de futsal.</p>
-        <p className="text-lg text-foreground/80">Filtra por nombre, fase, categoría o edad.</p>
-      </header>
+    <Dialog open={!!selectedExercise} onOpenChange={(isOpen) => !isOpen && setSelectedExercise(null)}>
+      <div className="container mx-auto px-4 py-8 md:px-6">
+        <header className="mb-8">
+          <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Biblioteca de Ejercicios</h1>
+          <p className="text-lg text-foreground/80">Explora nuestra colección de ejercicios de futsal.</p>
+          <p className="text-lg text-foreground/80">Filtra por nombre, fase, categoría o edad.</p>
+        </header>
 
-      {!isRegisteredUser ? (
-        <Card className="mb-6 bg-accent/10 border-accent">
-          <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center">
-              <Lock className="h-8 w-8 text-accent mr-4" />
-              <div>
-                <h3 className="text-lg font-semibold text-accent font-headline">Acceso Limitado</h3>
-                <p className="text-sm text-accent/80">Estás viendo una vista previa ({GUEST_ITEM_LIMIT} ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.</p>
+        {!isRegisteredUser && (
+          <Card className="mb-6 bg-accent/10 border-accent">
+            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center">
+                <Lock className="h-8 w-8 text-accent mr-4" />
+                <div>
+                  <h3 className="text-lg font-semibold text-accent font-headline">Acceso Limitado</h3>
+                  <p className="text-sm text-accent/80">Estás viendo una vista previa ({GUEST_ITEM_LIMIT} ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.</p>
+                </div>
+              </div>
+              <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
+                <Link href="/register">Registrarse Ahora</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+              <div className="relative flex-grow w-full md:w-auto">
+                  <Input
+                  type="text"
+                  placeholder="Buscar ejercicio por nombre..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                  />
+                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              </div>
+              <Select value={phaseFilter} onValueChange={setPhaseFilter}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filtrar por Fase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value={ALL_FILTER_VALUE}>Todas las Fases</SelectItem>
+                      {FASES_SESION.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
+                  </SelectContent>
+              </Select>
+
+              <Select value={thematicCategoryFilter} onValueChange={setThematicCategoryFilter}>
+                  <SelectTrigger className="w-full md:w-[220px]">
+                      <ListFilter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value={ALL_FILTER_VALUE}>Todas las Categorías</SelectItem>
+                      {CATEGORIAS_TEMATICAS_EJERCICIOS.map(category => (
+                      <SelectItem key={category.id} value={category.label}>{category.label}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full md:w-[200px] justify-between">
+                      <div className="flex items-center">
+                          <Filter className="h-4 w-4 mr-2" />
+                          {getAgeFilterButtonText()}
+                      </div>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[250px]">
+                      <DropdownMenuLabel>Selecciona Edad</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={setSelectedAgeFilter}>
+                      <DropdownMenuRadioItem value={ALL_FILTER_VALUE}>Todas las Edades</DropdownMenuRadioItem>
+                      {CATEGORIAS_EDAD_EJERCICIOS.map(ageCat => (
+                          <DropdownMenuRadioItem key={ageCat} value={ageCat}>
+                          {ageCat}
+                          </DropdownMenuRadioItem>
+                      ))}
+                      </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+              </DropdownMenu>
+          </div>
+          <div className="text-left text-sm text-muted-foreground pt-2">
+            <p className="text-sm text-muted-foreground">
+              Total de ejercicios: <span className="font-bold text-foreground">{filteredExercises.length}</span>
+            </p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        ) : paginatedExercises.length === 0 ? (
+          <p className="text-center text-lg text-muted-foreground py-10">
+            No se encontraron ejercicios con los filtros actuales.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {paginatedExercises.map((ej) => (
+                <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
+                  <div className="relative h-48 w-full">
+                    <Image
+                      src={ej.imagen || 'https://placehold.co/400x300.png'}
+                      alt={ej.ejercicio}
+                      fill
+                      style={{ objectFit: 'contain' }}
+                      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      data-ai-hint="futsal drill"
+                    />
+                  </div>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
+                    {ej.categoria && <Badge variant="secondary" className="mt-1 truncate self-start" title={ej.categoria}>{ej.categoria}</Badge>}
+                    <div className="text-xs pt-2 space-y-0.5 text-muted-foreground">
+                      <div><strong>Fase:</strong> {ej.fase}</div>
+                      <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
+                      <div><strong>Duración:</strong> {formatDuracion(ej.duracion)} min</div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
+                  </CardContent>
+                  <CardFooter className="flex justify-between items-center gap-2 border-t pt-4">
+                    <DialogTrigger asChild>
+                      <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver Ficha
+                      </Button>
+                    </DialogTrigger>
+                    {isRegisteredUser && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-background/70 hover:bg-background/90 text-primary rounded-full h-8 w-8"
+                        onClick={() => toggleFavorite(ej.id)}
+                        title={favorites[ej.id] ? "Quitar de favoritos" : "Añadir a favoritos"}
+                      >
+                        <Heart className={cn("h-4 w-4", favorites[ej.id] ? "fill-red-500 text-red-500" : "text-primary")} />
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="mt-8 flex justify-center items-center gap-4">
+                <Button
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    disabled={!canGoPrevious || isLoading}
+                    variant="outline"
+                >
+                    Anterior
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    disabled={!canGoNext || isLoading}
+                    variant="outline"
+                >
+                    Siguiente
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+
+        <DialogContent className="max-w-4xl p-0 bg-primary text-primary-foreground border-primary-foreground/20">
+          {selectedExercise && (
+            <div className="exercise-print-area">
+              {/* Header */}
+              <div className="p-4 border-b border-white/30 flex justify-between items-center">
+                  <h2 className="text-2xl font-bold font-headline">{selectedExercise.ejercicio}</h2>
+                  <div className="flex items-center justify-center bg-white text-primary rounded-full h-8 w-8 font-bold text-lg flex-shrink-0">
+                      <span>{selectedExercise.numero || '1'}</span>
+                  </div>
+              </div>
+
+              {/* Main Content */}
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column */}
+                  <div className="space-y-4">
+                      {/* Image */}
+                      <div className="aspect-[4/3] bg-white/10 rounded-md overflow-hidden border border-white/20">
+                          <Image
+                              src={selectedExercise.imagen || `https://placehold.co/400x300.png`}
+                              alt={`Diagrama de ${selectedExercise.ejercicio}`}
+                              width={400}
+                              height={300}
+                              className="w-full h-full object-contain bg-white"
+                              data-ai-hint="futsal diagram"
+                            />
+                      </div>
+                      {/* Metadata */}
+                      <div className="space-y-3">
+                          <div>
+                              <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Unidad Didáctica</h4>
+                              <p>{selectedExercise.categoria}</p>
+                          </div>
+                          <div>
+                              <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Fase</h4>
+                              <p>{selectedExercise.fase}</p>
+                          </div>
+                          <div>
+                              <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Objetivos</h4>
+                              <p>{selectedExercise.objetivos}</p>
+                          </div>
+                          <div>
+                              <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Número de jugadores</h4>
+                              <p>{selectedExercise.jugadores}</p>
+                          </div>
+                      </div>
+                  </div>
+                  {/* Right Column */}
+                  <div className="space-y-4">
+                      <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Recursos Materiales</h4>
+                          <p>{selectedExercise.espacio_materiales}</p>
+                      </div>
+                      <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Descripción de la Tarea</h4>
+                          <p className="whitespace-pre-wrap">{selectedExercise.descripcion}</p>
+                      </div>
+                      {selectedExercise.variantes && (
+                          <div>
+                              <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Variantes</h4>
+                              <p className="whitespace-pre-wrap">{selectedExercise.variantes}</p>
+                          </div>
+                      )}
+                      {selectedExercise.consejos_entrenador && (
+                          <div>
+                              <h4 className="font-bold text-sm uppercase tracking-wider text-primary-foreground/80">Consejos para el Entrenador</h4>
+                              <p className="whitespace-pre-wrap">{selectedExercise.consejos_entrenador}</p>
+                          </div>
+                      )}
+                  </div>
               </div>
             </div>
-            <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
-              <Link href="/register">Registrarse Ahora</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (!isSubscribed && !isAdmin) && (
-         <Card className="mb-6 bg-accent/10 border-accent">
-            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center">
-                    <Star className="h-8 w-8 text-accent mr-4" />
-                    <div>
-                        <h3 className="text-lg font-semibold text-accent font-headline">Desbloquea FutsalDex Pro</h3>
-                        <p className="text-sm text-accent/80">Estás viendo una vista previa. Suscríbete para obtener acceso ilimitado a más de 500 ejercicios y a todas las herramientas de planificación.</p>
-                    </div>
-                </div>
-                <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
-                    <Link href="/suscripcion">Ver Planes</Link>
-                </Button>
-            </CardContent>
-        </Card>
-      )}
-
-      <div className="mb-6 space-y-4">
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full">
-            <div className="relative flex-grow w-full md:w-auto">
-                <Input
-                type="text"
-                placeholder="Buscar ejercicio por nombre..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-                />
-                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            </div>
-            <Select value={phaseFilter} onValueChange={setPhaseFilter}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filtrar por Fase" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value={ALL_FILTER_VALUE}>Todas las Fases</SelectItem>
-                    {FASES_SESION.map(fase => <SelectItem key={fase} value={fase}>{fase}</SelectItem>)}
-                </SelectContent>
-            </Select>
-
-            <Select value={thematicCategoryFilter} onValueChange={setThematicCategoryFilter}>
-                <SelectTrigger className="w-full md:w-[220px]">
-                    <ListFilter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value={ALL_FILTER_VALUE}>Todas las Categorías</SelectItem>
-                    {CATEGORIAS_TEMATICAS_EJERCICIOS.map(category => (
-                    <SelectItem key={category.id} value={category.label}>{category.label}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full md:w-[200px] justify-between">
-                    <div className="flex items-center">
-                        <Filter className="h-4 w-4 mr-2" />
-                        {getAgeFilterButtonText()}
-                    </div>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[250px]">
-                    <DropdownMenuLabel>Selecciona Edad</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup value={selectedAgeFilter} onValueChange={setSelectedAgeFilter}>
-                    <DropdownMenuRadioItem value={ALL_FILTER_VALUE}>Todas las Edades</DropdownMenuRadioItem>
-                    {CATEGORIAS_EDAD_EJERCICIOS.map(ageCat => (
-                        <DropdownMenuRadioItem key={ageCat} value={ageCat}>
-                        {ageCat}
-                        </DropdownMenuRadioItem>
-                    ))}
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
-        <div className="text-left text-sm text-muted-foreground pt-2">
-           <p className="text-sm text-muted-foreground">
-             Total de ejercicios: <span className="font-bold text-foreground">{filteredExercises.length}</span>
-           </p>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        </div>
-      ) : paginatedExercises.length === 0 ? (
-         <p className="text-center text-lg text-muted-foreground py-10">
-           No se encontraron ejercicios con los filtros actuales.
-         </p>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {paginatedExercises.map((ej) => (
-              <Card key={ej.id} className="flex flex-col overflow-hidden transition-all hover:shadow-xl bg-card">
-                <div className="relative h-48 w-full">
-                  <Image
-                    src={ej.imagen || 'https://placehold.co/400x300.png'}
-                    alt={ej.ejercicio}
-                    fill
-                    style={{ objectFit: 'contain' }}
-                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    data-ai-hint="futsal drill"
-                  />
-                   {isRegisteredUser && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 bg-background/70 hover:bg-background/90 text-primary rounded-full h-8 w-8"
-                      onClick={() => toggleFavorite(ej.id)}
-                      title={favorites[ej.id] ? "Quitar de favoritos" : "Añadir a favoritos"}
-                    >
-                      <Heart className={cn("h-4 w-4", favorites[ej.id] ? "fill-red-500 text-red-500" : "text-primary")} />
-                    </Button>
-                  )}
-                </div>
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
-                  {ej.categoria && <Badge variant="secondary" className="mt-1 truncate self-start" title={ej.categoria}>{ej.categoria}</Badge>}
-                  <div className="text-xs pt-2 space-y-0.5 text-muted-foreground">
-                    <div><strong>Fase:</strong> {ej.fase}</div>
-                    <div><strong>Edad:</strong> {Array.isArray(ej.edad) ? ej.edad.join(', ') : ej.edad}</div>
-                    <div><strong>Duración:</strong> {formatDuracion(ej.duracion)} min</div>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          
-          {totalPages > 1 && (
-             <div className="mt-8 flex justify-center items-center gap-4">
-              <Button
-                  onClick={() => setCurrentPage(prev => prev - 1)}
-                  disabled={!canGoPrevious || isLoading}
-                  variant="outline"
-              >
-                  Anterior
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Página {currentPage} de {totalPages}
-              </span>
-              <Button
-                  onClick={() => setCurrentPage(prev => prev + 1)}
-                  disabled={!canGoNext || isLoading}
-                  variant="outline"
-              >
-                  Siguiente
-              </Button>
-            </div>
           )}
-        </>
-      )}
-    </div>
+        </DialogContent>
+
+      </div>
+    </Dialog>
   );
 }
