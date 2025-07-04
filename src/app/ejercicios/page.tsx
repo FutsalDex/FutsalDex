@@ -11,13 +11,14 @@ import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection as firestoreCollection, getDocs, limit, query, orderBy as firestoreOrderBy, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
-import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, Eye, FileDown } from 'lucide-react';
+import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, Eye, FileDown, ArrowLeft } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -394,10 +395,12 @@ export default function EjerciciosPage() {
                     <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
                   </CardContent>
                   <CardFooter className="flex justify-between items-center gap-2 border-t pt-4">
-                    <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
-                      <Eye className="mr-2 h-4 w-4" />
-                      Ver Ficha
-                    </Button>
+                    <DialogTrigger asChild>
+                      <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver Ficha
+                      </Button>
+                    </DialogTrigger>
                     {isRegisteredUser && (
                       <Button
                         variant="ghost"
@@ -441,101 +444,96 @@ export default function EjerciciosPage() {
         <DialogContent className="max-w-6xl w-full p-0 flex flex-col h-[90vh]">
           {selectedExercise && (
             <>
-                <ScrollArea className="flex-grow bg-background">
-                    <div className="exercise-print-area bg-white text-gray-800 m-0">
-                        <DialogHeader className="sr-only">
-                            <DialogTitle>{selectedExercise.ejercicio}</DialogTitle>
-                            <DialogDescription>
-                            Ficha detallada del ejercicio: {selectedExercise.ejercicio}. Objetivos: {selectedExercise.objetivos}
-                            </DialogDescription>
-                        </DialogHeader>
-                        {/* Header */}
-                        <div className="p-4 bg-gray-800 text-white flex justify-between items-center">
-                            <h2 className="text-2xl font-bold font-headline">{selectedExercise.ejercicio}</h2>
-                            <div className="text-right">
-                                <p className="font-bold text-lg">Duración: {formatDuracion(selectedExercise.duracion)} min</p>
-                            </div>
-                        </div>
-
-                        {/* Main Content */}
-                        <div className="p-6 bg-white text-gray-800 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Left Column */}
-                            <div className="space-y-4">
-                                <div className="aspect-w-4 aspect-h-3 bg-gray-100 rounded overflow-hidden">
-                                    <Image
-                                        src={selectedExercise.imagen || `https://placehold.co/400x300.png`}
-                                        alt={`Diagrama de ${selectedExercise.ejercicio}`}
-                                        width={400}
-                                        height={300}
-                                        className="w-full h-auto object-contain"
-                                        priority
-                                        data-ai-hint="futsal diagram"
-                                    />
-                                </div>
-                                <div className="space-y-3">
-                                    <div>
-                                        <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Categoría</h4>
-                                        <p>{selectedExercise.categoria}</p>
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Fase</h4>
-                                        <p>{selectedExercise.fase}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Recursos Materiales</h4>
-                                      <p>{selectedExercise.espacio_materiales}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Número de jugadores</h4>
-                                      <p>{selectedExercise.jugadores}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Right Column */}
-                            <div className="space-y-4">
-                                <div>
-                                    <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Descripción de la Tarea</h4>
-                                    <p className="whitespace-pre-wrap">{selectedExercise.descripcion}</p>
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Objetivos</h4>
-                                    <p className="whitespace-pre-wrap">{selectedExercise.objetivos}</p>
-                                </div>
-                                {selectedExercise.variantes && (
-                                    <div>
-                                        <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Variantes</h4>
-                                        <p className="whitespace-pre-wrap">{selectedExercise.variantes}</p>
-                                    </div>
-                                )}
-                                {selectedExercise.consejos_entrenador && (
-                                    <div>
-                                        <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Consejos para el Entrenador</h4>
-                                        <p className="whitespace-pre-wrap">{selectedExercise.consejos_entrenador}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        {/* Footer */}
-                        <div className="p-3 bg-gray-100 border-t text-xs text-gray-600 flex justify-between">
-                            <span>FutsalDex - Herramienta para entrenadores</span>
-                            <span>Categorías de Edad: {Array.isArray(selectedExercise.edad) ? selectedExercise.edad.join(', ') : selectedExercise.edad}</span>
-                        </div>
+              <DialogHeader className="sr-only">
+                <DialogTitle>{selectedExercise.ejercicio}</DialogTitle>
+                <DialogDescription>Ficha detallada del ejercicio: {selectedExercise.ejercicio}. Objetivos: {selectedExercise.objetivos}</DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="flex-grow bg-background">
+                <div className="exercise-print-area bg-white text-gray-800 m-0">
+                  <div className="p-4 bg-gray-800 text-white flex justify-between items-center">
+                    <h2 className="text-2xl font-bold font-headline">{selectedExercise.ejercicio}</h2>
+                    <div className="text-right">
+                      <p className="font-bold text-lg">Duración: {formatDuracion(selectedExercise.duracion)} min</p>
                     </div>
-                </ScrollArea>
-                <div className="p-4 bg-muted border-t flex justify-center flex-shrink-0">
-                    <Button
-                        onClick={() => handleSavePdf(selectedExercise)}
-                        disabled={isGeneratingPdf}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                    >
-                        {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                        Descargar PDF
-                    </Button>
+                  </div>
+                  <div className="p-6 bg-white text-gray-800 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="aspect-w-4 aspect-h-3 bg-gray-100 rounded overflow-hidden">
+                        <Image
+                          src={selectedExercise.imagen || `https://placehold.co/400x300.png`}
+                          alt={`Diagrama de ${selectedExercise.ejercicio}`}
+                          width={400}
+                          height={300}
+                          className="w-full h-auto object-contain"
+                          priority
+                          data-ai-hint="futsal diagram"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Categoría</h4>
+                          <p>{selectedExercise.categoria}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Fase</h4>
+                          <p>{selectedExercise.fase}</p>
+                        </div>
+                         <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Recursos Materiales</h4>
+                          <p>{selectedExercise.espacio_materiales}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Número de jugadores</h4>
+                          <p>{selectedExercise.jugadores}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Descripción de la Tarea</h4>
+                        <p className="whitespace-pre-wrap">{selectedExercise.descripcion}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Objetivos</h4>
+                        <p className="whitespace-pre-wrap">{selectedExercise.objetivos}</p>
+                      </div>
+                      {selectedExercise.variantes && (
+                        <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Variantes</h4>
+                          <p className="whitespace-pre-wrap">{selectedExercise.variantes}</p>
+                        </div>
+                      )}
+                      {selectedExercise.consejos_entrenador && (
+                        <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-gray-500">Consejos para el Entrenador</h4>
+                          <p className="whitespace-pre-wrap">{selectedExercise.consejos_entrenador}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gray-100 border-t text-xs text-gray-600 flex justify-between">
+                    <span>FutsalDex - Herramienta para entrenadores</span>
+                    <span>Categorías de Edad: {Array.isArray(selectedExercise.edad) ? selectedExercise.edad.join(', ') : selectedExercise.edad}</span>
+                  </div>
                 </div>
+              </ScrollArea>
+              <div className="p-4 bg-muted border-t flex justify-center gap-4 flex-shrink-0">
+                <Button
+                  onClick={() => handleSavePdf(selectedExercise)}
+                  disabled={isGeneratingPdf}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                  Descargar PDF
+                </Button>
+                <Button variant="outline" onClick={() => setSelectedExercise(null)}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Volver a Ejercicios
+                </Button>
+              </div>
             </>
           )}
         </DialogContent>
-
       </div>
     </Dialog>
   );
