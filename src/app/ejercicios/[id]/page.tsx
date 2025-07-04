@@ -182,14 +182,15 @@ export default function EjercicioDetallePage() {
       
       const widthScale = pdfWidth / canvasWidth;
       const heightScale = pdfHeight / canvasHeight;
-      const scale = Math.min(widthScale, heightScale); 
+      const scale = Math.min(widthScale, heightScale, 1); // Do not scale up, only down
       
       const finalWidth = canvasWidth * scale;
       const finalHeight = canvasHeight * scale;
+
       const xOffset = (pdfWidth - finalWidth) / 2;
-      const yOffset = (pdfHeight - finalHeight) / 2;
+      const yOffset = (pdfHeight - finalHeight) > 0 ? (pdfHeight - finalHeight) / 2 : 0;
       
-      pdf.addImage(imgData, 'PNG', xOffset, yOffset > 0 ? yOffset : 0, finalWidth, finalHeight);
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
       pdf.save(`${ejercicio.ejercicio.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'ejercicio'}_detalle.pdf`);
 
     } catch (error: any) {
@@ -255,11 +256,12 @@ export default function EjercicioDetallePage() {
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
         <div className="px-4 py-2 flex justify-start items-center border-b border-gray-300">
-            <Image 
-              src="https://i.ibb.co/RTck7Qzq/futsal-logo.png" 
-              alt="FutsalDex Logo" 
-              width={109}
-              height={40}
+            <img
+              src="https://i.ibb.co/RTck7Qzq/futsal-logo.png"
+              alt="FutsalDex Logo"
+              width="109"
+              height="40"
+              crossOrigin="anonymous"
             />
         </div>
         
