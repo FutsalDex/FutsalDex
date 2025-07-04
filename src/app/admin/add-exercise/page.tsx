@@ -17,10 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
+import { addExercise } from "@/ai/flows/admin-exercise-flow";
 
 
 function AddExercisePageContent() {
@@ -54,15 +53,7 @@ function AddExercisePageContent() {
   async function onSubmit(data: AddExerciseFormValues) {
     setIsLoading(true);
     try {
-      await addDoc(collection(db, "ejercicios_futsal"), {
-        ...data,
-        numero: data.numero || null,
-        variantes: data.variantes || null,
-        consejos_entrenador: data.consejos_entrenador || null,
-        imagen: data.imagen || `https://placehold.co/400x300.png?text=${encodeURIComponent(data.ejercicio)}`,
-        isVisible: data.isVisible === undefined ? true : data.isVisible,
-        createdAt: serverTimestamp(),
-      });
+      await addExercise(data);
       toast({
         title: "Ejercicio Añadido",
         description: `El ejercicio "${data.ejercicio}" ha sido añadido a la biblioteca.`,
