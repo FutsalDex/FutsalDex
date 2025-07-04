@@ -1,4 +1,3 @@
-
 // src/app/ejercicios/[id]/page.tsx
 "use client";
 
@@ -264,8 +263,15 @@ export default function EjercicioDetallePage() {
       </div>
 
       <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
-        <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300">
-            <h1 className="text-3xl font-bold text-gray-800 font-headline tracking-tight">FUTSALDEX</h1>
+        <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300 min-h-[80px]">
+            <Image
+                src="https://i.ibb.co/ZpM87Qz/logo-futsaldex-completo.png"
+                alt="FutsalDex Logo"
+                width={300}
+                height={80}
+                className="object-contain"
+                crossOrigin="anonymous"
+            />
         </div>
         
         <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center">
@@ -299,7 +305,7 @@ export default function EjercicioDetallePage() {
                             src={ejercicio.imagen || `https://placehold.co/600x400.png`}
                             alt={`Diagrama de ${ejercicio.ejercicio}`}
                             fill
-                            className="bg-gray-100 object-contain w-full h-full"
+                            className="bg-gray-100 object-contain"
                             data-ai-hint="futsal court"
                             crossOrigin="anonymous"
                             sizes="(max-width: 768px) 50vw, 300px"
