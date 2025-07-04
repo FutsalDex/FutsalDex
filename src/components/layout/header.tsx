@@ -15,14 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from 'react';
-
-const FutsalAppIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M12 1.6a10.4 10.4 0 1 0 0 20.8 10.4 10.4 0 0 0 0-20.8z"/>
-    <path d="M12 1.6a10.4 10.4 0 0 0-7.35 3.05M12 1.6a10.4 10.4 0 0 1 7.35 3.05M1.6 12a10.4 10.4 0 0 0 3.05 7.35M1.6 12a10.4 10.4 0 0 1 3.05-7.35M22.4 12a10.4 10.4 0 0 0-3.05-7.35M22.4 12a10.4 10.4 0 0 1-3.05 7.35M12 22.4a10.4 10.4 0 0 0 7.35-3.05M12 22.4a10.4 10.4 0 0 1-7.35-3.05"/>
-    <path d="M5.75 5.75l3.5 3.5M14.75 5.75l-3.5 3.5M5.75 14.75l-3.5-3.5M14.75 14.75l-3.5-3.5"/>
-  </svg>
-);
+import { FutsalDexIcon } from '@/components/futsaldex-icon';
 
 
 export default function Header() {
@@ -50,7 +43,7 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2">
-          <FutsalAppIcon className="h-6 w-6" />
+          <FutsalDexIcon className="h-6 w-6" />
           <span className="text-xl font-bold font-headline">FutsalDex</span>
         </Link>
         <nav className="hidden items-center space-x-1 md:flex">
