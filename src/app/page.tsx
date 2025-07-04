@@ -8,11 +8,13 @@ export default function HomePage() {
   return (
     <div className="container mx-auto px-4 py-12 md:px-6 md:py-16 lg:py-24">
       <div className="flex flex-col items-center text-center">
-        <img 
+        <div className="w-72 mb-6">
+          <img 
             src="https://i.ibb.co/RTck7Qzq/logo-futsaldex-completo.png" 
             alt="FutsalDex Logo" 
-            className="h-20 w-auto mb-6"
+            className="w-full h-auto"
           />
+        </div>
         <h1 className="mb-4 text-4xl font-bold tracking-tight text-primary md:text-5xl lg:text-6xl font-headline">
           ¡Bienvenido a FutsalDex!
         </h1>

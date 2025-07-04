@@ -15,8 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
-
 
 export default function Header() {
   const { user, signOut, loading, isAdmin } = useAuth();
@@ -43,11 +41,13 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center">
-          <img
-            src="https://i.ibb.co/GfbvT6cq/logo-futsaldex-solo.png"
-            alt="FutsalDex Logo"
-            className="h-9 w-auto"
-          />
+          <div className="w-9 h-9">
+            <img
+              src="https://i.ibb.co/GfbvT6cq/logo-futsaldex-solo.png"
+              alt="FutsalDex Logo"
+              className="h-full w-full object-contain"
+            />
+          </div>
         </Link>
         <nav className="hidden items-center space-x-1 md:flex">
           {navLinks.map((link) => (
