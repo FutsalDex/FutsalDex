@@ -278,13 +278,13 @@ export default function EjercicioDetallePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     {/* Left Column */}
                     <div className="space-y-6">
-                        <div className="relative w-full aspect-[4/3] bg-muted rounded-lg overflow-hidden border">
+                        <div className="w-full bg-muted rounded-lg overflow-hidden border">
                            <Image
                                 src={ejercicio.imagen || `https://placehold.co/600x400.png?text=${encodeURIComponent('Diagrama')}`}
                                 alt={`Diagrama de ${ejercicio.ejercicio}`}
-                                fill
-                                className="object-contain"
-                                sizes="(max-width: 768px) 90vw, (max-width: 1200px) 40vw, 33vw"
+                                width={600}
+                                height={400}
+                                className="w-full h-auto object-contain"
                                 data-ai-hint="futsal court"
                                 crossOrigin="anonymous"
                                 priority
