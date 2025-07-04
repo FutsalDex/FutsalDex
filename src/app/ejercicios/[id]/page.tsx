@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Save, Heart } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 
 interface Ejercicio {
   id: string;
@@ -238,8 +239,8 @@ export default function EjercicioDetallePage() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-      <div className="mb-6 flex justify-between items-center hide-on-print">
-        <Button variant="outline" onClick={() => router.push('/ejercicios')}>
+       <div className="mb-6 flex justify-between items-center">
+        <Button variant="outline" onClick={() => router.push('/ejercicios')} className="hide-on-print">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver a Ejercicios
         </Button>
@@ -247,7 +248,7 @@ export default function EjercicioDetallePage() {
           <Button
             variant="ghost"
             size="icon"
-            className="ml-4 bg-background hover:bg-background/90 text-primary rounded-full h-10 w-10 shrink-0"
+            className="ml-4 bg-background hover:bg-background/90 text-primary rounded-full h-10 w-10 shrink-0 hide-on-print"
             onClick={() => toggleFavorite(ejercicio.id)}
             title={favorites[ejercicio.id] ? "Quitar de favoritos" : "Añadir a favoritos"}
           >
@@ -256,83 +257,67 @@ export default function EjercicioDetallePage() {
         )}
       </div>
 
-      <div className="exercise-print-area bg-white text-gray-800 shadow-lg max-w-4xl mx-auto rounded-md border border-gray-400">
-        <div className="px-4 py-4 flex justify-start items-center border-b border-gray-300 min-h-[80px]">
-            <h1 className="text-3xl font-bold text-gray-800 font-headline">FutsalDex</h1>
-        </div>
-        
-        <div className="bg-[#2D3748] text-white px-4 py-2 flex justify-between items-center">
-            <span className="text-xs">CATEGORÍA: {ejercicio.categoria}</span>
-            <h2 className="text-lg font-bold">FICHA DE EJERCICIO</h2>
-            <span className="text-xs">Nº EJERCICIO: {ejercicio.numero || 'N/A'}</span>
-        </div>
-
-        <div className="p-4 border-b border-gray-300">
-            <div className="bg-[#2D3748] text-white px-3 py-1 mb-3 rounded">
-                <h3 className="font-semibold uppercase">OBJETIVOS</h3>
-            </div>
-            {objetivosList.length > 0 ? (
-                <ul className="text-sm grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-                {objetivosList.map((obj, index) => (
-                    <li key={index} className="before:content-['•'] before:mr-2">{obj}</li>
-                ))}
-                </ul>
-            ) : <p className="text-sm text-gray-600">No especificados.</p>}
-        </div>
-
-        <div className="p-4 border-b border-gray-300">
-            <div className="bg-[#2D3748] text-white px-3 py-1 mb-3 flex justify-between items-center rounded">
-                <h3 className="font-semibold uppercase truncate pr-4">{ejercicio.ejercicio}</h3>
-                <span className="text-sm bg-white text-gray-800 font-bold px-2 py-0.5 rounded-sm shrink-0">{formatDuracion(ejercicio.duracion)}</span>
-            </div>
-            <div className="flex flex-col md:flex-row gap-4 items-start">
-                <div className="w-full md:w-1/2 flex-shrink-0">
-                    <div className="w-full border border-gray-300 rounded overflow-hidden">
-                        <Image
+      <div className="exercise-print-area max-w-4xl mx-auto">
+        <Card className="shadow-lg border-muted">
+            <CardHeader className="bg-foreground text-background flex flex-row items-center justify-between rounded-t-lg p-4">
+                <CardTitle className="text-2xl font-headline">{ejercicio.ejercicio}</CardTitle>
+                <Badge variant="secondary" className="text-lg">{formatDuracion(ejercicio.duracion)}</Badge>
+            </CardHeader>
+            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden border">
+                       <Image
                             src={ejercicio.imagen || `https://placehold.co/600x400.png`}
                             alt={`Diagrama de ${ejercicio.ejercicio}`}
-                            width={600}
-                            height={400}
-                            className="w-full h-auto bg-gray-100 object-contain"
+                            fill
+                            className="object-contain bg-muted"
+                            sizes="(max-width: 768px) 90vw, 40vw"
                             data-ai-hint="futsal court"
                             crossOrigin="anonymous"
                         />
                     </div>
+                    <div>
+                        <h3 className="font-semibold text-lg text-primary mb-2">Consejos del Entrenador</h3>
+                        <p className="text-sm text-foreground/80">{ejercicio.consejos_entrenador || 'No hay consejos específicos para este ejercicio.'}</p>
+                    </div>
                 </div>
-                <div className="w-full md:w-1/2">
-                    <p className="text-sm text-gray-700">{ejercicio.descripcion}</p>
+
+                <div className="space-y-6">
+                    <div>
+                        <h3 className="font-semibold text-lg text-primary mb-2">Descripción</h3>
+                        <p className="text-sm text-foreground/80">{ejercicio.descripcion}</p>
+                    </div>
+
+                    <div>
+                        <h3 className="font-semibold text-lg text-primary mb-2">Objetivos</h3>
+                        <ul className="list-disc list-inside text-sm text-foreground/80 space-y-1">
+                            {objetivosList.map((obj, index) => (
+                                <li key={index}>{obj}</li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h3 className="font-semibold text-lg text-primary mb-2">Variantes</h3>
+                        <p className="text-sm text-foreground/80">{ejercicio.variantes || 'No se especifican variantes.'}</p>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <div className="p-4 border-b border-gray-300 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <p><strong className="font-semibold text-gray-900">Fase:</strong> {ejercicio.fase}</p>
-            <p><strong className="font-semibold text-gray-900">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</p>
-            <p><strong className="font-semibold text-gray-900">Nº Jugadores:</strong> {ejercicio.jugadores}</p>
-            <p><strong className="font-semibold text-gray-900">Materiales y Espacio:</strong> {ejercicio.espacio_materiales}</p>
-        </div>
-
-        {ejercicio.variantes && (
-        <div className="p-4 border-b border-gray-300">
-          <h3 className="font-semibold text-md mb-1 text-gray-900">Variantes</h3>
-          <p className="text-sm text-gray-700">{ejercicio.variantes}</p>
-        </div>
-        )}
-
-        {ejercicio.consejos_entrenador && (
-        <div className="p-4">
-          <h3 className="font-semibold text-md mb-1 text-gray-900">Consejos del Entrenador</h3>
-          <p className="text-sm text-gray-700">{ejercicio.consejos_entrenador}</p>
-        </div>
-        )}
-        
-        <div className="hide-on-print p-4 mt-2 text-center border-t border-gray-300">
+            </CardContent>
+            <CardFooter className="bg-muted/50 p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm rounded-b-lg border-t">
+                 <p><strong className="font-semibold text-primary block">Fase:</strong> {ejercicio.fase}</p>
+                <p><strong className="font-semibold text-primary block">Edad:</strong> {Array.isArray(ejercicio.edad) ? ejercicio.edad.join(', ') : ejercicio.edad}</p>
+                <p><strong className="font-semibold text-primary block">Nº Jugadores:</strong> {ejercicio.jugadores}</p>
+                <p><strong className="font-semibold text-primary block">Materiales:</strong> {ejercicio.espacio_materiales}</p>
+            </CardFooter>
+        </Card>
+      </div>
+      
+       <div className="hide-on-print p-4 mt-6 text-center">
             <Button onClick={handlePrint} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isGeneratingPdf ? 'Generando PDF...' : 'Guardar Ficha en PDF'}
             </Button>
         </div>
-      </div>
     </div>
   );
 }
