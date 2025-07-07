@@ -257,3 +257,44 @@ export async function toggleExerciseVisibility({ exerciseId, newVisibility }: To
   });
   return { success: true };
 }
+
+
+// --- Set All Exercises Visibility ---
+const SetAllExercisesVisibilityInputSchema = z.object({
+  isVisible: z.boolean(),
+});
+export type SetAllExercisesVisibilityInput = z.infer<typeof SetAllExercisesVisibilityInputSchema>;
+
+export async function setAllExercisesVisibility({ isVisible }: SetAllExercisesVisibilityInput): Promise<{ successCount: number }> {
+  const collectionRef = adminDb.collection("ejercicios_futsal");
+  const BATCH_SIZE = 400;
+  let successCount = 0;
+  let lastVisible: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null;
+
+  while (true) {
+    let query = collectionRef.orderBy('__name__').limit(BATCH_SIZE);
+    if (lastVisible) {
+      query = query.startAfter(lastVisible);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      break;
+    }
+
+    const batch = adminDb.batch();
+    snapshot.docs.forEach(doc => {
+      batch.update(doc.ref, { isVisible });
+    });
+    
+    await batch.commit();
+    successCount += snapshot.size;
+    lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+    if (snapshot.size < BATCH_SIZE) {
+      break; // Last batch
+    }
+  }
+
+  return { successCount };
+}

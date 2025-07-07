@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -28,8 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search, Image as ImageIcon } from "lucide-react";
-import { getAdminExercises, deleteExercise, toggleExerciseVisibility } from "@/ai/flows/admin-exercise-flow";
+import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search, Image as ImageIcon, EyeOff } from "lucide-react";
+import { getAdminExercises, deleteExercise, toggleExerciseVisibility, setAllExercisesVisibility } from "@/ai/flows/admin-exercise-flow";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import {
   Table,
@@ -83,14 +84,17 @@ function ManageExercisesPageContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<ExerciseAdmin | null>(null);
 
+  const [isBulkUpdateDialogOpen, setIsBulkUpdateDialogOpen] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
   const fetchExercises = useCallback(async () => {
     if (!isAdmin) return;
     setIsLoading(true);
     try {
+      // The client-side search means we always fetch all exercises respecting the visibility filter.
       const result = await getAdminExercises({
         visibility: visibilityFilter,
       });
-
       setAllExercises(result.exercises);
       
     } catch (error: any) {
@@ -207,6 +211,29 @@ function ManageExercisesPageContent() {
     }
   };
   
+  const handleConfirmBulkUpdate = async () => {
+    setIsBulkUpdating(true);
+    setIsBulkUpdateDialogOpen(false);
+    try {
+        const result = await setAllExercisesVisibility({ isVisible: false });
+        toast({
+            title: "Actualización Masiva Completa",
+            description: `${result.successCount} ejercicios se han marcado como no visibles.`,
+        });
+        fetchExercises(); // Refresh the list
+    } catch (error) {
+        console.error("Error in bulk update:", error);
+        toast({
+            title: "Error en Actualización Masiva",
+            description: "No se pudieron actualizar todos los ejercicios.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsBulkUpdating(false);
+    }
+  };
+
+
   const getSortIcon = (field: SortableField) => {
     if (sortField !== field) return <ArrowUpDown className="h-4 w-4 ml-2 opacity-30" />;
     return sortDirection === 'asc' ? <ArrowUpDown className="h-4 w-4 ml-2" /> : <ArrowUpDown className="h-4 w-4 ml-2" />;
@@ -287,6 +314,15 @@ function ManageExercisesPageContent() {
                           ))}
                       </DropdownMenuContent>
                   </DropdownMenu>
+                   <Button
+                      variant="destructive"
+                      onClick={() => setIsBulkUpdateDialogOpen(true)}
+                      disabled={isLoading || isBulkUpdating}
+                      className="w-full sm:w-auto"
+                    >
+                      {isBulkUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <EyeOff className="mr-2 h-4 w-4" />}
+                      Ocultar Todos
+                  </Button>
               </div>
           </div>
         </CardHeader>
@@ -370,6 +406,24 @@ function ManageExercisesPageContent() {
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer. El ejercicio "{exerciseToDelete?.ejercicio}" se eliminará permanentemente.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isBulkUpdateDialogOpen} onOpenChange={setIsBulkUpdateDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción marcará TODOS los ejercicios en la base de datos como NO VISIBLES. No podrán ser vistos por los usuarios hasta que los vuelvas a activar manualmente uno por uno.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmBulkUpdate} className="bg-destructive hover:bg-destructive/90" disabled={isBulkUpdating}>
+                    {isBulkUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                    Sí, ocultar todos
+                </AlertDialogAction>
+            </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
