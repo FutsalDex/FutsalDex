@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -29,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search } from "lucide-react";
+import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search, Image as ImageIcon } from "lucide-react";
 import { getAdminExercises, deleteExercise, toggleExerciseVisibility } from "@/ai/flows/admin-exercise-flow";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import {
@@ -59,6 +58,8 @@ interface ExerciseAdmin {
 type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad';
 type SortDirection = 'asc' | 'desc';
 type VisibilityFilter = 'all' | 'visible' | 'hidden';
+type ImageFilter = 'all' | 'with-image' | 'without-image';
+
 
 const PAGE_SIZE = 15;
 
@@ -76,6 +77,8 @@ function ManageExercisesPageContent() {
   const [sortField, setSortField] = useState<SortableField>('ejercicio');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
+  const [imageFilter, setImageFilter] = useState<ImageFilter>('all');
+
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<ExerciseAdmin | null>(null);
@@ -89,7 +92,6 @@ function ManageExercisesPageContent() {
       });
 
       setAllExercises(result.exercises);
-      setCurrentPage(1);
       
     } catch (error: any) {
       console.error("Error fetching exercises:", error);
@@ -104,7 +106,7 @@ function ManageExercisesPageContent() {
   
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortField, sortDirection, visibilityFilter]);
+  }, [searchTerm, sortField, sortDirection, visibilityFilter, imageFilter]);
 
   const filteredAndSortedExercises = useMemo(() => {
     let exercises = [...allExercises];
@@ -116,6 +118,13 @@ function ManageExercisesPageContent() {
       );
     }
     
+    // Filter by image presence
+    if (imageFilter === 'with-image') {
+      exercises = exercises.filter(ex => ex.imagen && !ex.imagen.includes('placehold.co'));
+    } else if (imageFilter === 'without-image') {
+      exercises = exercises.filter(ex => !ex.imagen || ex.imagen.includes('placehold.co'));
+    }
+
     // Sort
     exercises.sort((a, b) => {
       if (sortField === 'numero') {
@@ -146,7 +155,7 @@ function ManageExercisesPageContent() {
     });
     
     return exercises;
-  }, [allExercises, searchTerm, sortField, sortDirection]);
+  }, [allExercises, searchTerm, sortField, sortDirection, imageFilter]);
   
   const paginatedExercises = useMemo(() => {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
@@ -229,7 +238,7 @@ function ManageExercisesPageContent() {
         <CardHeader>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <CardTitle>Listado de Ejercicios</CardTitle>
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
                  <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
@@ -250,6 +259,17 @@ function ManageExercisesPageContent() {
                           <SelectItem value="hidden">Ocultos</SelectItem>
                       </SelectContent>
                   </Select>
+                   <Select value={imageFilter} onValueChange={(v) => setImageFilter(v as ImageFilter)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <ImageIcon className="mr-2 h-4 w-4" />
+                            <SelectValue placeholder="Filtrar por imagen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas</SelectItem>
+                            <SelectItem value="with-image">Con imagen</SelectItem>
+                            <SelectItem value="without-image">Sin imagen</SelectItem>
+                        </SelectContent>
+                    </Select>
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="w-full sm:w-auto">
