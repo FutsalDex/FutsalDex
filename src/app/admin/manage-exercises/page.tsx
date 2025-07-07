@@ -40,6 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import Image from "next/image";
 
 
 // Define types based on the flow output
@@ -51,6 +52,7 @@ interface ExerciseAdmin {
   categoria: string;
   edad: string[] | string;
   isVisible: boolean;
+  imagen?: string | null;
 }
 
 type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad';
@@ -119,14 +121,15 @@ function ManageExercisesPageContent() {
   }, [isAdmin, sortField, sortDirection, pageDocIds, toast, visibilityFilter]);
 
   useEffect(() => {
-    fetchExercises(currentPage);
-  }, [fetchExercises, currentPage]);
-  
-  useEffect(() => {
     setCurrentPage(1);
     setPageDocIds({ 1: undefined });
+    // Fetch will be triggered by the dependency change in the next effect
   }, [sortField, sortDirection, visibilityFilter]);
 
+  useEffect(() => {
+      fetchExercises(currentPage);
+  }, [fetchExercises, currentPage]);
+  
   const handleSort = (field: SortableField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
@@ -238,6 +241,7 @@ function ManageExercisesPageContent() {
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[80px] cursor-pointer" onClick={() => handleSort('numero')}>Nº {getSortIcon('numero')}</TableHead>
+                            <TableHead className="w-[80px]">Imagen</TableHead>
                             <TableHead className="cursor-pointer" onClick={() => handleSort('ejercicio')}>Ejercicio {getSortIcon('ejercicio')}</TableHead>
                             <TableHead className="cursor-pointer" onClick={() => handleSort('categoria')}>Categoría {getSortIcon('categoria')}</TableHead>
                             <TableHead>Edad</TableHead>
@@ -247,13 +251,23 @@ function ManageExercisesPageContent() {
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
-                            <TableRow><TableCell colSpan={6} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
+                            <TableRow><TableCell colSpan={7} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
                         ) : exercises.length === 0 ? (
-                            <TableRow><TableCell colSpan={6} className="h-64 text-center">No se encontraron ejercicios con los filtros actuales.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={7} className="h-64 text-center">No se encontraron ejercicios con los filtros actuales.</TableCell></TableRow>
                         ) : (
                             exercises.map(ex => (
                                 <TableRow key={ex.id}>
                                     <TableCell>{ex.numero || 'N/A'}</TableCell>
+                                    <TableCell>
+                                        <Image
+                                            src={ex.imagen || 'https://placehold.co/64x48.png'}
+                                            alt={`Imagen de ${ex.ejercicio}`}
+                                            width={64}
+                                            height={48}
+                                            className="object-cover rounded-md"
+                                            data-ai-hint="futsal drill"
+                                        />
+                                    </TableCell>
                                     <TableCell className="font-medium">{ex.ejercicio}</TableCell>
                                     <TableCell><Badge variant="secondary">{ex.categoria}</Badge></TableCell>
                                     <TableCell className="text-xs">{Array.isArray(ex.edad) ? ex.edad.join(', ') : ex.edad}</TableCell>

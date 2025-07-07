@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Server actions for admin operations on exercises.
@@ -133,6 +134,7 @@ const ExerciseAdminSchema = z.object({
   categoria: z.string(),
   edad: z.union([z.array(z.string()), z.string()]),
   isVisible: z.boolean(),
+  imagen: z.string().optional().nullable(),
 });
 
 const GetExercisesOutputSchema = z.object({
@@ -173,6 +175,7 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
       categoria: data.categoria,
       edad: data.edad,
       isVisible: data.isVisible === undefined ? true : data.isVisible,
+      imagen: data.imagen || null,
     };
   });
   
