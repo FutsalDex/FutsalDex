@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection as firestoreCollection, getDocs, limit, query, orderBy as firestoreOrderBy } from 'firebase/firestore';
+import { collection as firestoreCollection, getDocs, limit, query, where } from 'firebase/firestore';
 import Image from 'next/image';
 import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, Eye, FileDown, ArrowLeft } from 'lucide-react';
 import {
@@ -17,6 +17,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -457,10 +458,12 @@ export default function EjerciciosPage() {
                     <p className="mb-2 text-sm text-foreground/80 line-clamp-3" title={ej.descripcion}>{ej.descripcion}</p>
                   </CardContent>
                   <CardFooter className="flex justify-between items-center gap-2 border-t pt-4">
-                    <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
-                      <Eye className="mr-2 h-4 w-4" />
-                      Ver Ficha
-                    </Button>
+                    <DialogTrigger asChild>
+                      <Button onClick={() => setSelectedExercise(ej)} variant="outline" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver Ficha
+                      </Button>
+                    </DialogTrigger>
                     {isRegisteredUser && (
                       <Button
                         variant="ghost"

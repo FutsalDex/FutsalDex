@@ -12,7 +12,23 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { addExerciseSchema } from '@/lib/schemas';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  doc,
+  updateDoc,
+  serverTimestamp,
+  writeBatch,
+  getDocs,
+  query,
+  limit,
+  startAfter,
+  getCountFromServer,
+  deleteDoc,
+  getDoc,
+  orderBy as firestoreOrderBy,
+  QueryConstraint,
+} from 'firebase/firestore';
 
 // --- Add Exercise Flow ---
 
@@ -151,3 +167,161 @@ const batchAddExercisesFlow = ai.defineFlow(
     };
   }
 );
+
+
+// --- Get Exercises Flow (for admin list) ---
+
+const GetExercisesInputSchema = z.object({
+  sortField: z.enum(['numero', 'ejercicio', 'fase', 'categoria', 'edad']),
+  sortDirection: z.enum(['asc', 'desc']),
+  pageSize: z.number().int().positive(),
+  startAfterDocId: z.string().optional(),
+});
+export type GetExercisesInput = z.infer<typeof GetExercisesInputSchema>;
+
+const ExerciseAdminSchema = z.object({
+  id: z.string(),
+  numero: z.string().optional().nullable(),
+  ejercicio: z.string(),
+  fase: z.string(),
+  categoria: z.string(),
+  edad: z.union([z.array(z.string()), z.string()]),
+  isVisible: z.boolean(),
+});
+
+const GetExercisesOutputSchema = z.object({
+  exercises: z.array(ExerciseAdminSchema),
+  lastDocId: z.string().optional(),
+});
+export type GetExercisesOutput = z.infer<typeof GetExercisesOutputSchema>;
+
+export async function getAdminExercises(input: GetExercisesInput): Promise<GetExercisesOutput> {
+  return getAdminExercisesFlow(input);
+}
+
+const getAdminExercisesFlow = ai.defineFlow(
+  {
+    name: 'getAdminExercisesFlow',
+    inputSchema: GetExercisesInputSchema,
+    outputSchema: GetExercisesOutputSchema,
+  },
+  async ({ sortField, sortDirection, pageSize, startAfterDocId }) => {
+    const ejerciciosCollection = collection(db, "ejercicios_futsal");
+
+    const qConstraints: QueryConstraint[] = [
+      firestoreOrderBy(sortField === 'edad' ? 'categoria' : sortField, sortDirection),
+      limit(pageSize),
+    ];
+    
+    if (startAfterDocId) {
+        const startAfterDoc = await getDoc(doc(db, "ejercicios_futsal", startAfterDocId));
+        if (startAfterDoc.exists()) {
+            qConstraints.push(startAfter(startAfterDoc));
+        }
+    }
+    
+    const q = query(ejerciciosCollection, ...qConstraints);
+    const querySnapshot = await getDocs(q);
+
+    let exercises = querySnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        numero: data.numero,
+        ejercicio: data.ejercicio,
+        fase: data.fase,
+        categoria: data.categoria,
+        edad: data.edad,
+        isVisible: data.isVisible === undefined ? true : data.isVisible,
+      };
+    });
+    
+    // Replicate client-side sorting for fields that Firestore can't sort optimally (e.g., alphanumeric strings as numbers)
+    if (sortField === 'numero') {
+        exercises.sort((a, b) => {
+          const numA = (a.numero || "").trim(); 
+          const numB = (b.numero || "").trim();
+          const comparison = numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+    } else if (sortField === 'edad') {
+        exercises.sort((a, b) => {
+          const edadA = Array.isArray(a.edad) ? a.edad.join(', ') : (a.edad || '');
+          const edadB = Array.isArray(b.edad) ? b.edad.join(', ') : (b.edad || '');
+          const comparison = edadA.localeCompare(edadB);
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+    }
+    
+    const lastDoc = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
+
+    return {
+      exercises: exercises,
+      lastDocId: lastDoc?.id,
+    };
+  }
+);
+
+// --- Get Exercises Count Flow ---
+
+const GetExercisesCountOutputSchema = z.object({
+  count: z.number(),
+});
+export type GetExercisesCountOutput = z.infer<typeof GetExercisesCountOutputSchema>;
+
+export async function getExercisesCount(): Promise<GetExercisesCountOutput> {
+  return getExercisesCountFlow();
+}
+
+const getExercisesCountFlow = ai.defineFlow({
+  name: 'getExercisesCountFlow',
+  inputSchema: z.void(),
+  outputSchema: GetExercisesCountOutputSchema,
+}, async () => {
+    const q = query(collection(db, "ejercicios_futsal"));
+    const snapshot = await getCountFromServer(q);
+    return { count: snapshot.data().count };
+});
+
+// --- Delete Exercise Flow ---
+const DeleteExerciseInputSchema = z.object({
+  exerciseId: z.string(),
+});
+export type DeleteExerciseInput = z.infer<typeof DeleteExerciseInputSchema>;
+
+export async function deleteExercise(input: DeleteExerciseInput): Promise<{ success: boolean }> {
+  return deleteExerciseFlow(input);
+}
+
+const deleteExerciseFlow = ai.defineFlow({
+  name: 'deleteExerciseFlow',
+  inputSchema: DeleteExerciseInputSchema,
+  outputSchema: z.object({ success: z.boolean() }),
+}, async ({ exerciseId }) => {
+  await deleteDoc(doc(db, "ejercicios_futsal", exerciseId));
+  return { success: true };
+});
+
+// --- Toggle Exercise Visibility Flow ---
+const ToggleVisibilityInputSchema = z.object({
+  exerciseId: z.string(),
+  newVisibility: z.boolean(),
+});
+export type ToggleVisibilityInput = z.infer<typeof ToggleVisibilityInputSchema>;
+
+export async function toggleExerciseVisibility(input: ToggleVisibilityInput): Promise<{ success: boolean }> {
+  return toggleExerciseVisibilityFlow(input);
+}
+
+const toggleExerciseVisibilityFlow = ai.defineFlow({
+  name: 'toggleExerciseVisibilityFlow',
+  inputSchema: ToggleVisibilityInputSchema,
+  outputSchema: z.object({ success: z.boolean() }),
+}, async ({ exerciseId, newVisibility }) => {
+  const exerciseRef = doc(db, "ejercicios_futsal", exerciseId);
+  await updateDoc(exerciseRef, {
+    isVisible: newVisibility,
+    updatedAt: serverTimestamp()
+  });
+  return { success: true };
+});
