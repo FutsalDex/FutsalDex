@@ -41,8 +41,8 @@ function AdminPageContent() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">Gestión de Ejercicios</CardTitle>
-            <CardDescription>Añade, modifica o elimina ejercicios de la biblioteca, individualmente o por lote.</CardDescription>
+            <CardTitle className="font-headline text-2xl">Añadir Ejercicios</CardTitle>
+            <CardDescription>Añade nuevos ejercicios a la biblioteca de forma individual o por lote.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex flex-col sm:flex-row flex-wrap gap-4">
