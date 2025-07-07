@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -170,8 +169,12 @@ function ManageExercisesPageContent() {
       await deleteExercise({ exerciseId: exerciseToDelete.id });
       toast({ title: "Ejercicio Eliminado", description: `"${exerciseToDelete.ejercicio}" ha sido eliminado.` });
       // Reset to page 1 to refetch data consistently after deletion
-      setCurrentPage(1);
-      pageCursors.current = { 1: null };
+      if (currentPage === 1) {
+        fetchExercises(1); // Manually trigger refetch for current page after deletion
+      } else {
+        setCurrentPage(1);
+        pageCursors.current = { 1: null };
+      }
     } catch (error) {
       console.error("Error deleting exercise:", error);
       toast({ title: "Error", description: "No se pudo eliminar el ejercicio.", variant: "destructive" });
@@ -191,8 +194,12 @@ function ManageExercisesPageContent() {
             description: `${result.successCount} ejercicios se han marcado como no visibles.`,
         });
         // Reset to page 1 to refetch data after bulk update
-        setCurrentPage(1);
-        pageCursors.current = { 1: null };
+        if (currentPage === 1) {
+            fetchExercises(1); // Manually trigger refetch
+        } else {
+            setCurrentPage(1);
+            pageCursors.current = { 1: null };
+        }
     } catch (error) {
         console.error("Error in bulk update:", error);
         toast({
@@ -262,7 +269,7 @@ function ManageExercisesPageContent() {
                       <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="w-full sm:w-auto" disabled={!!debouncedSearchTerm}>
                               <ArrowUpDown className="mr-2 h-4 w-4" />
-                              Ordenar por: {debouncedSearchTerm ? 'ejercicio' : sortField}
+                              Ordenar por: {debouncedSearchTerm ? 'nombre' : sortField}
                           </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
