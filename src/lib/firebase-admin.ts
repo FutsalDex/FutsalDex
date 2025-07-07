@@ -1,4 +1,5 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // IMPORTANT: This file should only be imported on the server-side.
 // We are using initializeApp() with no credentials, which works in managed environments
@@ -6,10 +7,10 @@ import * as admin from 'firebase-admin';
 // For local development, you must set up ADC by running `gcloud auth application-default login`.
 
 // This pattern ensures that we initialize the app only once.
-if (!admin.apps.length) {
-  admin.initializeApp();
+if (getApps().length === 0) {
+  initializeApp();
 }
 
-const adminDb = admin.firestore();
+const adminDb = getFirestore();
 
 export { adminDb };
