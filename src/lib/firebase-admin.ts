@@ -1,4 +1,4 @@
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 // IMPORTANT: This file should only be imported on the server-side.
@@ -15,9 +15,12 @@ const existingAdminApp = getApps().find(app => app.name === ADMIN_APP_NAME);
 if (existingAdminApp) {
   adminApp = existingAdminApp;
 } else {
-  // Initialize with no credentials, relying on Application Default Credentials
-  // This is the standard practice for Firebase-hosted environments
-  adminApp = initializeApp({}, ADMIN_APP_NAME);
+  // Explicitly use Application Default Credentials.
+  // This helps the Admin SDK to authenticate correctly in both managed and local environments (with ADC setup).
+  adminApp = initializeApp({
+    credential: applicationDefault(),
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  }, ADMIN_APP_NAME);
 }
 
 const adminDb = getFirestore(adminApp);
