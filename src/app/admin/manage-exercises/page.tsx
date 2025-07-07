@@ -5,6 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,9 +27,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter } from "lucide-react";
+import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search } from "lucide-react";
 import { getAdminExercises, deleteExercise, toggleExerciseVisibility } from "@/ai/flows/admin-exercise-flow";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import {
@@ -65,13 +66,12 @@ function ManageExercisesPageContent() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   
-  const [exercises, setExercises] = useState<ExerciseAdmin[]>([]);
+  const [allExercises, setAllExercises] = useState<ExerciseAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState<string | null>(null);
   
   const [currentPage, setCurrentPage] = useState(1);
-  const [lastDocId, setLastDocId] = useState<string | undefined>(undefined);
-  const [pageDocIds, setPageDocIds] = useState<Record<number, string | undefined>>({ 1: undefined });
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [sortField, setSortField] = useState<SortableField>('ejercicio');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -80,55 +80,81 @@ function ManageExercisesPageContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<ExerciseAdmin | null>(null);
 
-  const fetchExercises = useCallback(async (page: number) => {
+  const fetchExercises = useCallback(async () => {
     if (!isAdmin) return;
     setIsLoading(true);
     try {
-      const startAfter = pageDocIds[page];
       const result = await getAdminExercises({
-        sortField,
-        sortDirection,
-        pageSize: PAGE_SIZE,
-        startAfterDocId: startAfter,
-        visibility: visibilityFilter, // Pass the visibility filter
+        visibility: visibilityFilter,
       });
 
-      setExercises(result.exercises);
-      if (result.lastDocId) {
-        setLastDocId(result.lastDocId);
-        setPageDocIds(prev => {
-          if (prev[page + 1] === result.lastDocId) return prev;
-          return { ...prev, [page + 1]: result.lastDocId };
-        });
-      } else {
-        setLastDocId(undefined);
-      }
+      setAllExercises(result.exercises);
+      setCurrentPage(1);
       
     } catch (error: any) {
       console.error("Error fetching exercises:", error);
-      if (error.code === 'failed-precondition' || error.message?.includes('index')) {
-        toast({
-          title: "Índice de Firestore Requerido",
-          description: "Esta combinación de filtros y ordenación requiere un nuevo índice en la base de datos. Por favor, crea el índice desde el enlace que aparece en la consola de errores del navegador.",
-          variant: "destructive",
-          duration: 20000,
-        });
-      } else {
-        toast({ title: "Error", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
-      }
+      toast({ title: "Error", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
     }
     setIsLoading(false);
-  }, [isAdmin, sortField, sortDirection, pageDocIds, toast, visibilityFilter]);
+  }, [isAdmin, visibilityFilter, toast]);
 
+  useEffect(() => {
+    fetchExercises();
+  }, [fetchExercises]);
+  
   useEffect(() => {
     setCurrentPage(1);
-    setPageDocIds({ 1: undefined });
-    // Fetch will be triggered by the dependency change in the next effect
-  }, [sortField, sortDirection, visibilityFilter]);
+  }, [searchTerm, sortField, sortDirection, visibilityFilter]);
 
-  useEffect(() => {
-      fetchExercises(currentPage);
-  }, [fetchExercises, currentPage]);
+  const filteredAndSortedExercises = useMemo(() => {
+    let exercises = [...allExercises];
+    
+    // Filter by search term
+    if (searchTerm) {
+      exercises = exercises.filter(ex => 
+        ex.ejercicio.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Sort
+    exercises.sort((a, b) => {
+      if (sortField === 'numero') {
+        const numA = (a.numero || "").trim();
+        const numB = (b.numero || "").trim();
+        if (numA === "" && numB === "") return 0;
+        if (numA === "") return 1;
+        if (numB === "") return -1;
+        const comparison = numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+      
+      if (sortField === 'edad') {
+        const edadA = Array.isArray(a.edad) ? a.edad.join(', ') : (a.edad || '');
+        const edadB = Array.isArray(b.edad) ? b.edad.join(', ') : (b.edad || '');
+        const comparison = edadA.localeCompare(edadB);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      const valA = a[sortField] || '';
+      const valB = b[sortField] || '';
+      
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+
+      return 0;
+    });
+    
+    return exercises;
+  }, [allExercises, searchTerm, sortField, sortDirection]);
+  
+  const paginatedExercises = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredAndSortedExercises.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredAndSortedExercises, currentPage]);
+
+  const totalPages = Math.ceil(filteredAndSortedExercises.length / PAGE_SIZE);
+
   
   const handleSort = (field: SortableField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -140,7 +166,7 @@ function ManageExercisesPageContent() {
     setIsToggling(exerciseId);
     try {
       await toggleExerciseVisibility({ exerciseId, newVisibility: !currentVisibility });
-      setExercises(prev => 
+      setAllExercises(prev => 
         prev.map(ex => ex.id === exerciseId ? { ...ex, isVisible: !currentVisibility } : ex)
       );
       toast({ title: "Visibilidad actualizada", description: `El ejercicio ahora está ${!currentVisibility ? 'visible' : 'oculto'}.` });
@@ -162,7 +188,7 @@ function ManageExercisesPageContent() {
     try {
       await deleteExercise({ exerciseId: exerciseToDelete.id });
       toast({ title: "Ejercicio Eliminado", description: `"${exerciseToDelete.ejercicio}" ha sido eliminado.` });
-      fetchExercises(currentPage);
+      fetchExercises(); // Refetch all exercises after one is deleted
     } catch (error) {
       console.error("Error deleting exercise:", error);
       toast({ title: "Error", description: "No se pudo eliminar el ejercicio.", variant: "destructive" });
@@ -204,6 +230,15 @@ function ManageExercisesPageContent() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <CardTitle>Listado de Ejercicios</CardTitle>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                 <div className="relative w-full sm:w-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Buscar por nombre..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 w-full sm:w-[200px]"
+                    />
+                </div>
                  <Select value={visibilityFilter} onValueChange={(v) => setVisibilityFilter(v as VisibilityFilter)}>
                       <SelectTrigger className="w-full sm:w-[150px]">
                           <ListFilter className="mr-2 h-4 w-4" />
@@ -252,10 +287,10 @@ function ManageExercisesPageContent() {
                     <TableBody>
                         {isLoading ? (
                             <TableRow><TableCell colSpan={7} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
-                        ) : exercises.length === 0 ? (
+                        ) : paginatedExercises.length === 0 ? (
                             <TableRow><TableCell colSpan={7} className="h-64 text-center">No se encontraron ejercicios con los filtros actuales.</TableCell></TableRow>
                         ) : (
-                            exercises.map(ex => (
+                            paginatedExercises.map(ex => (
                                 <TableRow key={ex.id}>
                                     <TableCell>{ex.numero || 'N/A'}</TableCell>
                                     <TableCell>
@@ -298,13 +333,13 @@ function ManageExercisesPageContent() {
                 </Table>
             </div>
         </CardContent>
-         {exercises.length > 0 && (
+         {totalPages > 1 && (
           <CardFooter className="justify-center">
               <Pagination>
                 <PaginationContent>
                   <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1 || isLoading}>Anterior</Button></PaginationItem>
-                  <PaginationItem><span className="p-2 text-sm">Página {currentPage}</span></PaginationItem>
-                  <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={!lastDocId || isLoading}>Siguiente</Button></PaginationItem>
+                  <PaginationItem><span className="p-2 text-sm">Página {currentPage} de {totalPages}</span></PaginationItem>
+                  <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages || isLoading}>Siguiente</Button></PaginationItem>
                 </PaginationContent>
               </Pagination>
           </CardFooter>

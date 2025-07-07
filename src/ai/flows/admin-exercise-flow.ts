@@ -118,10 +118,6 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
 // --- Get Exercises (for admin list) ---
 
 const GetExercisesInputSchema = z.object({
-  sortField: z.enum(['numero', 'ejercicio', 'fase', 'categoria', 'edad']),
-  sortDirection: z.enum(['asc', 'desc']),
-  pageSize: z.number().int().positive(),
-  startAfterDocId: z.string().optional(),
   visibility: z.enum(['all', 'visible', 'hidden']).optional(),
 });
 export type GetExercisesInput = z.infer<typeof GetExercisesInputSchema>;
@@ -139,12 +135,11 @@ const ExerciseAdminSchema = z.object({
 
 const GetExercisesOutputSchema = z.object({
   exercises: z.array(ExerciseAdminSchema),
-  lastDocId: z.string().optional(),
 });
 export type GetExercisesOutput = z.infer<typeof GetExercisesOutputSchema>;
 
 export async function getAdminExercises(input: GetExercisesInput): Promise<GetExercisesOutput> {
-  const { sortField, sortDirection, pageSize, startAfterDocId, visibility } = input;
+  const { visibility } = input;
   let q: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = adminDb.collection("ejercicios_futsal");
 
   // Apply visibility filter
@@ -153,19 +148,11 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
   } else if (visibility === 'hidden') {
     q = q.where('isVisible', '==', false);
   }
-
-  q = q.orderBy(sortField === 'edad' ? 'categoria' : sortField, sortDirection).limit(pageSize);
   
-  if (startAfterDocId) {
-      const startAfterDoc = await adminDb.collection("ejercicios_futsal").doc(startAfterDocId).get();
-      if (startAfterDoc.exists) {
-          q = q.startAfter(startAfterDoc);
-      }
-  }
-  
+  // Fetch all documents that match the filter. Sorting and pagination will be handled client-side.
   const querySnapshot = await q.get();
 
-  let exercises = querySnapshot.docs.map(docSnap => {
+  const exercises = querySnapshot.docs.map(docSnap => {
     const data = docSnap.data();
     return {
       id: docSnap.id,
@@ -179,29 +166,11 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
     };
   });
   
-  if (sortField === 'numero') {
-      exercises.sort((a, b) => {
-        const numA = (a.numero || "").trim(); 
-        const numB = (b.numero || "").trim();
-        const comparison = numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
-  } else if (sortField === 'edad') {
-      exercises.sort((a, b) => {
-        const edadA = Array.isArray(a.edad) ? a.edad.join(', ') : (a.edad || '');
-        const edadB = Array.isArray(b.edad) ? b.edad.join(', ') : (b.edad || '');
-        const comparison = edadA.localeCompare(edadB);
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
-  }
-  
-  const lastDoc = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
-
   return {
     exercises: exercises,
-    lastDocId: lastDoc?.id,
   };
 }
+
 
 // --- Get Exercise By ID ---
 
