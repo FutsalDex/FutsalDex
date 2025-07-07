@@ -254,18 +254,6 @@ export async function getExerciseById({ exerciseId }: GetExerciseByIdInput): Pro
 }
 
 
-// --- Get Exercises Count ---
-
-const GetExercisesCountOutputSchema = z.object({
-  count: z.number(),
-});
-export type GetExercisesCountOutput = z.infer<typeof GetExercisesCountOutputSchema>;
-
-export async function getExercisesCount(): Promise<GetExercisesCountOutput> {
-  const snapshot = await adminDb.collection("ejercicios_futsal").count().get();
-  return { count: snapshot.data().count };
-}
-
 // --- Delete Exercise ---
 const DeleteExerciseInputSchema = z.object({
   exerciseId: z.string(),
