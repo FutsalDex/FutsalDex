@@ -189,6 +189,11 @@ export async function getExerciseById({ exerciseId }: GetExerciseByIdInput): Pro
     if (docSnap.exists) {
         const data = docSnap.data()!;
         
+        // Clean the 'duracion' field to only contain the numeric value as a string.
+        // This handles cases like "10 minutos" and extracts "10".
+        const rawDuration = data.duracion || "";
+        const numericDuration = (String(rawDuration).match(/\d+/) || [""])[0];
+        
         const preparedData = {
             numero: data.numero || "",
             ejercicio: data.ejercicio || "",
@@ -196,7 +201,7 @@ export async function getExerciseById({ exerciseId }: GetExerciseByIdInput): Pro
             objetivos: data.objetivos || "",
             espacio_materiales: data.espacio_materiales || "",
             jugadores: data.jugadores || "",
-            duracion: data.duracion || "",
+            duracion: numericDuration, // Use the cleaned value
             variantes: data.variantes || "",
             fase: data.fase || "",
             categoria: data.categoria || "",
