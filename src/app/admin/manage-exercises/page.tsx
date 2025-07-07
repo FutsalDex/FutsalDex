@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -80,7 +81,13 @@ function ManageExercisesPageContent() {
       setExercises(result.exercises);
       if (result.lastDocId) {
         setLastDocId(result.lastDocId);
-        setPageDocIds(prev => ({ ...prev, [page + 1]: result.lastDocId }));
+        // This is the key change: only update state if the value is new to prevent infinite loops
+        setPageDocIds(prev => {
+          if (prev[page + 1] === result.lastDocId) {
+            return prev;
+          }
+          return { ...prev, [page + 1]: result.lastDocId };
+        });
       } else {
         setLastDocId(undefined);
       }
