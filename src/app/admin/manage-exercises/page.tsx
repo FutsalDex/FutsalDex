@@ -27,7 +27,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search, Image as ImageIcon, EyeOff } from "lucide-react";
 import { getAdminExercises, deleteExercise, toggleExerciseVisibility, setAllExercisesVisibility } from "@/ai/flows/admin-exercise-flow";
@@ -80,8 +80,8 @@ function ManageExercisesPageContent() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   
-  // Pagination cursors
-  const [pageCursors, setPageCursors] = useState<Record<number, string | null>>({ 1: null });
+  // Pagination cursors - Use useRef to avoid re-render loops
+  const pageCursors = useRef<Record<number, string | null>>({ 1: null });
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<ExerciseAdmin | null>(null);
@@ -106,7 +106,7 @@ function ManageExercisesPageContent() {
         sortField: debouncedSearchTerm ? 'ejercicio' : sortField, // Must sort by 'ejercicio' when searching
         sortDirection,
         pageSize: PAGE_SIZE,
-        startAfterDocId: pageCursors[page] ?? undefined,
+        startAfterDocId: pageCursors.current[page] ?? undefined,
         searchTerm: debouncedSearchTerm || undefined,
       });
 
@@ -115,7 +115,7 @@ function ManageExercisesPageContent() {
       
       // Store the cursor for the next page
       if (result.lastDocId) {
-        setPageCursors(prev => ({ ...prev, [page + 1]: result.lastDocId }));
+        pageCursors.current[page + 1] = result.lastDocId;
       }
       
     } catch (error: any) {
@@ -123,19 +123,18 @@ function ManageExercisesPageContent() {
       toast({ title: "Error", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
     }
     setIsLoading(false);
-  }, [isAdmin, visibilityFilter, sortField, sortDirection, debouncedSearchTerm, toast, pageCursors]);
+  }, [isAdmin, visibilityFilter, sortField, sortDirection, debouncedSearchTerm, toast]);
 
   // Effect to reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-    setPageCursors({ 1: null });
+    pageCursors.current = { 1: null };
   }, [visibilityFilter, sortField, sortDirection, debouncedSearchTerm]);
   
   // Main data fetching effect, triggered by page changes or filter changes (via the effect above)
   useEffect(() => {
     fetchExercises(currentPage);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, visibilityFilter, sortField, sortDirection, debouncedSearchTerm]);
+  }, [currentPage, fetchExercises]);
 
 
   const handleSort = (field: SortableField) => {
@@ -170,7 +169,9 @@ function ManageExercisesPageContent() {
     try {
       await deleteExercise({ exerciseId: exerciseToDelete.id });
       toast({ title: "Ejercicio Eliminado", description: `"${exerciseToDelete.ejercicio}" ha sido eliminado.` });
-      fetchExercises(currentPage); // Refetch current page after delete
+      // Reset to page 1 to refetch data consistently after deletion
+      setCurrentPage(1);
+      pageCursors.current = { 1: null };
     } catch (error) {
       console.error("Error deleting exercise:", error);
       toast({ title: "Error", description: "No se pudo eliminar el ejercicio.", variant: "destructive" });
@@ -189,7 +190,9 @@ function ManageExercisesPageContent() {
             title: "Actualización Masiva Completa",
             description: `${result.successCount} ejercicios se han marcado como no visibles.`,
         });
-        fetchExercises(1); // Refresh the list from page 1
+        // Reset to page 1 to refetch data after bulk update
+        setCurrentPage(1);
+        pageCursors.current = { 1: null };
     } catch (error) {
         console.error("Error in bulk update:", error);
         toast({
