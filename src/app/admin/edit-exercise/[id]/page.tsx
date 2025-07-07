@@ -19,11 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect, useCallback } from "react";
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
-import { updateExercise } from "@/ai/flows/admin-exercise-flow";
+import { updateExercise, getExerciseById } from "@/ai/flows/admin-exercise-flow";
 
 function EditExercisePageContent() {
   const { isAdmin } = useAuth();
@@ -64,32 +62,12 @@ function EditExercisePageContent() {
     }
     setIsFetching(true);
     try {
-      const docRef = doc(db, "ejercicios_futsal", exerciseId);
-      const docSnap = await getDoc(docRef);
+      // Call the server-side flow to get exercise data
+      const data = await getExerciseById({ exerciseId });
 
-      if (docSnap.exists()) {
-        const data = docSnap.data() as AddExerciseFormValues;
-        const currentEdad = Array.isArray(data.edad) ? data.edad : (data.edad ? [String(data.edad)] : []);
-        const currentImagen = typeof data.imagen === 'string' ? data.imagen : '';
-        const currentNumero = typeof data.numero === 'string' ? data.numero : '';
-        const currentVariantes = typeof data.variantes === 'string' ? data.variantes : '';
-        const currentConsejos = typeof data.consejos_entrenador === 'string' ? data.consejos_entrenador : '';
-        const currentCategoria = typeof data.categoria === 'string' ? data.categoria : '';
-        const currentDuracion = typeof data.duracion === 'string' ? data.duracion : '';
-        const currentIsVisible = typeof data.isVisible === 'boolean' ? data.isVisible : true;
-
-
-        form.reset({
-          ...data,
-          edad: currentEdad,
-          imagen: currentImagen,
-          numero: currentNumero,
-          variantes: currentVariantes,
-          consejos_entrenador: currentConsejos,
-          categoria: currentCategoria,
-          duracion: currentDuracion,
-          isVisible: currentIsVisible,
-        });
+      if (data) {
+        // The data from the flow is already validated and in the correct format
+        form.reset(data);
         setExerciseNotFound(false);
       } else {
         setExerciseNotFound(true);

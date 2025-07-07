@@ -262,6 +262,61 @@ const getAdminExercisesFlow = ai.defineFlow(
   }
 );
 
+// --- Get Exercise By ID Flow ---
+
+const GetExerciseByIdInputSchema = z.object({
+  exerciseId: z.string(),
+});
+export type GetExerciseByIdInput = z.infer<typeof GetExerciseByIdInputSchema>;
+
+// The output must be compatible with AddExerciseFormValues (derived from addExerciseSchema)
+const GetExerciseByIdOutputSchema = addExerciseSchema;
+export type GetExerciseByIdOutput = z.infer<typeof GetExerciseByIdOutputSchema>;
+
+export async function getExerciseById(input: GetExerciseByIdInput): Promise<GetExerciseByIdOutput | null> {
+    return getExerciseByIdFlow(input);
+}
+
+const getExerciseByIdFlow = ai.defineFlow({
+    name: 'getExerciseByIdFlow',
+    inputSchema: GetExerciseByIdInputSchema,
+    outputSchema: z.nullable(GetExerciseByIdOutputSchema),
+}, async ({ exerciseId }) => {
+    const docRef = doc(db, "ejercicios_futsal", exerciseId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        
+        // Prepare data for validation, ensuring no nulls are passed to zod where not expected
+        // and providing defaults for potentially missing fields.
+        const preparedData = {
+            numero: data.numero || "",
+            ejercicio: data.ejercicio || "",
+            descripcion: data.descripcion || "",
+            objetivos: data.objetivos || "",
+            espacio_materiales: data.espacio_materiales || "",
+            jugadores: data.jugadores || "",
+            duracion: data.duracion || "",
+            variantes: data.variantes || "",
+            fase: data.fase || "",
+            categoria: data.categoria || "",
+            edad: Array.isArray(data.edad) ? data.edad : (data.edad ? [String(data.edad)] : []),
+            consejos_entrenador: data.consejos_entrenador || "",
+            imagen: data.imagen || "",
+            isVisible: typeof data.isVisible === 'boolean' ? data.isVisible : true,
+        };
+        
+        // This will throw if the data from Firestore is fundamentally invalid (e.g., missing a required field)
+        // which is good for data integrity. The client will catch this as an error.
+        const validatedData = addExerciseSchema.parse(preparedData);
+        return validatedData;
+    } else {
+        return null;
+    }
+});
+
+
 // --- Get Exercises Count Flow ---
 
 const GetExercisesCountOutputSchema = z.object({
