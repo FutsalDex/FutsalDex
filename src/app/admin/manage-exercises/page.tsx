@@ -59,8 +59,6 @@ interface ExerciseAdmin {
 type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad';
 type SortDirection = 'asc' | 'desc';
 type VisibilityFilter = 'all' | 'visible' | 'hidden';
-type ImageFilter = 'all' | 'with-image' | 'without-image';
-
 
 const PAGE_SIZE = 15;
 
@@ -68,18 +66,22 @@ function ManageExercisesPageContent() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   
-  const [allExercises, setAllExercises] = useState<ExerciseAdmin[]>([]);
+  const [exercises, setExercises] = useState<ExerciseAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState<string | null>(null);
   
+  // Server-side state
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
   const [sortField, setSortField] = useState<SortableField>('ejercicio');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
-  const [imageFilter, setImageFilter] = useState<ImageFilter>('all');
-
+  
+  // Pagination cursors
+  const [pageCursors, setPageCursors] = useState<Record<number, string | null>>({ 1: null });
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<ExerciseAdmin | null>(null);
@@ -87,88 +89,55 @@ function ManageExercisesPageContent() {
   const [isBulkUpdateDialogOpen, setIsBulkUpdateDialogOpen] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
-  const fetchExercises = useCallback(async () => {
+  // Debounce search term to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const fetchExercises = useCallback(async (page: number) => {
     if (!isAdmin) return;
     setIsLoading(true);
     try {
-      // The client-side search means we always fetch all exercises respecting the visibility filter.
       const result = await getAdminExercises({
         visibility: visibilityFilter,
+        sortField: debouncedSearchTerm ? 'ejercicio' : sortField, // Must sort by 'ejercicio' when searching
+        sortDirection,
+        pageSize: PAGE_SIZE,
+        startAfterDocId: pageCursors[page] ?? undefined,
+        searchTerm: debouncedSearchTerm || undefined,
       });
-      setAllExercises(result.exercises);
+
+      setExercises(result.exercises);
+      setTotalPages(Math.ceil(result.totalCount / PAGE_SIZE));
+      
+      // Store the cursor for the next page
+      if (result.lastDocId) {
+        setPageCursors(prev => ({ ...prev, [page + 1]: result.lastDocId }));
+      }
       
     } catch (error: any) {
       console.error("Error fetching exercises:", error);
       toast({ title: "Error", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
     }
     setIsLoading(false);
-  }, [isAdmin, visibilityFilter, toast]);
+  }, [isAdmin, visibilityFilter, sortField, sortDirection, debouncedSearchTerm, toast, pageCursors]);
 
-  useEffect(() => {
-    fetchExercises();
-  }, [fetchExercises]);
-  
+  // Effect to reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortField, sortDirection, visibilityFilter, imageFilter]);
-
-  const filteredAndSortedExercises = useMemo(() => {
-    let exercises = [...allExercises];
-    
-    // Filter by search term
-    if (searchTerm) {
-      exercises = exercises.filter(ex => 
-        ex.ejercicio.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // Filter by image presence
-    if (imageFilter === 'with-image') {
-      exercises = exercises.filter(ex => ex.imagen && !ex.imagen.includes('placehold.co'));
-    } else if (imageFilter === 'without-image') {
-      exercises = exercises.filter(ex => !ex.imagen || ex.imagen.includes('placehold.co'));
-    }
-
-    // Sort
-    exercises.sort((a, b) => {
-      if (sortField === 'numero') {
-        const numA = (a.numero || "").trim();
-        const numB = (b.numero || "").trim();
-        if (numA === "" && numB === "") return 0;
-        if (numA === "") return 1;
-        if (numB === "") return -1;
-        const comparison = numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
-        return sortDirection === 'asc' ? comparison : -comparison;
-      }
-      
-      if (sortField === 'edad') {
-        const edadA = Array.isArray(a.edad) ? a.edad.join(', ') : (a.edad || '');
-        const edadB = Array.isArray(b.edad) ? b.edad.join(', ') : (b.edad || '');
-        const comparison = edadA.localeCompare(edadB);
-        return sortDirection === 'asc' ? comparison : -comparison;
-      }
-
-      const valA = a[sortField] || '';
-      const valB = b[sortField] || '';
-      
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      }
-
-      return 0;
-    });
-    
-    return exercises;
-  }, [allExercises, searchTerm, sortField, sortDirection, imageFilter]);
+    setPageCursors({ 1: null });
+  }, [visibilityFilter, sortField, sortDirection, debouncedSearchTerm]);
   
-  const paginatedExercises = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    return filteredAndSortedExercises.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredAndSortedExercises, currentPage]);
+  // Main data fetching effect, triggered by page changes or filter changes (via the effect above)
+  useEffect(() => {
+    fetchExercises(currentPage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, visibilityFilter, sortField, sortDirection, debouncedSearchTerm]);
 
-  const totalPages = Math.ceil(filteredAndSortedExercises.length / PAGE_SIZE);
 
-  
   const handleSort = (field: SortableField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
@@ -179,7 +148,7 @@ function ManageExercisesPageContent() {
     setIsToggling(exerciseId);
     try {
       await toggleExerciseVisibility({ exerciseId, newVisibility: !currentVisibility });
-      setAllExercises(prev => 
+      setExercises(prev => 
         prev.map(ex => ex.id === exerciseId ? { ...ex, isVisible: !currentVisibility } : ex)
       );
       toast({ title: "Visibilidad actualizada", description: `El ejercicio ahora está ${!currentVisibility ? 'visible' : 'oculto'}.` });
@@ -201,7 +170,7 @@ function ManageExercisesPageContent() {
     try {
       await deleteExercise({ exerciseId: exerciseToDelete.id });
       toast({ title: "Ejercicio Eliminado", description: `"${exerciseToDelete.ejercicio}" ha sido eliminado.` });
-      fetchExercises(); // Refetch all exercises after one is deleted
+      fetchExercises(currentPage); // Refetch current page after delete
     } catch (error) {
       console.error("Error deleting exercise:", error);
       toast({ title: "Error", description: "No se pudo eliminar el ejercicio.", variant: "destructive" });
@@ -220,7 +189,7 @@ function ManageExercisesPageContent() {
             title: "Actualización Masiva Completa",
             description: `${result.successCount} ejercicios se han marcado como no visibles.`,
         });
-        fetchExercises(); // Refresh the list
+        fetchExercises(1); // Refresh the list from page 1
     } catch (error) {
         console.error("Error in bulk update:", error);
         toast({
@@ -239,7 +208,7 @@ function ManageExercisesPageContent() {
     return sortDirection === 'asc' ? <ArrowUpDown className="h-4 w-4 ml-2" /> : <ArrowUpDown className="h-4 w-4 ml-2" />;
   };
 
-  if (!isAdmin) {
+  if (!isAdmin && !isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
         <Card className="w-full max-w-md text-center shadow-lg"><CardHeader><AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" /><CardTitle className="text-2xl font-headline text-destructive">Acceso Denegado</CardTitle></CardHeader><CardContent><CardDescription>No tienes permisos para acceder a esta página.</CardDescription><Button asChild variant="outline" className="mt-4"><Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Panel</Link></Button></CardContent></Card>
@@ -286,22 +255,11 @@ function ManageExercisesPageContent() {
                           <SelectItem value="hidden">Ocultos</SelectItem>
                       </SelectContent>
                   </Select>
-                   <Select value={imageFilter} onValueChange={(v) => setImageFilter(v as ImageFilter)}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <ImageIcon className="mr-2 h-4 w-4" />
-                            <SelectValue placeholder="Filtrar por imagen" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas</SelectItem>
-                            <SelectItem value="with-image">Con imagen</SelectItem>
-                            <SelectItem value="without-image">Sin imagen</SelectItem>
-                        </SelectContent>
-                    </Select>
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-full sm:w-auto">
+                          <Button variant="outline" className="w-full sm:w-auto" disabled={!!debouncedSearchTerm}>
                               <ArrowUpDown className="mr-2 h-4 w-4" />
-                              Ordenar por: {sortField}
+                              Ordenar por: {debouncedSearchTerm ? 'ejercicio' : sortField}
                           </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -331,10 +289,10 @@ function ManageExercisesPageContent() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[80px] cursor-pointer" onClick={() => handleSort('numero')}>Nº {getSortIcon('numero')}</TableHead>
+                            <TableHead className="w-[80px] cursor-pointer" onClick={() => !debouncedSearchTerm && handleSort('numero')}>Nº {!debouncedSearchTerm && getSortIcon('numero')}</TableHead>
                             <TableHead className="w-[80px]">Imagen</TableHead>
-                            <TableHead className="cursor-pointer" onClick={() => handleSort('ejercicio')}>Ejercicio {getSortIcon('ejercicio')}</TableHead>
-                            <TableHead className="cursor-pointer" onClick={() => handleSort('categoria')}>Categoría {getSortIcon('categoria')}</TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => !debouncedSearchTerm && handleSort('ejercicio')}>Ejercicio {!debouncedSearchTerm && getSortIcon('ejercicio')}</TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => !debouncedSearchTerm && handleSort('categoria')}>Categoría {!debouncedSearchTerm && getSortIcon('categoria')}</TableHead>
                             <TableHead>Edad</TableHead>
                             <TableHead className="w-[120px] text-center">Visible</TableHead>
                             <TableHead className="w-[100px] text-center">Acciones</TableHead>
@@ -343,10 +301,10 @@ function ManageExercisesPageContent() {
                     <TableBody>
                         {isLoading ? (
                             <TableRow><TableCell colSpan={7} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
-                        ) : paginatedExercises.length === 0 ? (
+                        ) : exercises.length === 0 ? (
                             <TableRow><TableCell colSpan={7} className="h-64 text-center">No se encontraron ejercicios con los filtros actuales.</TableCell></TableRow>
                         ) : (
-                            paginatedExercises.map(ex => (
+                            exercises.map(ex => (
                                 <TableRow key={ex.id}>
                                     <TableCell>{ex.numero || 'N/A'}</TableCell>
                                     <TableCell>

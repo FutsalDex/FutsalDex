@@ -118,7 +118,12 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
 // --- Get Exercises (for admin list) ---
 
 const GetExercisesInputSchema = z.object({
-  visibility: z.enum(['all', 'visible', 'hidden']).optional(),
+  visibility: z.enum(['all', 'visible', 'hidden']).optional().default('all'),
+  sortField: z.enum(['numero', 'ejercicio', 'categoria', 'edad', 'fase']).default('ejercicio'),
+  sortDirection: z.enum(['asc', 'desc']).default('asc'),
+  pageSize: z.number().default(15),
+  startAfterDocId: z.string().optional(),
+  searchTerm: z.string().optional(),
 });
 export type GetExercisesInput = z.infer<typeof GetExercisesInputSchema>;
 
@@ -135,22 +140,53 @@ const ExerciseAdminSchema = z.object({
 
 const GetExercisesOutputSchema = z.object({
   exercises: z.array(ExerciseAdminSchema),
+  lastDocId: z.string().optional().nullable(),
+  totalCount: z.number(),
 });
 export type GetExercisesOutput = z.infer<typeof GetExercisesOutputSchema>;
 
 export async function getAdminExercises(input: GetExercisesInput): Promise<GetExercisesOutput> {
-  const { visibility } = input;
-  let q: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = adminDb.collection("ejercicios_futsal");
+  const { visibility, sortField, sortDirection, pageSize, startAfterDocId, searchTerm } = input;
+  let baseQuery: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = adminDb.collection("ejercicios_futsal");
 
   // Apply visibility filter
   if (visibility === 'visible') {
-    q = q.where('isVisible', '==', true);
+    baseQuery = baseQuery.where('isVisible', '==', true);
   } else if (visibility === 'hidden') {
-    q = q.where('isVisible', '==', false);
+    baseQuery = baseQuery.where('isVisible', '==', false);
   }
   
-  // Fetch all documents that match the filter. Sorting and pagination will be handled client-side.
-  const querySnapshot = await q.get();
+  let countQuery = baseQuery;
+
+  // Apply search term filter (prefix search)
+  // Firestore requires that the first orderBy field matches the inequality field.
+  const finalSortField = searchTerm ? 'ejercicio' : sortField;
+  if (searchTerm) {
+    const searchQuery = baseQuery
+      .where('ejercicio', '>=', searchTerm)
+      .where('ejercicio', '<=', searchTerm + '\uf8ff');
+    baseQuery = searchQuery;
+    countQuery = searchQuery;
+  }
+
+  // Get total count for pagination
+  const countSnapshot = await countQuery.count().get();
+  const totalCount = countSnapshot.data().count;
+
+  // Apply sorting
+  let dataQuery = baseQuery.orderBy(finalSortField, sortDirection);
+
+  // Apply pagination cursor if provided
+  if (startAfterDocId) {
+    const lastDoc = await adminDb.collection("ejercicios_futsal").doc(startAfterDocId).get();
+    if (lastDoc.exists) {
+      dataQuery = dataQuery.startAfter(lastDoc);
+    }
+  }
+  
+  dataQuery = dataQuery.limit(pageSize);
+  
+  const querySnapshot = await dataQuery.get();
 
   const exercises = querySnapshot.docs.map(docSnap => {
     const data = docSnap.data();
@@ -166,8 +202,12 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
     };
   });
   
+  const lastDocId = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1].id : null;
+  
   return {
-    exercises: exercises,
+    exercises,
+    lastDocId,
+    totalCount,
   };
 }
 
@@ -189,8 +229,6 @@ export async function getExerciseById({ exerciseId }: GetExerciseByIdInput): Pro
     if (docSnap.exists) {
         const data = docSnap.data()!;
         
-        // Clean the 'duracion' field to only contain the numeric value as a string.
-        // This handles cases like "10 minutos" and extracts "10".
         const rawDuration = data.duracion || "";
         const numericDuration = (String(rawDuration).match(/\d+/) || [""])[0];
         
@@ -201,7 +239,7 @@ export async function getExerciseById({ exerciseId }: GetExerciseByIdInput): Pro
             objetivos: data.objetivos || "",
             espacio_materiales: data.espacio_materiales || "",
             jugadores: data.jugadores || "",
-            duracion: numericDuration, // Use the cleaned value
+            duracion: numericDuration,
             variantes: data.variantes || "",
             fase: data.fase || "",
             categoria: data.categoria || "",
