@@ -141,7 +141,7 @@ const ExerciseAdminSchema = z.object({
 const GetExercisesOutputSchema = z.object({
   exercises: z.array(ExerciseAdminSchema),
   lastDocId: z.string().optional().nullable(),
-  totalCount: z.number(),
+  hasNextPage: z.boolean(),
 });
 export type GetExercisesOutput = z.infer<typeof GetExercisesOutputSchema>;
 
@@ -156,8 +156,6 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
     baseQuery = baseQuery.where('isVisible', '==', false);
   }
   
-  let countQuery = baseQuery;
-
   // Apply search term filter (prefix search)
   // Firestore requires that the first orderBy field matches the inequality field.
   const finalSortField = searchTerm ? 'ejercicio' : sortField;
@@ -166,12 +164,7 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
       .where('ejercicio', '>=', searchTerm)
       .where('ejercicio', '<=', searchTerm + '\uf8ff');
     baseQuery = searchQuery;
-    countQuery = searchQuery;
   }
-
-  // Get total count for pagination
-  const countSnapshot = await countQuery.count().get();
-  const totalCount = countSnapshot.data().count;
 
   // Apply sorting
   let dataQuery = baseQuery.orderBy(finalSortField, sortDirection);
@@ -184,11 +177,15 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
     }
   }
   
-  dataQuery = dataQuery.limit(pageSize);
+  // Fetch one more than page size to check for next page
+  dataQuery = dataQuery.limit(pageSize + 1);
   
   const querySnapshot = await dataQuery.get();
 
-  const exercises = querySnapshot.docs.map(docSnap => {
+  const hasNextPage = querySnapshot.docs.length > pageSize;
+  const docsToMap = hasNextPage ? querySnapshot.docs.slice(0, -1) : querySnapshot.docs;
+
+  const exercises = docsToMap.map(docSnap => {
     const data = docSnap.data();
     return {
       id: docSnap.id,
@@ -202,12 +199,12 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
     };
   });
   
-  const lastDocId = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1].id : null;
+  const lastDocId = querySnapshot.docs.length > 0 ? querySnapshot.docs[docsToMap.length - 1]?.id : null;
   
   return {
     exercises,
     lastDocId,
-    totalCount,
+    hasNextPage,
   };
 }
 

@@ -72,7 +72,7 @@ function ManageExercisesPageContent() {
   
   // Server-side state
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
@@ -111,7 +111,7 @@ function ManageExercisesPageContent() {
       });
 
       setExercises(result.exercises);
-      setTotalPages(Math.ceil(result.totalCount / PAGE_SIZE));
+      setHasNextPage(result.hasNextPage);
       
       // Store the cursor for the next page
       if (result.lastDocId) {
@@ -347,13 +347,13 @@ function ManageExercisesPageContent() {
                 </Table>
             </div>
         </CardContent>
-         {totalPages > 1 && (
+         { (currentPage > 1 || hasNextPage) && (
           <CardFooter className="justify-center">
               <Pagination>
                 <PaginationContent>
                   <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1 || isLoading}>Anterior</Button></PaginationItem>
-                  <PaginationItem><span className="p-2 text-sm">Página {currentPage} de {totalPages}</span></PaginationItem>
-                  <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages || isLoading}>Siguiente</Button></PaginationItem>
+                  <PaginationItem><span className="p-2 text-sm">Página {currentPage}</span></PaginationItem>
+                  <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={!hasNextPage || isLoading}>Siguiente</Button></PaginationItem>
                 </PaginationContent>
               </Pagination>
           </CardFooter>
