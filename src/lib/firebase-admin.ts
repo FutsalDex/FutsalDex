@@ -1,4 +1,4 @@
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { config } from 'dotenv';
 
@@ -11,20 +11,12 @@ config();
 // like Cloud Functions or App Hosting. It uses Application Default Credentials.
 // For local development, you must set up ADC by running `gcloud auth application-default login`.
 
-const ADMIN_APP_NAME = 'firebase-admin-app-futsaldex';
-let adminApp: App;
-
-// Check if the admin app is already initialized to avoid re-initialization
-const existingAdminApp = getApps().find(app => app.name === ADMIN_APP_NAME);
-
-if (existingAdminApp) {
-  adminApp = existingAdminApp;
-} else {
-  // Let the SDK automatically discover the credentials from the environment.
-  // This works for ADC locally and for the service account in a managed environment.
-  adminApp = initializeApp({}, ADMIN_APP_NAME);
+// Initialize the app only if it's not already initialized.
+// This is the standard pattern for serverless environments to prevent re-initialization.
+if (getApps().length === 0) {
+  initializeApp();
 }
 
-const adminDb = getFirestore(adminApp);
+const adminDb = getFirestore();
 
 export { adminDb };
