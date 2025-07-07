@@ -28,9 +28,19 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter } from "lucide-react";
 import { getAdminExercises, deleteExercise, toggleExerciseVisibility } from "@/ai/flows/admin-exercise-flow";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 // Define types based on the flow output
 interface ExerciseAdmin {
@@ -45,8 +55,9 @@ interface ExerciseAdmin {
 
 type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad';
 type SortDirection = 'asc' | 'desc';
+type VisibilityFilter = 'all' | 'visible' | 'hidden';
 
-const PAGE_SIZE = 12; // Adjusted for a card layout (3 or 4 per row)
+const PAGE_SIZE = 15;
 
 function ManageExercisesPageContent() {
   const { isAdmin } = useAuth();
@@ -62,6 +73,7 @@ function ManageExercisesPageContent() {
   
   const [sortField, setSortField] = useState<SortableField>('ejercicio');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<ExerciseAdmin | null>(null);
@@ -76,28 +88,35 @@ function ManageExercisesPageContent() {
         sortDirection,
         pageSize: PAGE_SIZE,
         startAfterDocId: startAfter,
+        visibility: visibilityFilter, // Pass the visibility filter
       });
 
       setExercises(result.exercises);
       if (result.lastDocId) {
         setLastDocId(result.lastDocId);
-        // This is the key change: only update state if the value is new to prevent infinite loops
         setPageDocIds(prev => {
-          if (prev[page + 1] === result.lastDocId) {
-            return prev;
-          }
+          if (prev[page + 1] === result.lastDocId) return prev;
           return { ...prev, [page + 1]: result.lastDocId };
         });
       } else {
         setLastDocId(undefined);
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching exercises:", error);
-      toast({ title: "Error", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
+      if (error.code === 'failed-precondition' || error.message?.includes('index')) {
+        toast({
+          title: "Índice de Firestore Requerido",
+          description: "Esta combinación de filtros y ordenación requiere un nuevo índice en la base de datos. Por favor, crea el índice desde el enlace que aparece en la consola de errores del navegador.",
+          variant: "destructive",
+          duration: 20000,
+        });
+      } else {
+        toast({ title: "Error", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
+      }
     }
     setIsLoading(false);
-  }, [isAdmin, sortField, sortDirection, pageDocIds, toast]);
+  }, [isAdmin, sortField, sortDirection, pageDocIds, toast, visibilityFilter]);
 
   useEffect(() => {
     fetchExercises(currentPage);
@@ -106,7 +125,7 @@ function ManageExercisesPageContent() {
   useEffect(() => {
     setCurrentPage(1);
     setPageDocIds({ 1: undefined });
-  }, [sortField, sortDirection]);
+  }, [sortField, sortDirection, visibilityFilter]);
 
   const handleSort = (field: SortableField) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -149,6 +168,11 @@ function ManageExercisesPageContent() {
       setIsDeleteDialogOpen(false);
     }
   };
+  
+  const getSortIcon = (field: SortableField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-4 w-4 ml-2 opacity-30" />;
+    return sortDirection === 'asc' ? <ArrowUpDown className="h-4 w-4 ml-2" /> : <ArrowUpDown className="h-4 w-4 ml-2" />;
+  };
 
   if (!isAdmin) {
     return (
@@ -166,98 +190,112 @@ function ManageExercisesPageContent() {
           <p className="text-lg text-foreground/80">Edita, elimina y gestiona la visibilidad de los ejercicios.</p>
         </div>
         <div className="flex w-full md:w-auto items-center gap-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex-1 md:flex-none">
-                        <ArrowUpDown className="mr-2 h-4 w-4" />
-                        Ordenar por: {sortField} ({sortDirection === 'asc' ? 'Asc' : 'Desc'})
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Ordenar por</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {(['numero', 'ejercicio', 'categoria', 'edad', 'fase'] as SortableField[]).map((field) => (
-                        <DropdownMenuItem key={field} onClick={() => handleSort(field)}>
-                            {field.charAt(0).toUpperCase() + field.slice(1)}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
             <Button asChild variant="outline" className="flex-1 md:flex-none">
                 <Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Panel</Link>
             </Button>
         </div>
       </header>
-      
-        {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-                <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <CardTitle>Listado de Ejercicios</CardTitle>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                 <Select value={visibilityFilter} onValueChange={(v) => setVisibilityFilter(v as VisibilityFilter)}>
+                      <SelectTrigger className="w-full sm:w-[150px]">
+                          <ListFilter className="mr-2 h-4 w-4" />
+                          <SelectValue placeholder="Visibilidad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          <SelectItem value="visible">Visibles</SelectItem>
+                          <SelectItem value="hidden">Ocultos</SelectItem>
+                      </SelectContent>
+                  </Select>
+                  <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full sm:w-auto">
+                              <ArrowUpDown className="mr-2 h-4 w-4" />
+                              Ordenar por: {sortField}
+                          </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ordenar por</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {(['numero', 'ejercicio', 'categoria', 'edad', 'fase'] as SortableField[]).map((field) => (
+                              <DropdownMenuItem key={field} onClick={() => handleSort(field)}>
+                                  {field.charAt(0).toUpperCase() + field.slice(1)}
+                              </DropdownMenuItem>
+                          ))}
+                      </DropdownMenuContent>
+                  </DropdownMenu>
+              </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+            <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[80px] cursor-pointer" onClick={() => handleSort('numero')}>Nº {getSortIcon('numero')}</TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => handleSort('ejercicio')}>Ejercicio {getSortIcon('ejercicio')}</TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => handleSort('categoria')}>Categoría {getSortIcon('categoria')}</TableHead>
+                            <TableHead>Edad</TableHead>
+                            <TableHead className="w-[120px] text-center">Visible</TableHead>
+                            <TableHead className="w-[100px] text-center">Acciones</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow><TableCell colSpan={6} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
+                        ) : exercises.length === 0 ? (
+                            <TableRow><TableCell colSpan={6} className="h-64 text-center">No se encontraron ejercicios con los filtros actuales.</TableCell></TableRow>
+                        ) : (
+                            exercises.map(ex => (
+                                <TableRow key={ex.id}>
+                                    <TableCell>{ex.numero || 'N/A'}</TableCell>
+                                    <TableCell className="font-medium">{ex.ejercicio}</TableCell>
+                                    <TableCell><Badge variant="secondary">{ex.categoria}</Badge></TableCell>
+                                    <TableCell className="text-xs">{Array.isArray(ex.edad) ? ex.edad.join(', ') : ex.edad}</TableCell>
+                                    <TableCell className="text-center">
+                                         {isToggling === ex.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                        ) : (
+                                            <Switch
+                                            id={`switch-${ex.id}`}
+                                            checked={ex.isVisible}
+                                            onCheckedChange={() => handleToggleVisibility(ex.id, ex.isVisible)}
+                                            aria-label={ex.isVisible ? "Marcar como no visible" : "Marcar como visible"}
+                                            />
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-center space-x-2">
+                                        <Button asChild variant="ghost" size="icon" title="Editar">
+                                            <Link href={`/admin/edit-exercise/${ex.id}`}><Edit className="h-4 w-4" /></Link>
+                                        </Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ex)} title="Eliminar">
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
             </div>
-        ) : exercises.length === 0 ? (
-            <Card className="shadow-lg">
-                <CardContent className="p-10 text-center text-muted-foreground">
-                    No se encontraron ejercicios.
-                </CardContent>
-            </Card>
-        ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {exercises.map(ex => (
-                    <Card key={ex.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ex.ejercicio}>
-                        {ex.ejercicio}
-                        </CardTitle>
-                        <CardDescription>
-                        Número: {ex.numero || 'N/A'}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow space-y-3">
-                        <div className="flex flex-wrap gap-1">
-                          <Badge variant="secondary">{ex.categoria}</Badge>
-                          <Badge variant="outline">{ex.fase}</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                        <strong>Edad:</strong> {Array.isArray(ex.edad) ? ex.edad.join(', ') : ex.edad}
-                        </p>
-                        <div className="flex items-center justify-between rounded-lg border p-3">
-                            <label htmlFor={`switch-${ex.id}`} className="text-sm font-medium pr-2">Visible</label>
-                            {isToggling === ex.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Switch
-                                id={`switch-${ex.id}`}
-                                checked={ex.isVisible}
-                                onCheckedChange={() => handleToggleVisibility(ex.id, ex.isVisible)}
-                                />
-                            )}
-                        </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-end gap-2 border-t pt-4">
-                        <Button asChild variant="ghost" size="icon" title="Editar">
-                        <Link href={`/admin/edit-exercise/${ex.id}`}>
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Editar</span>
-                        </Link>
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ex)} title="Eliminar">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                        <span className="sr-only">Eliminar</span>
-                        </Button>
-                    </CardFooter>
-                    </Card>
-                ))}
-            </div>
-        )}
-      
-      {exercises.length > 0 && (
-          <Pagination className="mt-8">
-            <PaginationContent>
-              <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1 || isLoading}>Anterior</Button></PaginationItem>
-              <PaginationItem><span className="p-2 text-sm">Página {currentPage}</span></PaginationItem>
-              <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={!lastDocId || isLoading}>Siguiente</Button></PaginationItem>
-            </PaginationContent>
-          </Pagination>
+        </CardContent>
+         {exercises.length > 0 && (
+          <CardFooter className="justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1 || isLoading}>Anterior</Button></PaginationItem>
+                  <PaginationItem><span className="p-2 text-sm">Página {currentPage}</span></PaginationItem>
+                  <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={!lastDocId || isLoading}>Siguiente</Button></PaginationItem>
+                </PaginationContent>
+              </Pagination>
+          </CardFooter>
       )}
+      </Card>
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>

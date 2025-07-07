@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Server actions for admin operations on exercises.
@@ -122,6 +121,7 @@ const GetExercisesInputSchema = z.object({
   sortDirection: z.enum(['asc', 'desc']),
   pageSize: z.number().int().positive(),
   startAfterDocId: z.string().optional(),
+  visibility: z.enum(['all', 'visible', 'hidden']).optional(),
 });
 export type GetExercisesInput = z.infer<typeof GetExercisesInputSchema>;
 
@@ -142,8 +142,15 @@ const GetExercisesOutputSchema = z.object({
 export type GetExercisesOutput = z.infer<typeof GetExercisesOutputSchema>;
 
 export async function getAdminExercises(input: GetExercisesInput): Promise<GetExercisesOutput> {
-  const { sortField, sortDirection, pageSize, startAfterDocId } = input;
+  const { sortField, sortDirection, pageSize, startAfterDocId, visibility } = input;
   let q: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = adminDb.collection("ejercicios_futsal");
+
+  // Apply visibility filter
+  if (visibility === 'visible') {
+    q = q.where('isVisible', '==', true);
+  } else if (visibility === 'hidden') {
+    q = q.where('isVisible', '==', false);
+  }
 
   q = q.orderBy(sortField === 'edad' ? 'categoria' : sortField, sortDirection).limit(pageSize);
   
