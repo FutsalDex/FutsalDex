@@ -1,18 +1,9 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +14,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -45,7 +45,7 @@ interface ExerciseAdmin {
 type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad';
 type SortDirection = 'asc' | 'desc';
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 12; // Adjusted for a card layout (3 or 4 per row)
 
 function ManageExercisesPageContent() {
   const { isAdmin } = useAuth();
@@ -80,10 +80,9 @@ function ManageExercisesPageContent() {
       setExercises(result.exercises);
       if (result.lastDocId) {
         setLastDocId(result.lastDocId);
-        // Store the last doc ID for the *next* page
         setPageDocIds(prev => ({ ...prev, [page + 1]: result.lastDocId }));
       } else {
-        setLastDocId(undefined); // No more pages
+        setLastDocId(undefined);
       }
       
     } catch (error) {
@@ -97,7 +96,6 @@ function ManageExercisesPageContent() {
     fetchExercises(currentPage);
   }, [fetchExercises, currentPage]);
   
-  // Reset pagination when sorting changes
   useEffect(() => {
     setCurrentPage(1);
     setPageDocIds({ 1: undefined });
@@ -135,7 +133,6 @@ function ManageExercisesPageContent() {
     try {
       await deleteExercise({ exerciseId: exerciseToDelete.id });
       toast({ title: "Ejercicio Eliminado", description: `"${exerciseToDelete.ejercicio}" ha sido eliminado.` });
-      // Refetch current page
       fetchExercises(currentPage);
     } catch (error) {
       console.error("Error deleting exercise:", error);
@@ -144,11 +141,6 @@ function ManageExercisesPageContent() {
       setExerciseToDelete(null);
       setIsDeleteDialogOpen(false);
     }
-  };
-
-  const renderSortIcon = (field: SortableField) => {
-    if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-30" />;
-    return sortDirection === 'asc' ? <ArrowUpDown className="ml-2 h-4 w-4" /> : <ArrowUpDown className="ml-2 h-4 w-4" />;
   };
 
   if (!isAdmin) {
@@ -161,66 +153,104 @@ function ManageExercisesPageContent() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-      <header className="mb-8 flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold text-primary mb-1 font-headline">Gestionar Ejercicios</h1><p className="text-lg text-foreground/80">Edita, elimina y gestiona la visibilidad de los ejercicios.</p></div>
-        <Button asChild variant="outline"><Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Panel</Link></Button>
+      <header className="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-primary mb-1 font-headline">Gestionar Ejercicios</h1>
+          <p className="text-lg text-foreground/80">Edita, elimina y gestiona la visibilidad de los ejercicios.</p>
+        </div>
+        <div className="flex w-full md:w-auto items-center gap-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="flex-1 md:flex-none">
+                        <ArrowUpDown className="mr-2 h-4 w-4" />
+                        Ordenar por: {sortField} ({sortDirection === 'asc' ? 'Asc' : 'Desc'})
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Ordenar por</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {(['numero', 'ejercicio', 'categoria', 'edad', 'fase'] as SortableField[]).map((field) => (
+                        <DropdownMenuItem key={field} onClick={() => handleSort(field)}>
+                            {field.charAt(0).toUpperCase() + field.slice(1)}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <Button asChild variant="outline" className="flex-1 md:flex-none">
+                <Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Panel</Link>
+            </Button>
+        </div>
       </header>
       
-      <Card className="shadow-lg">
-        <CardHeader><CardTitle>Listado de Ejercicios</CardTitle><CardDescription>Mostrando página {currentPage}.</CardDescription></CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort('numero')}>Número {renderSortIcon('numero')}</TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort('ejercicio')}>Ejercicio {renderSortIcon('ejercicio')}</TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort('categoria')}>Categoría {renderSortIcon('categoria')}</TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort('edad')}>Edad {renderSortIcon('edad')}</TableHead>
-                  <TableHead>Visible</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
-                ) : exercises.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="h-24 text-center">No se encontraron ejercicios.</TableCell></TableRow>
-                ) : (
-                  exercises.map(ex => (
-                    <TableRow key={ex.id}>
-                      <TableCell className="w-[80px]">{ex.numero || 'N/A'}</TableCell>
-                      <TableCell className="font-medium max-w-[300px] truncate">{ex.ejercicio}</TableCell>
-                      <TableCell>{ex.categoria}</TableCell>
-                      <TableCell>{Array.isArray(ex.edad) ? ex.edad.join(', ') : ex.edad}</TableCell>
-                      <TableCell>
-                        {isToggling === ex.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                          <Switch
-                            checked={ex.isVisible}
-                            onCheckedChange={() => handleToggleVisibility(ex.id, ex.isVisible)}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell className="space-x-2">
-                        <Button asChild variant="ghost" size="icon"><Link href={`/admin/edit-exercise/${ex.id}`}><Edit className="h-4 w-4" /></Link></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ex)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+        {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+            </div>
+        ) : exercises.length === 0 ? (
+            <Card className="shadow-lg">
+                <CardContent className="p-10 text-center text-muted-foreground">
+                    No se encontraron ejercicios.
+                </CardContent>
+            </Card>
+        ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {exercises.map(ex => (
+                    <Card key={ex.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow">
+                    <CardHeader>
+                        <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ex.ejercicio}>
+                        {ex.ejercicio}
+                        </CardTitle>
+                        <CardDescription>
+                        Número: {ex.numero || 'N/A'}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow space-y-3">
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="secondary">{ex.categoria}</Badge>
+                          <Badge variant="outline">{ex.fase}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                        <strong>Edad:</strong> {Array.isArray(ex.edad) ? ex.edad.join(', ') : ex.edad}
+                        </p>
+                        <div className="flex items-center justify-between rounded-lg border p-3">
+                            <label htmlFor={`switch-${ex.id}`} className="text-sm font-medium pr-2">Visible</label>
+                            {isToggling === ex.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Switch
+                                id={`switch-${ex.id}`}
+                                checked={ex.isVisible}
+                                onCheckedChange={() => handleToggleVisibility(ex.id, ex.isVisible)}
+                                />
+                            )}
+                        </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2 border-t pt-4">
+                        <Button asChild variant="ghost" size="icon" title="Editar">
+                        <Link href={`/admin/edit-exercise/${ex.id}`}>
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Editar</span>
+                        </Link>
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(ex)} title="Eliminar">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <span className="sr-only">Eliminar</span>
+                        </Button>
+                    </CardFooter>
+                    </Card>
+                ))}
+            </div>
+        )}
       
-      <Pagination className="mt-8">
-        <PaginationContent>
-          <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>Anterior</Button></PaginationItem>
-          <PaginationItem><span className="p-2 text-sm">Página {currentPage}</span></PaginationItem>
-          <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={!lastDocId}>Siguiente</Button></PaginationItem>
-        </PaginationContent>
-      </Pagination>
+      {exercises.length > 0 && (
+          <Pagination className="mt-8">
+            <PaginationContent>
+              <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1 || isLoading}>Anterior</Button></PaginationItem>
+              <PaginationItem><span className="p-2 text-sm">Página {currentPage}</span></PaginationItem>
+              <PaginationItem><Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={!lastDocId || isLoading}>Siguiente</Button></PaginationItem>
+            </PaginationContent>
+          </Pagination>
+      )}
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
