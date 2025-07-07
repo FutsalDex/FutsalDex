@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -38,7 +39,7 @@ function AdminPageContent() {
         </p>
       </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Añadir Ejercicios</CardTitle>
@@ -56,6 +57,23 @@ function AdminPageContent() {
                 <Link href="/admin/batch-add-exercises">
                   <UploadCloud className="mr-2 h-5 w-5" />
                   Añadir Ejercicios por Lote
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl">Gestionar Ejercicios</CardTitle>
+            <CardDescription>Visualiza, edita, elimina y gestiona la visibilidad de todos los ejercicios.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
+               <Button variant="outline" asChild className="w-full sm:w-auto">
+                <Link href="/admin/manage-exercises">
+                  <ListChecks className="mr-2 h-5 w-5" />
+                  Gestionar Ejercicios
                 </Link>
               </Button>
             </div>
@@ -79,36 +97,6 @@ function AdminPageContent() {
           </CardContent>
         </Card>
       </div>
-
-      <Card className="mt-8 shadow-lg">
-        <CardHeader>
-          <CardTitle className="font-headline text-2xl">Funcionalidades Disponibles</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-            <li>
-              <strong>Añadir Nuevo Ejercicio:</strong> Formulario completo para ingresar todos los detalles de un nuevo ejercicio.
-            </li>
-            <li>
-              <strong>Añadir Ejercicios por Lote:</strong> Sube un archivo Excel para importar múltiples ejercicios a la vez.
-            </li>
-            <li>
-              <strong>Gestionar Suscripciones:</strong> Visualizar y administrar el estado de las suscripciones de los usuarios (Funcionalidad en desarrollo).
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-8 shadow-lg">
-        <CardHeader>
-          <CardTitle className="font-headline text-2xl">Otras Funcionalidades (Futuras)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            Aquí se podrían añadir herramientas para gestionar usuarios de forma más detallada, ver estadísticas de uso, configurar parámetros de la IA, etc.
-          </p>
-        </CardContent>
-      </Card>
 
     </div>
   );
