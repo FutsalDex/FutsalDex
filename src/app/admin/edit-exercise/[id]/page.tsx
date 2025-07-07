@@ -1,4 +1,3 @@
-
 // src/app/admin/edit-exercise/[id]/page.tsx
 "use client";
 
@@ -101,7 +100,7 @@ function EditExercisePageContent() {
         title: "Ejercicio Actualizado",
         description: `El ejercicio "${data.ejercicio}" ha sido actualizado.`,
       });
-      router.push("/admin/manage-exercises");
+      router.push("/admin");
     } catch (error) {
       console.error("Error updating exercise:", error);
       toast({
@@ -158,9 +157,9 @@ function EditExercisePageContent() {
               El ejercicio que intentas editar no existe o no se pudo encontrar. Verifica que el ID es correcto.
             </CardDescription>
              <Button asChild variant="outline" className="mt-4">
-                <Link href="/admin/manage-exercises">
+                <Link href="/admin">
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Volver a Gestionar Ejercicios
+                    Volver al Panel de Admin
                 </Link>
             </Button>
           </CardContent>
@@ -180,9 +179,9 @@ function EditExercisePageContent() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/admin/manage-exercises">
+          <Link href="/admin">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver a Gestionar
+            Volver al Panel
           </Link>
         </Button>
       </header>

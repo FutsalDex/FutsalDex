@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -59,12 +58,6 @@ function AdminPageContent() {
                   Añadir Ejercicios por Lote
                 </Link>
               </Button>
-              <Button variant="outline" asChild className="w-full sm:w-auto">
-                <Link href="/admin/manage-exercises">
-                  <ListChecks className="mr-2 h-5 w-5" />
-                  Ver/Gestionar Ejercicios
-                </Link>
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -98,9 +91,6 @@ function AdminPageContent() {
             </li>
             <li>
               <strong>Añadir Ejercicios por Lote:</strong> Sube un archivo Excel para importar múltiples ejercicios a la vez.
-            </li>
-            <li>
-              <strong>Ver/Gestionar Ejercicios:</strong> Listado de ejercicios con opciones para modificar, eliminar, filtrar y paginar los resultados.
             </li>
             <li>
               <strong>Gestionar Suscripciones:</strong> Visualizar y administrar el estado de las suscripciones de los usuarios (Funcionalidad en desarrollo).
