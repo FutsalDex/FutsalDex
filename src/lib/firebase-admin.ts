@@ -1,5 +1,10 @@
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { config } from 'dotenv';
+
+// Load environment variables from .env file, which is useful for local development
+config();
+
 
 // IMPORTANT: This file should only be imported on the server-side.
 // We are using initializeApp() with no credentials, which works in managed environments
