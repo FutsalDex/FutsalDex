@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
@@ -28,8 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search, Image as ImageIcon, EyeOff } from "lucide-react";
-import { getAdminExercises, deleteExercise, toggleExerciseVisibility, setAllExercisesVisibility } from "@/ai/flows/admin-exercise-flow";
+import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search, Image as ImageIcon, EyeOff, ImageOff } from "lucide-react";
+import { getAdminExercises, deleteExercise, toggleExerciseVisibility, setAllExercisesVisibility, deleteExercisesWithoutImages } from "@/ai/flows/admin-exercise-flow";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import {
   Table,
@@ -87,6 +88,10 @@ function ManageExercisesPageContent() {
 
   const [isBulkUpdateDialogOpen, setIsBulkUpdateDialogOpen] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  const [isDeleteNoImageDialogOpen, setIsDeleteNoImageDialogOpen] = useState(false);
+  const [isDeletingNoImage, setIsDeletingNoImage] = useState(false);
+
 
   // Debounce search term to avoid excessive API calls
   useEffect(() => {
@@ -212,6 +217,33 @@ function ManageExercisesPageContent() {
     }
   };
 
+  const handleConfirmDeleteNoImage = async () => {
+    setIsDeletingNoImage(true);
+    setIsDeleteNoImageDialogOpen(false);
+    try {
+        const result = await deleteExercisesWithoutImages();
+        toast({
+            title: "Operación Completada",
+            description: `${result.deletedCount} ejercicios sin imagen personalizada han sido eliminados.`,
+        });
+        if (currentPage === 1) {
+            fetchExercises(1);
+        } else {
+            setCurrentPage(1);
+            pageCursors.current = { 1: null };
+        }
+    } catch (error) {
+        console.error("Error deleting exercises without images:", error);
+        toast({
+            title: "Error en Borrado Masivo",
+            description: "No se pudieron eliminar los ejercicios.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsDeletingNoImage(false);
+    }
+  };
+
 
   const getSortIcon = (field: SortableField) => {
     if (sortField !== field) return <ArrowUpDown className="h-4 w-4 ml-2 opacity-30" />;
@@ -282,15 +314,28 @@ function ManageExercisesPageContent() {
                           ))}
                       </DropdownMenuContent>
                   </DropdownMenu>
-                   <Button
+                  <div className="flex gap-2">
+                    <Button
+                        variant="destructive"
+                        onClick={() => setIsBulkUpdateDialogOpen(true)}
+                        disabled={isLoading || isBulkUpdating}
+                        className="w-full sm:w-auto"
+                        title="Ocultar todos los ejercicios"
+                      >
+                        {isBulkUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <EyeOff className="mr-2 h-4 w-4" />}
+                        Ocultar Todos
+                    </Button>
+                    <Button
                       variant="destructive"
-                      onClick={() => setIsBulkUpdateDialogOpen(true)}
-                      disabled={isLoading || isBulkUpdating}
+                      onClick={() => setIsDeleteNoImageDialogOpen(true)}
+                      disabled={isLoading || isDeletingNoImage}
                       className="w-full sm:w-auto"
+                      title="Eliminar ejercicios sin imagen personalizada"
                     >
-                      {isBulkUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <EyeOff className="mr-2 h-4 w-4" />}
-                      Ocultar Todos
-                  </Button>
+                      {isDeletingNoImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageOff className="mr-2 h-4 w-4" />}
+                      Eliminar Sin Imagen
+                    </Button>
+                  </div>
               </div>
           </div>
         </CardHeader>
@@ -390,6 +435,24 @@ function ManageExercisesPageContent() {
                 <AlertDialogAction onClick={handleConfirmBulkUpdate} className="bg-destructive hover:bg-destructive/90" disabled={isBulkUpdating}>
                     {isBulkUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                     Sí, ocultar todos
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteNoImageDialogOpen} onOpenChange={setIsDeleteNoImageDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Confirmar borrado masivo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción eliminará permanentemente TODOS los ejercicios que NO tengan una imagen personalizada (es decir, los que usen una imagen de 'placehold.co' o no tengan imagen). Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmDeleteNoImage} className="bg-destructive hover:bg-destructive/90" disabled={isDeletingNoImage}>
+                    {isDeletingNoImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                    Sí, eliminar sin imagen
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

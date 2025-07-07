@@ -321,3 +321,49 @@ export async function setAllExercisesVisibility({ isVisible }: SetAllExercisesVi
 
   return { successCount };
 }
+
+// --- Delete Exercises Without Custom Images ---
+export async function deleteExercisesWithoutImages(): Promise<{ deletedCount: number }> {
+  const collectionRef = adminDb.collection("ejercicios_futsal");
+  const BATCH_SIZE = 400;
+  let deletedCount = 0;
+  let lastVisible: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null;
+
+  while (true) {
+    let query = collectionRef.orderBy('__name__').limit(BATCH_SIZE);
+    if (lastVisible) {
+      query = query.startAfter(lastVisible);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      break;
+    }
+
+    const batch = adminDb.batch();
+    let docsInBatchToDelete = 0;
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const imagen = data.imagen;
+      // Check for null, undefined, empty string, or placeholder URL
+      if (!imagen || imagen.includes('placehold.co')) {
+        batch.delete(doc.ref);
+        docsInBatchToDelete++;
+      }
+    });
+
+    if (docsInBatchToDelete > 0) {
+      await batch.commit();
+      deletedCount += docsInBatchToDelete;
+    }
+    
+    lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+    if (snapshot.size < BATCH_SIZE) {
+      break; // Last batch
+    }
+  }
+
+  return { deletedCount };
+}
