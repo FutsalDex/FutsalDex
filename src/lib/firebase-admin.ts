@@ -1,9 +1,6 @@
 
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { config } from 'dotenv';
-
-config();
 
 // This is a common pattern to cache the instances in a serverless environment like Next.js
 // to prevent re-initialization on every server-side render in development.
@@ -27,7 +24,11 @@ function getFirebaseAdmin() {
   if (!global.__firebaseAdminInstances.app) {
     if (getApps().length === 0) {
       // No apps initialized, create a new one.
-      global.__firebaseAdminInstances.app = initializeApp();
+      // Pass the projectId explicitly to help the SDK find the correct credentials.
+      // Next.js makes NEXT_PUBLIC_ variables available on the server.
+      global.__firebaseAdminInstances.app = initializeApp({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      });
     } else {
       // Use the already-initialized app.
       global.__firebaseAdminInstances.app = getApps()[0];
