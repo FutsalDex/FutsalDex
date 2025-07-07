@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview A flow for handling support chat with an AI futsal coach,
- * including saving conversation history to Firestore.
+ * including saving conversation history to Firestore using the Admin SDK.
  * 
  * - askCoach - A function that takes a user's question and returns an AI response,
  *   while managing the conversation history.
@@ -12,17 +12,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import {
-  collection,
-  doc,
-  setDoc,
-  updateDoc,
-  arrayUnion,
-  serverTimestamp,
-  getDoc,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { adminDb } from '@/lib/firebase-admin';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Message } from 'genkit';
 
 // Internal Zod schemas
@@ -50,27 +41,25 @@ interface ChatMessage {
 
 // Exported main function
 export async function askCoach(input: SupportChatInput): Promise<SupportChatOutput> {
-  const currentChatId = input.chatId || doc(collection(db, 'support_chats')).id;
+  const currentChatId = input.chatId || adminDb.collection('support_chats').doc().id;
   let history: Message[] = [];
-  const chatDocRef = doc(db, "support_chats", currentChatId);
+  const chatDocRef = adminDb.collection("support_chats").doc(currentChatId);
 
   // 1. Fetch existing history if this is an ongoing chat
   if (input.chatId) {
     try {
-      const docSnap = await getDoc(chatDocRef);
-      if (docSnap.exists()) {
+      const docSnap = await chatDocRef.get();
+      if (docSnap.exists) {
         const data = docSnap.data();
-        // Convert Firestore messages to Genkit Message format
-        if (data.messages && Array.isArray(data.messages)) {
+        if (data?.messages && Array.isArray(data.messages)) {
             history = (data.messages as ChatMessage[]).map(msg => ({
-              role: msg.role === 'ai' ? 'model' : 'user', // Map 'ai' to 'model' for Genkit
+              role: msg.role === 'ai' ? 'model' : 'user',
               parts: [{ text: msg.content }],
             }));
         }
       }
     } catch (error) {
       console.error("Error fetching chat history:", error);
-      // Proceed without history if fetch fails
     }
   }
 
@@ -99,40 +88,39 @@ When providing advice, follow these principles:
     throw new Error("The AI model did not return a valid answer.");
   }
   
-  // 3. Save the new turn to Firestore
+  // 3. Save the new turn to Firestore using Admin SDK
   const userMessage = {
     role: 'user',
     content: input.question,
-    createdAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   };
 
   const aiMessage = {
-    role: 'ai', // Use 'ai' for our DB
+    role: 'ai',
     content: answer,
-    createdAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   };
 
   try {
-    const docSnap = await getDoc(chatDocRef);
-    if (docSnap.exists()) {
+    const docSnap = await chatDocRef.get();
+    if (docSnap.exists) {
       // Chat exists, update it
-      await updateDoc(chatDocRef, {
-        messages: arrayUnion(userMessage, aiMessage),
-        updatedAt: serverTimestamp(),
+      await chatDocRef.update({
+        messages: FieldValue.arrayUnion(userMessage, aiMessage),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     } else {
       // New chat, create it
-      await setDoc(chatDocRef, {
+      await chatDocRef.set({
         userId: input.userId,
         title: input.question.substring(0, 40) + '...',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         messages: [userMessage, aiMessage],
       });
     }
   } catch (error) {
     console.error("Error saving chat to Firestore:", error);
-    // Don't block the response, just log the error.
   }
 
   // 4. Return the response to the client

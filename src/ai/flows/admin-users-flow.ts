@@ -1,17 +1,13 @@
 
 'use server';
 /**
- * @fileOverview A flow for fetching user data for the admin panel.
- * This flow is intended to be called by an admin user. It fetches all
- * user documents from the 'usuarios' collection.
- * - getAllUsers - Fetches a list of all users from Firestore.
- * - updateUserSubscription - Updates a user's subscription status.
+ * @fileOverview Server actions for fetching and managing user data for the admin panel.
+ * These actions use the Firebase Admin SDK to operate with elevated privileges.
  */
 
-import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, Timestamp, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 const UserSchema = z.object({
   id: z.string(),
@@ -28,39 +24,26 @@ const GetAllUsersOutputSchema = z.array(UserSchema);
 export type GetAllUsersOutput = z.infer<typeof GetAllUsersOutputSchema>;
 
 export async function getAllUsers(): Promise<GetAllUsersOutput> {
-  return getAllUsersFlow();
+  const usersCollection = adminDb.collection("usuarios");
+  const q = usersCollection.orderBy('email', 'asc');
+  const querySnapshot = await q.get();
+
+  const usersList = querySnapshot.docs.map(docSnap => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      email: data.email || '',
+      role: data.role || 'user',
+      subscriptionStatus: data.subscriptionStatus || 'inactive',
+      updatedAt: data.updatedAt as Timestamp | undefined,
+    };
+  });
+
+  return usersList;
 }
 
-const getAllUsersFlow = ai.defineFlow(
-  {
-    name: 'getAllUsersFlow',
-    inputSchema: z.void(),
-    outputSchema: GetAllUsersOutputSchema,
-  },
-  async () => {
-    // This server-side flow fetches all user documents.
-    // It assumes the execution environment has the necessary permissions.
-    const usersCollection = collection(db, "usuarios");
-    const q = query(usersCollection, orderBy('email', 'asc'));
-    const querySnapshot = await getDocs(q);
 
-    const usersList = querySnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        email: data.email || '',
-        role: data.role || 'user',
-        subscriptionStatus: data.subscriptionStatus || 'inactive',
-        updatedAt: data.updatedAt as Timestamp | undefined,
-      };
-    });
-
-    return usersList;
-  }
-);
-
-
-// --- Update User Subscription Flow ---
+// --- Update User Subscription ---
 
 const UpdateSubscriptionInputSchema = z.object({
   userId: z.string(),
@@ -75,24 +58,15 @@ export type UpdateSubscriptionOutput = z.infer<typeof UpdateSubscriptionOutputSc
 
 
 export async function updateUserSubscription(input: UpdateSubscriptionInput): Promise<UpdateSubscriptionOutput> {
-  return updateUserSubscriptionFlow(input);
+  const { userId, newStatus } = input;
+  const userDocRef = adminDb.collection("usuarios").doc(userId);
+  
+  await userDocRef.update({
+    subscriptionStatus: newStatus,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  
+  return {
+    message: `User subscription status updated to ${newStatus}.`
+  };
 }
-
-const updateUserSubscriptionFlow = ai.defineFlow(
-  {
-    name: 'updateUserSubscriptionFlow',
-    inputSchema: UpdateSubscriptionInputSchema,
-    outputSchema: UpdateSubscriptionOutputSchema,
-  },
-  async ({ userId, newStatus }) => {
-    const userDocRef = doc(db, "usuarios", userId);
-    await updateDoc(userDocRef, {
-      subscriptionStatus: newStatus,
-      updatedAt: serverTimestamp(),
-    });
-    
-    return {
-      message: `User subscription status updated to ${newStatus}.`
-    };
-  }
-);

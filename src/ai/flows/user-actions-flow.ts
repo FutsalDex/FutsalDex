@@ -1,20 +1,17 @@
 
 'use server';
 /**
- * @fileOverview A collection of server-side flows for user data mutations.
- * These flows centralize all database write operations (CUD) to ensure
- * they are executed with the correct server-side permissions, fixing
- * client-side permission errors.
+ * @fileOverview A collection of server-side actions for user data mutations.
+ * These actions use the Firebase Admin SDK to ensure they are executed with
+ * server-side permissions, fixing client-side permission errors.
  */
 
-import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import { manualSessionSchema, RosterPlayerSchema, AttendanceDataSchema, MatchStatsSchema, OpponentPlayerSchema, TeamStatsSchema } from '@/lib/schemas';
-import type { GeneratedSessionOutput } from './generate-session-flow';
 
-// --- Favorite Exercise Flow ---
+// --- Favorite Exercise ---
 
 const ToggleFavoriteInputSchema = z.object({
   userId: z.string(),
@@ -23,71 +20,46 @@ const ToggleFavoriteInputSchema = z.object({
 });
 type ToggleFavoriteInput = z.infer<typeof ToggleFavoriteInputSchema>;
 
-export async function toggleFavorite(input: ToggleFavoriteInput): Promise<{ success: boolean }> {
-  return toggleFavoriteFlow(input);
+export async function toggleFavorite({ userId, exerciseId, isFavorite }: ToggleFavoriteInput): Promise<{ success: boolean }> {
+  const favDocRef = adminDb.collection("usuarios").doc(userId).collection("user_favorites").doc(exerciseId);
+  if (isFavorite) {
+    await favDocRef.set({ addedAt: FieldValue.serverTimestamp() });
+  } else {
+    await favDocRef.delete();
+  }
+  return { success: true };
 }
 
-const toggleFavoriteFlow = ai.defineFlow(
-  {
-    name: 'toggleFavoriteFlow',
-    inputSchema: ToggleFavoriteInputSchema,
-    outputSchema: z.object({ success: z.boolean() }),
-  },
-  async ({ userId, exerciseId, isFavorite }) => {
-    const favDocRef = doc(db, "usuarios", userId, "user_favorites", exerciseId);
-    if (isFavorite) {
-      await setDoc(favDocRef, { addedAt: serverTimestamp() });
-    } else {
-      await deleteDoc(favDocRef);
-    }
-    return { success: true };
-  }
-);
 
-
-// --- Save Session Flow ---
+// --- Save Session ---
 
 const SaveSessionInputSchema = z.object({
     userId: z.string(),
-    sessionData: z.any(), // Not ideal, but session structure is complex and varies
+    sessionData: z.any(),
 });
 type SaveSessionInput = z.infer<typeof SaveSessionInputSchema>;
 
-export async function saveSession(input: SaveSessionInput): Promise<{ sessionId: string }> {
-    return saveSessionFlow(input);
+export async function saveSession({ userId, sessionData }: SaveSessionInput): Promise<{ sessionId: string }> {
+  if (sessionData.numero_sesion) {
+    const q = adminDb.collection("mis_sesiones")
+      .where("userId", "==", userId)
+      .where("numero_sesion", "==", sessionData.numero_sesion);
+    const querySnapshot = await q.get();
+    if (!querySnapshot.empty) {
+      throw new Error("Ya hay una sesión con este número.");
+    }
+  }
+  
+  const docRef = await adminDb.collection("mis_sesiones").add({
+    ...sessionData,
+    userId,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  return { sessionId: docRef.id };
 }
 
-const saveSessionFlow = ai.defineFlow(
-    {
-        name: 'saveSessionFlow',
-        inputSchema: SaveSessionInputSchema,
-        outputSchema: z.object({ sessionId: z.string() }),
-    },
-    async ({ userId, sessionData }) => {
-        // Check for duplicate numero_sesion if it exists
-        if (sessionData.numero_sesion) {
-            const q = query(
-                collection(db, "mis_sesiones"),
-                where("userId", "==", userId),
-                where("numero_sesion", "==", sessionData.numero_sesion)
-            );
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                throw new Error("Ya hay una sesión con este número.");
-            }
-        }
-        
-        const docRef = await addDoc(collection(db, "mis_sesiones"), {
-            ...sessionData,
-            userId,
-            createdAt: serverTimestamp(),
-        });
-        return { sessionId: docRef.id };
-    }
-);
 
-
-// --- Save Roster Flow ---
+// --- Save Roster ---
 
 const SaveRosterInputSchema = z.object({
     userId: z.string(),
@@ -98,31 +70,20 @@ const SaveRosterInputSchema = z.object({
 });
 type SaveRosterInput = z.infer<typeof SaveRosterInputSchema>;
 
-export async function saveRoster(input: SaveRosterInput): Promise<{ success: boolean }> {
-    return saveRosterFlow(input);
+export async function saveRoster({ userId, club, equipo, campeonato, players }: SaveRosterInput): Promise<{ success: boolean }> {
+  const docRef = adminDb.collection('usuarios').doc(userId).collection('team').doc('roster');
+  await docRef.set({
+    club,
+    equipo,
+    campeonato,
+    players,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return { success: true };
 }
 
-const saveRosterFlow = ai.defineFlow(
-    {
-        name: 'saveRosterFlow',
-        inputSchema: SaveRosterInputSchema,
-        outputSchema: z.object({ success: z.boolean() }),
-    },
-    async ({ userId, club, equipo, campeonato, players }) => {
-        const docRef = doc(db, 'usuarios', userId, 'team', 'roster');
-        await setDoc(docRef, {
-            club,
-            equipo,
-            campeonato,
-            players,
-            updatedAt: serverTimestamp(),
-        });
-        return { success: true };
-    }
-);
 
-
-// --- Save Attendance Flow ---
+// --- Save Attendance ---
 
 const SaveAttendanceInputSchema = z.object({
     userId: z.string(),
@@ -131,28 +92,17 @@ const SaveAttendanceInputSchema = z.object({
 });
 type SaveAttendanceInput = z.infer<typeof SaveAttendanceInputSchema>;
 
-export async function saveAttendance(input: SaveAttendanceInput): Promise<{ success: boolean }> {
-    return saveAttendanceFlow(input);
+export async function saveAttendance({ userId, dateString, attendance }: SaveAttendanceInput): Promise<{ success: boolean }> {
+  const docRef = adminDb.collection('usuarios').doc(userId).collection('team').doc('attendance');
+  await docRef.set({
+    [dateString]: attendance,
+    updatedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return { success: true };
 }
 
-const saveAttendanceFlow = ai.defineFlow(
-    {
-        name: 'saveAttendanceFlow',
-        inputSchema: SaveAttendanceInputSchema,
-        outputSchema: z.object({ success: z.boolean() }),
-    },
-    async ({ userId, dateString, attendance }) => {
-        const docRef = doc(db, 'usuarios', userId, 'team', 'attendance');
-        await setDoc(docRef, {
-            [dateString]: attendance,
-            updatedAt: serverTimestamp()
-        }, { merge: true });
-        return { success: true };
-    }
-);
 
-
-// --- Save Match Flow (Add & Update) ---
+// --- Save Match (Add & Update) ---
 
 const MatchDataSchema = z.object({
     userId: z.string(),
@@ -176,69 +126,43 @@ const SaveMatchInputSchema = z.object({
 });
 type SaveMatchInput = z.infer<typeof SaveMatchInputSchema>;
 
-export async function saveMatch(input: SaveMatchInput): Promise<{ matchId: string }> {
-  return saveMatchFlow(input);
+export async function saveMatch({ matchId, matchData }: SaveMatchInput): Promise<{ matchId: string }> {
+  if (matchId) {
+    const docRef = adminDb.collection("partidos_estadisticas").doc(matchId);
+    await docRef.update({
+      ...matchData,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { matchId };
+  } else {
+    const docRef = await adminDb.collection("partidos_estadisticas").add({
+      ...matchData,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { matchId: docRef.id };
+  }
 }
 
-const saveMatchFlow = ai.defineFlow({
-    name: 'saveMatchFlow',
-    inputSchema: SaveMatchInputSchema,
-    outputSchema: z.object({ matchId: z.string() }),
-}, async ({ matchId, matchData }) => {
-    if (matchId) {
-        // Update existing match
-        const docRef = doc(db, "partidos_estadisticas", matchId);
-        await updateDoc(docRef, {
-            ...matchData,
-            updatedAt: serverTimestamp(),
-        });
-        return { matchId };
-    } else {
-        // Add new match
-        const docRef = await addDoc(collection(db, "partidos_estadisticas"), {
-            ...matchData,
-            createdAt: serverTimestamp(),
-        });
-        return { matchId: docRef.id };
-    }
-});
 
-
-// --- Delete Match Flow ---
+// --- Delete Match ---
 
 const DeleteMatchInputSchema = z.object({
     matchId: z.string(),
 });
 type DeleteMatchInput = z.infer<typeof DeleteMatchInputSchema>;
 
-export async function deleteMatch(input: DeleteMatchInput): Promise<{ success: boolean }> {
-    return deleteMatchFlow(input);
+export async function deleteMatch({ matchId }: DeleteMatchInput): Promise<{ success: boolean }> {
+  await adminDb.collection("partidos_estadisticas").doc(matchId).delete();
+  return { success: true };
 }
 
-const deleteMatchFlow = ai.defineFlow({
-    name: 'deleteMatchFlow',
-    inputSchema: DeleteMatchInputSchema,
-    outputSchema: z.object({ success: z.boolean() }),
-}, async ({ matchId }) => {
-    await deleteDoc(doc(db, "partidos_estadisticas", matchId));
-    return { success: true };
-});
-
-// --- Delete Session Flow ---
+// --- Delete Session ---
 const DeleteSessionInputSchema = z.object({
     sessionId: z.string(),
 });
 type DeleteSessionInput = z.infer<typeof DeleteSessionInputSchema>;
 
-export async function deleteSession(input: DeleteSessionInput): Promise<{ success: boolean }> {
-    return deleteSessionFlow(input);
+export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<{ success: boolean }> {
+  await adminDb.collection("mis_sesiones").doc(sessionId).delete();
+  return { success: true };
 }
-
-const deleteSessionFlow = ai.defineFlow({
-    name: 'deleteSessionFlow',
-    inputSchema: DeleteSessionInputSchema,
-    outputSchema: z.object({ success: z.boolean() }),
-}, async ({ sessionId }) => {
-    await deleteDoc(doc(db, "mis_sesiones", sessionId));
-    return { success: true };
-});
