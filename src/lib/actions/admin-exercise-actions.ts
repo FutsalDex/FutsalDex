@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Server actions for admin operations on exercises.
@@ -78,4 +79,96 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
     successCount,
     message: `${successCount} exercises added successfully via batch operation.`
   };
+}
+
+// --- Get Exercises for Admin Panel and Clean ---
+const AdminExerciseSchema = addExerciseSchema.extend({
+  id: z.string(),
+});
+export type AdminExercise = z.infer<typeof AdminExerciseSchema>;
+
+const AdminExerciseListOutputSchema = z.object({
+  exercises: z.array(AdminExerciseSchema),
+  deletedCount: z.number(),
+});
+export type AdminExerciseListOutput = z.infer<typeof AdminExerciseListOutputSchema>;
+
+export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutput> {
+  const adminDb = getAdminDb();
+  const exercisesCollection = adminDb.collection("ejercicios_futsal");
+  const snapshot = await exercisesCollection.get();
+
+  if (snapshot.empty) {
+    return { exercises: [], deletedCount: 0 };
+  }
+
+  const exercisesToKeep: AdminExercise[] = [];
+  const exercisesToDeleteRefs: FirebaseFirestore.DocumentReference[] = [];
+
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    if (data.imagen && !data.imagen.includes('placehold.co')) {
+      const parsed = AdminExerciseSchema.safeParse({
+        id: doc.id,
+        numero: data.numero || "",
+        ejercicio: data.ejercicio || "",
+        descripcion: data.descripcion || "",
+        objetivos: data.objetivos || "",
+        espacio_materiales: data.espacio_materiales || "",
+        jugadores: data.jugadores || "",
+        duracion: data.duracion || "10",
+        variantes: data.variantes || "",
+        fase: data.fase || "",
+        categoria: data.categoria || "",
+        edad: Array.isArray(data.edad) ? data.edad : (typeof data.edad === 'string' ? [data.edad] : []),
+        consejos_entrenador: data.consejos_entrenador || "",
+        imagen: data.imagen || "",
+        isVisible: data.isVisible !== false,
+      });
+      if (parsed.success) {
+        exercisesToKeep.push(parsed.data);
+      }
+    } else {
+      exercisesToDeleteRefs.push(doc.ref);
+    }
+  });
+
+  let deletedCount = 0;
+  if (exercisesToDeleteRefs.length > 0) {
+    deletedCount = exercisesToDeleteRefs.length;
+    const BATCH_SIZE = 499;
+    for (let i = 0; i < exercisesToDeleteRefs.length; i += BATCH_SIZE) {
+        const batch = adminDb.batch();
+        const chunk = exercisesToDeleteRefs.slice(i, i + BATCH_SIZE);
+        chunk.forEach(ref => batch.delete(ref));
+        await batch.commit();
+    }
+  }
+
+  exercisesToKeep.sort((a, b) => (a.ejercicio || '').localeCompare(b.ejercicio || ''));
+
+  return { exercises: exercisesToKeep, deletedCount };
+}
+
+
+// --- Update Exercise ---
+const UpdateExerciseInputSchema = addExerciseSchema.extend({ id: z.string() });
+export type UpdateExerciseInput = z.infer<typeof UpdateExerciseInputSchema>;
+
+export async function updateExercise(data: UpdateExerciseInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
+  const { id, ...exerciseData } = data;
+  const docRef = adminDb.collection("ejercicios_futsal").doc(id);
+  await docRef.update({ ...exerciseData, updatedAt: FieldValue.serverTimestamp() });
+  return { success: true };
+}
+
+// --- Delete Exercise ---
+const DeleteExerciseInputSchema = z.object({ exerciseId: z.string() });
+export type DeleteExerciseInput = z.infer<typeof DeleteExerciseInputSchema>;
+
+export async function deleteExercise({ exerciseId }: DeleteExerciseInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
+  await adminDb.collection("ejercicios_futsal").doc(exerciseId).delete();
+  return { success: true };
 }
