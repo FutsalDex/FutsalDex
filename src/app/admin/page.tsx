@@ -1,11 +1,10 @@
-
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, AlertTriangle, PlusCircle, ListChecks, UploadCloud, Users } from "lucide-react";
+import { ShieldCheck, AlertTriangle, PlusCircle, UploadCloud, Users } from "lucide-react";
 import Link from "next/link";
 
 function AdminPageContent() {
@@ -39,7 +38,7 @@ function AdminPageContent() {
         </p>
       </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Añadir Ejercicios</CardTitle>
@@ -63,23 +62,6 @@ function AdminPageContent() {
           </CardContent>
         </Card>
         
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl">Gestionar Ejercicios</CardTitle>
-            <CardDescription>Visualiza, edita, elimina y gestiona la visibilidad de todos los ejercicios.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
-               <Button variant="outline" asChild className="w-full sm:w-auto">
-                <Link href="/admin/manage-exercises">
-                  <ListChecks className="mr-2 h-5 w-5" />
-                  Gestionar Ejercicios
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Gestión de Suscripciones</CardTitle>
