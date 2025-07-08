@@ -10,11 +10,13 @@
  * - SupportChatOutput - The return type for the askCoach function.
  */
 
-import {ai} from '@/ai/genkit';
+import {getGenkitAi} from '@/ai/genkit';
 import {z} from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Message } from 'genkit';
+
+const ai = getGenkitAi();
 
 // Internal Zod schemas
 const SupportChatInputSchema = z.object({

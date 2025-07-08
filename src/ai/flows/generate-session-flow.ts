@@ -8,8 +8,10 @@
  * - GeneratedSessionOutput - The return type for the generateSession function.
  */
 
-import {ai} from '@/ai/genkit';
+import {getGenkitAi} from '@/ai/genkit';
 import {z} from 'zod';
+
+const ai = getGenkitAi();
 
 const GenerateSessionInputSchema = z.object({
   teamDescription: z.string().describe("Detailed description of the team, including age, skill level, and characteristics."),
