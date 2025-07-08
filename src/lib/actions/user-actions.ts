@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { manualSessionSchema, RosterPlayerSchema, AttendanceDataSchema, MatchStatsSchema, OpponentPlayerSchema, TeamStatsSchema } from '@/lib/schemas';
 
@@ -21,6 +21,7 @@ const ToggleFavoriteInputSchema = z.object({
 type ToggleFavoriteInput = z.infer<typeof ToggleFavoriteInputSchema>;
 
 export async function toggleFavorite({ userId, exerciseId, isFavorite }: ToggleFavoriteInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
   const favDocRef = adminDb.collection("usuarios").doc(userId).collection("user_favorites").doc(exerciseId);
   if (isFavorite) {
     await favDocRef.set({ addedAt: FieldValue.serverTimestamp() });
@@ -40,6 +41,7 @@ const SaveSessionInputSchema = z.object({
 type SaveSessionInput = z.infer<typeof SaveSessionInputSchema>;
 
 export async function saveSession({ userId, sessionData }: SaveSessionInput): Promise<{ sessionId: string }> {
+  const adminDb = getAdminDb();
   if (sessionData.numero_sesion) {
     const q = adminDb.collection("mis_sesiones")
       .where("userId", "==", userId)
@@ -71,6 +73,7 @@ const SaveRosterInputSchema = z.object({
 type SaveRosterInput = z.infer<typeof SaveRosterInputSchema>;
 
 export async function saveRoster({ userId, club, equipo, campeonato, players }: SaveRosterInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
   const docRef = adminDb.collection('usuarios').doc(userId).collection('team').doc('roster');
   await docRef.set({
     club,
@@ -93,6 +96,7 @@ const SaveAttendanceInputSchema = z.object({
 type SaveAttendanceInput = z.infer<typeof SaveAttendanceInputSchema>;
 
 export async function saveAttendance({ userId, dateString, attendance }: SaveAttendanceInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
   const docRef = adminDb.collection('usuarios').doc(userId).collection('team').doc('attendance');
   await docRef.set({
     [dateString]: attendance,
@@ -127,6 +131,7 @@ const SaveMatchInputSchema = z.object({
 type SaveMatchInput = z.infer<typeof SaveMatchInputSchema>;
 
 export async function saveMatch({ matchId, matchData }: SaveMatchInput): Promise<{ matchId: string }> {
+  const adminDb = getAdminDb();
   if (matchId) {
     const docRef = adminDb.collection("partidos_estadisticas").doc(matchId);
     await docRef.update({
@@ -152,6 +157,7 @@ const DeleteMatchInputSchema = z.object({
 type DeleteMatchInput = z.infer<typeof DeleteMatchInputSchema>;
 
 export async function deleteMatch({ matchId }: DeleteMatchInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
   await adminDb.collection("partidos_estadisticas").doc(matchId).delete();
   return { success: true };
 }
@@ -163,6 +169,7 @@ const DeleteSessionInputSchema = z.object({
 type DeleteSessionInput = z.infer<typeof DeleteSessionInputSchema>;
 
 export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
   await adminDb.collection("mis_sesiones").doc(sessionId).delete();
   return { success: true };
 }

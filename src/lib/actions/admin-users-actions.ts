@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 const UserSchema = z.object({
@@ -24,6 +24,7 @@ const GetAllUsersOutputSchema = z.array(UserSchema);
 export type GetAllUsersOutput = z.infer<typeof GetAllUsersOutputSchema>;
 
 export async function getAllUsers(): Promise<GetAllUsersOutput> {
+  const adminDb = getAdminDb();
   const usersCollection = adminDb.collection("usuarios");
   const q = usersCollection.orderBy('email', 'asc');
   const querySnapshot = await q.get();
@@ -58,6 +59,7 @@ export type UpdateSubscriptionOutput = z.infer<typeof UpdateSubscriptionOutputSc
 
 
 export async function updateUserSubscription(input: UpdateSubscriptionInput): Promise<UpdateSubscriptionOutput> {
+  const adminDb = getAdminDb();
   const { userId, newStatus } = input;
   const userDocRef = adminDb.collection("usuarios").doc(userId);
   

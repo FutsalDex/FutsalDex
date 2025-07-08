@@ -9,7 +9,7 @@
 
 import { z } from 'zod';
 import { addExerciseSchema } from '@/lib/schemas';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 // --- Add Exercise ---
@@ -24,6 +24,7 @@ const AddExerciseOutputSchema = z.object({
 export type AddExerciseOutput = z.infer<typeof AddExerciseOutputSchema>;
 
 export async function addExercise(data: AddExerciseInput): Promise<AddExerciseOutput> {
+  const adminDb = getAdminDb();
   const docRef = await adminDb.collection("ejercicios_futsal").add({
     ...data,
     numero: data.numero || null,
@@ -55,6 +56,7 @@ const UpdateExerciseOutputSchema = z.object({
 export type UpdateExerciseOutput = z.infer<typeof UpdateExerciseOutputSchema>;
 
 export async function updateExercise(input: UpdateExerciseInput): Promise<UpdateExerciseOutput> {
+  const adminDb = getAdminDb();
   const { id, ...data } = input;
   const docRef = adminDb.collection("ejercicios_futsal").doc(id);
   
@@ -87,6 +89,7 @@ const BatchAddExercisesOutputSchema = z.object({
 export type BatchAddExercisesOutput = z.infer<typeof BatchAddExercisesOutputSchema>;
 
 export async function batchAddExercises(input: BatchAddExercisesInput): Promise<BatchAddExercisesOutput> {
+  const adminDb = getAdminDb();
   const MAX_BATCH_SIZE = 499;
   let successCount = 0;
   
@@ -118,7 +121,7 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
 // --- Get Exercises (for admin list) ---
 
 const GetExercisesInputSchema = z.object({
-  visibility: z.enum(['all', 'visible', 'hidden']).optional().default('all'),
+  visibility: z.enum(['all', 'visible', 'hidden', 'withImage', 'withoutImage']).optional().default('all'),
   sortField: z.enum(['numero', 'ejercicio', 'categoria', 'fase']).default('ejercicio'),
   sortDirection: z.enum(['asc', 'desc']).default('asc'),
   pageSize: z.number().default(15),
@@ -146,6 +149,7 @@ const GetExercisesOutputSchema = z.object({
 export type GetExercisesOutput = z.infer<typeof GetExercisesOutputSchema>;
 
 export async function getAdminExercises(input: GetExercisesInput): Promise<GetExercisesOutput> {
+  const adminDb = getAdminDb();
   const { visibility, sortField, sortDirection, pageSize, startAfterDocId, searchTerm } = input;
   let baseQuery: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = adminDb.collection("ejercicios_futsal");
 
@@ -183,12 +187,19 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
   const querySnapshot = await dataQuery.get();
 
   const hasNextPage = querySnapshot.docs.length > pageSize;
-  const docsToMap = hasNextPage ? querySnapshot.docs.slice(0, -1) : querySnapshot.docs;
+  let docsToMap = hasNextPage ? querySnapshot.docs.slice(0, -1) : querySnapshot.docs;
+
+  // Manual filtering for image presence post-query
+  if (visibility === 'withImage') {
+      docsToMap = docsToMap.filter(doc => doc.data().imagen && !doc.data().imagen.includes('placehold.co'));
+  } else if (visibility === 'withoutImage') {
+      docsToMap = docsToMap.filter(doc => !doc.data().imagen || doc.data().imagen.includes('placehold.co'));
+  }
+
 
   const exercises = docsToMap.map(docSnap => {
     const data = docSnap.data();
     const edadData = data.edad;
-    // Ensure 'edad' is always an array to prevent client-side errors.
     const processedEdad = Array.isArray(edadData) ? edadData : (edadData ? [String(edadData)] : []);
     
     return {
@@ -224,6 +235,7 @@ const GetExerciseByIdOutputSchema = addExerciseSchema;
 export type GetExerciseByIdOutput = z.infer<typeof GetExerciseByIdOutputSchema>;
 
 export async function getExerciseById({ exerciseId }: GetExerciseByIdInput): Promise<GetExerciseByIdOutput | null> {
+    const adminDb = getAdminDb();
     const docRef = adminDb.collection("ejercicios_futsal").doc(exerciseId);
     const docSnap = await docRef.get();
 
@@ -265,6 +277,7 @@ const DeleteExerciseInputSchema = z.object({
 export type DeleteExerciseInput = z.infer<typeof DeleteExerciseInputSchema>;
 
 export async function deleteExercise({ exerciseId }: DeleteExerciseInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
   await adminDb.collection("ejercicios_futsal").doc(exerciseId).delete();
   return { success: true };
 }
@@ -277,6 +290,7 @@ const ToggleVisibilityInputSchema = z.object({
 export type ToggleVisibilityInput = z.infer<typeof ToggleVisibilityInputSchema>;
 
 export async function toggleExerciseVisibility({ exerciseId, newVisibility }: ToggleVisibilityInput): Promise<{ success: boolean }> {
+  const adminDb = getAdminDb();
   const exerciseRef = adminDb.collection("ejercicios_futsal").doc(exerciseId);
   await exerciseRef.update({
     isVisible: newVisibility,
@@ -293,6 +307,7 @@ const SetAllExercisesVisibilityInputSchema = z.object({
 export type SetAllExercisesVisibilityInput = z.infer<typeof SetAllExercisesVisibilityInputSchema>;
 
 export async function setAllExercisesVisibility({ isVisible }: SetAllExercisesVisibilityInput): Promise<{ successCount: number }> {
+  const adminDb = getAdminDb();
   const collectionRef = adminDb.collection("ejercicios_futsal");
   const BATCH_SIZE = 400;
   let successCount = 0;
@@ -328,6 +343,7 @@ export async function setAllExercisesVisibility({ isVisible }: SetAllExercisesVi
 
 // --- Delete Exercises Without Custom Images ---
 export async function deleteExercisesWithoutImages(): Promise<{ deletedCount: number }> {
+  const adminDb = getAdminDb();
   const collectionRef = adminDb.collection("ejercicios_futsal");
   const BATCH_SIZE = 400;
   let deletedCount = 0;

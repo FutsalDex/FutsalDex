@@ -12,7 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Message } from 'genkit';
 
@@ -41,6 +41,7 @@ interface ChatMessage {
 
 // Exported main function
 export async function askCoach(input: SupportChatInput): Promise<SupportChatOutput> {
+  const adminDb = getAdminDb();
   const currentChatId = input.chatId || adminDb.collection('support_chats').doc().id;
   let history: Message[] = [];
   const chatDocRef = adminDb.collection("support_chats").doc(currentChatId);
