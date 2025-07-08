@@ -15,6 +15,21 @@ import type { loginSchema, registerSchema } from '@/lib/schemas';
 
 const ADMIN_EMAIL = 'futsaldex@gmail.com'; // Email del superusuario
 
+const mapAuthError = (error: AuthError): string => {
+    switch (error.code) {
+        case 'auth/invalid-api-key':
+            return 'La clave de API (apiKey) de Firebase no es válida. Por favor, asegúrate de que las variables de entorno en tu archivo .env (específicamente NEXT_PUBLIC_FIREBASE_API_KEY) son correctas y que has reiniciado el servidor de desarrollo.';
+        case 'auth/wrong-password':
+        case 'auth/user-not-found':
+        case 'auth/invalid-credential':
+            return 'Las credenciales son incorrectas. Por favor, revisa tu email y contraseña.';
+        case 'auth/email-already-in-use':
+            return 'Este correo electrónico ya está registrado. Por favor, inicia sesión o usa un email diferente.';
+        default:
+            return error.message || 'Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo.';
+    }
+};
+
 type AuthContextType = {
   user: FirebaseUser | null;
   loading: boolean;
@@ -86,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return userCredential.user;
     } catch (e) {
       const authError = e as AuthError;
-      setError(authError.message);
+      setError(mapAuthError(authError));
       return null;
     }
   };
@@ -121,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (e) {
       const authError = e as AuthError;
-      setError(authError.message);
+      setError(mapAuthError(authError));
       return null;
     }
   };
@@ -133,7 +148,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // onAuthStateChanged will handle resetting states to false
     } catch (e) {
       const authError = e as AuthError;
-      setError(authError.message);
+      setError(mapAuthError(authError));
     }
   };
 
