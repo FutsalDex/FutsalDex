@@ -1,3 +1,4 @@
+
 // src/app/admin/edit-exercise/[id]/page.tsx
 "use client";
 
@@ -20,7 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
-import { updateExercise, getExerciseById } from "@/ai/flows/admin-exercise-flow";
+import { updateExercise, getExerciseById } from "@/lib/actions/admin-exercise-actions";
 
 function EditExercisePageContent() {
   const { isAdmin } = useAuth();

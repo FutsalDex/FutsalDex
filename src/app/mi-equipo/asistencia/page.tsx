@@ -24,7 +24,7 @@ import { Progress } from '@/components/ui/progress';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { v4 as uuidv4 } from 'uuid';
-import { saveAttendance } from '@/ai/flows/user-actions-flow';
+import { saveAttendance } from '@/lib/actions/user-actions';
 
 interface RosterPlayer {
   id: string;

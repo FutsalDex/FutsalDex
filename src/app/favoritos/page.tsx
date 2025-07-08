@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { toggleFavorite } from "@/ai/flows/user-actions-flow";
+import { toggleFavorite } from '@/lib/actions/user-actions';
 
 
 interface Ejercicio {

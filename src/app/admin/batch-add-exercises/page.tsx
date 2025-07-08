@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas';
 import { DURACION_EJERCICIO_OPCIONES_VALUES } from "@/lib/constants";
-import { batchAddExercises } from "@/ai/flows/admin-exercise-flow";
+import { batchAddExercises } from "@/lib/actions/admin-exercise-actions";
 
 const EXPECTED_HEADERS = {
   numero: "Número",

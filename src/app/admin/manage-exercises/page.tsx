@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search, Image as ImageIcon, EyeOff, ImageOff } from "lucide-react";
-import { getAdminExercises, deleteExercise, toggleExerciseVisibility, setAllExercisesVisibility, deleteExercisesWithoutImages } from "@/ai/flows/admin-exercise-flow";
+import { getAdminExercises, deleteExercise, toggleExerciseVisibility, setAllExercisesVisibility, deleteExercisesWithoutImages } from "@/lib/actions/admin-exercise-actions";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import {
   Table,

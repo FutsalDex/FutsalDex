@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { getAllUsers, updateUserSubscription } from '@/ai/flows/admin-users-flow';
+import { getAllUsers, updateUserSubscription } from '@/lib/actions/admin-users-actions';
 
 
 interface UserSubscription {

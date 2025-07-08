@@ -119,7 +119,7 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
 
 const GetExercisesInputSchema = z.object({
   visibility: z.enum(['all', 'visible', 'hidden']).optional().default('all'),
-  sortField: z.enum(['numero', 'ejercicio', 'categoria', 'edad', 'fase']).default('ejercicio'),
+  sortField: z.enum(['numero', 'ejercicio', 'categoria', 'edad']).default('ejercicio'),
   sortDirection: z.enum(['asc', 'desc']).default('asc'),
   pageSize: z.number().default(15),
   startAfterDocId: z.string().optional(),

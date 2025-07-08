@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { generateSession, type GeneratedSessionOutput, type GenerateSessionInput } from "@/ai/flows/generate-session-flow";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
-import { saveSession } from "@/ai/flows/user-actions-flow";
+import { saveSession } from "@/lib/actions/user-actions";
 
 
 type AiSessionFormValues = Zod.infer<typeof aiSessionSchema>;

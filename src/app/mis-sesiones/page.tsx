@@ -18,13 +18,13 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader as AlertDialogHead, 
-  AlertDialogTitle as AlertDialogHeading,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { deleteSession } from "@/ai/flows/user-actions-flow";
+import { deleteSession } from "@/lib/actions/user-actions";
 
 
 interface EjercicioInfo {
@@ -477,16 +477,16 @@ function MisSesionesContent() {
       )}
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-white">
-          <AlertDialogHead>
-            <AlertDialogHeading className="text-gray-800">Confirmar Eliminación</AlertDialogHeading>
-            <AlertDialogDescription className="text-gray-600">
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
+            <AlertDialogDescription>
               ¿Estás seguro de que quieres eliminar esta sesión permanentemente? Esta acción no se puede deshacer.
             </AlertDialogDescription>
-          </AlertDialogHead>
+          </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSessionToDeleteId(null)} className="border-gray-400 text-gray-700 hover:bg-gray-100">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteSession} disabled={isDeleting} className="bg-red-600 hover:bg-red-700 text-white">
+            <AlertDialogCancel onClick={() => setSessionToDeleteId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteSession} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
               {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               Eliminar
             </AlertDialogAction>

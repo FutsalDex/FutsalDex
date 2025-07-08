@@ -31,7 +31,7 @@ import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
-import { saveSession } from "@/ai/flows/user-actions-flow";
+import { saveSession } from "@/lib/actions/user-actions";
 
 
 interface Ejercicio {

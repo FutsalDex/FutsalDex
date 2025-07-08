@@ -35,7 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { toggleFavorite } from '@/ai/flows/user-actions-flow';
+import { toggleFavorite } from '@/lib/actions/user-actions';
 import Link from 'next/link';
 
 
