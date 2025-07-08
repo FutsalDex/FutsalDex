@@ -1,14 +1,15 @@
-
+// src/lib/firebase-admin.ts
 import { initializeApp, getApps, App, getApp } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
-// A singleton instance to ensure we don't re-initialize unnecessarily.
+// A "cached" instance of the Firestore DB.
+// This is a server-side module, so this variable will be preserved
+// across function invocations in the same container.
 let adminDbInstance: Firestore | null = null;
 
 /**
- * Provides a lazily-initialized singleton instance of the Firebase Admin Firestore.
- * This helps prevent initialization conflicts in server environments by ensuring
- * the SDK is only initialized when first needed.
+ * Returns a cached, lazily-initialized instance of the Admin Firestore DB.
+ * This prevents multiple initializations and credential conflicts.
  * @returns {Firestore} The Firestore instance.
  */
 export function getAdminDb(): Firestore {
