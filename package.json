@@ -1,10 +1,9 @@
-
 {
   "name": "nextn",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "FIREBASE_PROJECT_ID=\"futsaldex-aa3d5\" FIREBASE_PRIVATE_KEY=\"-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDgCuPphXHzMjjV\\nY4vHFlY6+Y/qn26G1oU/zfHnoCPdBrXcx/9qVuPGarFkIY7Q/8akE8s/jQv+VAF/\\nc6PeRzifHqQMCYR/Oc7wbRwNKxv37tv/y68CEZwCzbIc0sUZ2daTQAso15axhpwA\\nYhJzf2u4Ab9n0ZLQUR0hmw3krcEeHZRPRkkTn+D2YYOQELz5Yi/S9W/aFdou3yrR\\ncby2DnBAoNoVIabeKdbqmoh7iB4wZMpFcD65PHphWoOTXSaUOTJ6ld/QMuNEhZjt\\nX27zlGdtSJRrirU0Y57twCj9XPO8Oc0Tj2qcRVppKChCDsyjAO1ie+oOdFHUFOwN\\n1P0m6XYVAgMBAAECggEAB8PDhl0I8qQeSCGnvyyiVxo9x084kL/FOng0Frz8Forx\\nqUcyg52jTfB2BBcNphIB8RR733tPRm85kLs8m1WIkYCJsEkcKHSjxr1hUtYtpU1y\\nnnjmsIGqZdvPJ88+OYPNO1Pljx15rDQSxV32Gb6kHb/MbG1c/eSccoUMhDe+u6u7\\nftkIIl7DGksCCn3FD+XiFCuHbu3Ntj2FYN5POkm5XLXVHfjQsz40L1mReX4wfkuSE\\n+Bih/n/28mS+aRHWVCXtKvJza9wtbP4+7ESJlhHYUAhrngR6EtGbR8nHV7SAnTK+\\nogAHid43w5yC5PqOqdxhHfpmeV4HkYsLX2IBCEzcOQKBgQD3Tn6KxOIwUy1cwMtm\\nXsn8KftFOn/HrvVoKA3H8+lCdzMhm0/T+9yDKovi23rIeNa4u5SiSjG1MJhpsd1D\\nO4dT648Rw36i7+TvYSJ7wrW72P+MJCPDDmF3Mirc8TdYMx98XVEC3A3jOPsFgFPU\\nIukPyLzLI/5s9ghVrcnLszfpWwKBgQDn6wsMLuDAGCYYidrH+z5G9pHg/U35iZRM\\nEBpz8U4ZS+TvT421T1hxCvKvGiw9tUpO7uPdwKXrnxkFnT68IBYIPN32cIjTeM6B\\nvb2a6KZZA8jiSL55GmXaof3WvORs+5zGv0LQu29pKAe8BgTMRXC4cIymuA9y2plL\\no3Bb8lDJTwKBgQC227lBTjaY2Mevz3YV6XycEUjTd5/HvBwEuakG8djFpnGOJdKu\\nwYnZCnqIcRSmaoMJ8NkD7qw2dwobDMK31apIaOJOlihqvcqfHUlsDRpnHRpHOume\\nbmGuys1aspjjhFmBkVY3MRKrshQZiztwnaeKXjkKU0DqvDiJcYjGL2vmBQKBgHUg\\nBWJPwn4BNCwsYuugfWFFYYMpKloeG2EWuOVZNsIbzDD4Em9A9T+R8eJw62r2xeJ7\\nT2VMx/7pSK/HLEnCQp5Cby3owpFab6CifMFhQbGu8aMmbdunc00phpMOrqZDpHfT\\nXCEiqC+JYe6Zc47eewELBl2kk1jEAatrjXFCPX6NAoGAKfVFGeBkuYFw6tBxv7v7\\nzJTfKBHAxPvFlS900tfBGdVP4hyhVL9wVjSD0rpFHdkkDFiEUZWYAU7nrs2agH/y\\n1bZW9ZP8S9vtXg04zsV11wMtQ1zp3ImBmBRbtxrH+0nc8oGBRgyFJt88GbdeKoQ5\\nLA1CfYf7y/Abw42CAhzN76w=\" FIREBASE_CLIENT_EMAIL=\"firebase-adminsdk-fbsvc@futsaldex-aa3d5.iam.gserviceaccount.com\" next dev -p 9004",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
