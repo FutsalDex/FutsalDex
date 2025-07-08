@@ -27,7 +27,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Loader2, ArrowLeft, Edit, Trash2, ArrowUpDown, AlertTriangle, ListFilter, Search, Image as ImageIcon, EyeOff, ImageOff } from "lucide-react";
 import { getAdminExercises, deleteExercise, toggleExerciseVisibility, setAllExercisesVisibility, deleteExercisesWithoutImages } from "@/lib/actions/admin-exercise-actions";
@@ -51,12 +51,12 @@ interface ExerciseAdmin {
   ejercicio: string;
   fase: string;
   categoria: string;
-  edad: string[] | string;
+  edad: string[];
   isVisible: boolean;
   imagen?: string | null;
 }
 
-type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria' | 'edad';
+type SortableField = 'numero' | 'ejercicio' | 'fase' | 'categoria';
 type SortDirection = 'asc' | 'desc';
 type VisibilityFilter = 'all' | 'visible' | 'hidden';
 
@@ -307,7 +307,7 @@ function ManageExercisesPageContent() {
                       <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Ordenar por</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          {(['numero', 'ejercicio', 'categoria', 'edad', 'fase'] as SortableField[]).map((field) => (
+                          {(['numero', 'ejercicio', 'categoria', 'fase'] as SortableField[]).map((field) => (
                               <DropdownMenuItem key={field} onClick={() => handleSort(field)}>
                                   {field.charAt(0).toUpperCase() + field.slice(1)}
                               </DropdownMenuItem>
@@ -374,7 +374,7 @@ function ManageExercisesPageContent() {
                                     </TableCell>
                                     <TableCell className="font-medium">{ex.ejercicio}</TableCell>
                                     <TableCell><Badge variant="secondary">{ex.categoria}</Badge></TableCell>
-                                    <TableCell className="text-xs">{Array.isArray(ex.edad) ? ex.edad.join(', ') : ex.edad}</TableCell>
+                                    <TableCell className="text-xs">{ex.edad.join(', ')}</TableCell>
                                     <TableCell className="text-center">
                                          {isToggling === ex.id ? (
                                             <Loader2 className="h-4 w-4 animate-spin mx-auto" />

@@ -119,7 +119,7 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
 
 const GetExercisesInputSchema = z.object({
   visibility: z.enum(['all', 'visible', 'hidden']).optional().default('all'),
-  sortField: z.enum(['numero', 'ejercicio', 'categoria', 'edad']).default('ejercicio'),
+  sortField: z.enum(['numero', 'ejercicio', 'categoria', 'fase']).default('ejercicio'),
   sortDirection: z.enum(['asc', 'desc']).default('asc'),
   pageSize: z.number().default(15),
   startAfterDocId: z.string().optional(),
@@ -133,7 +133,7 @@ const ExerciseAdminSchema = z.object({
   ejercicio: z.string(),
   fase: z.string(),
   categoria: z.string(),
-  edad: z.union([z.array(z.string()), z.string()]),
+  edad: z.array(z.string()),
   isVisible: z.boolean(),
   imagen: z.string().optional().nullable(),
 });
@@ -187,13 +187,17 @@ export async function getAdminExercises(input: GetExercisesInput): Promise<GetEx
 
   const exercises = docsToMap.map(docSnap => {
     const data = docSnap.data();
+    const edadData = data.edad;
+    // Ensure 'edad' is always an array to prevent client-side errors.
+    const processedEdad = Array.isArray(edadData) ? edadData : (edadData ? [String(edadData)] : []);
+    
     return {
       id: docSnap.id,
       numero: data.numero,
       ejercicio: data.ejercicio,
       fase: data.fase,
       categoria: data.categoria,
-      edad: data.edad,
+      edad: processedEdad,
       isVisible: data.isVisible === undefined ? true : data.isVisible,
       imagen: data.imagen || null,
     };
