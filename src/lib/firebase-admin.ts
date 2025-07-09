@@ -23,6 +23,12 @@ export function getAdminDb(): Firestore {
     try {
       const serviceAccount = JSON.parse(serviceAccountJson) as ServiceAccount;
       
+      // Corrige la clave privada reemplazando los caracteres de nueva línea escapados ('\\n') por nuevas líneas reales ('\n').
+      // Esto es crucial porque las variables de entorno aplanan las claves multilínea.
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+      
       initializeApp({
         credential: cert(serviceAccount),
       });
