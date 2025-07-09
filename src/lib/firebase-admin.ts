@@ -8,7 +8,7 @@ let adminDbInstance: Firestore | null = null;
 function parseServiceAccount(): ServiceAccount {
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
-    if (!serviceAccountJson || serviceAccountJson === "'<PASTE_YOUR_FULL_SERVICE_ACCOUNT_JSON_HERE>'") {
+    if (!serviceAccountJson || serviceAccountJson.includes('<PASTE_YOUR_FULL_SERVICE_ACCOUNT_JSON_HERE>')) {
         throw new Error(
             'La variable de entorno FIREBASE_SERVICE_ACCOUNT_JSON no está configurada. ' +
             'Por favor, ve a la Consola de Firebase > Configuración del proyecto > Cuentas de servicio, genera una nueva clave privada, ' +
@@ -21,6 +21,12 @@ function parseServiceAccount(): ServiceAccount {
         if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
             throw new Error("El JSON de la cuenta de servicio no es válido. Faltan campos requeridos (project_id, private_key, client_email).");
         }
+        
+        // **LA SOLUCIÓN CLAVE**: Las variables de entorno convierten los saltos de línea (\n)
+        // en texto literal (\\n). Firebase necesita saltos de línea reales para analizar la clave.
+        // Reemplazamos explícitamente '\\n' por '\n' para corregir el formato.
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+
         return serviceAccount as ServiceAccount;
     } catch (e: any) {
         console.error("Error al analizar FIREBASE_SERVICE_ACCOUNT_JSON:", e.message);
