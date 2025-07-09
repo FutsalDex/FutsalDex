@@ -1,7 +1,6 @@
 // src/lib/firebase-admin.ts
 import { initializeApp, getApps, getApp, cert, type ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import 'dotenv/config';
 
 let adminDbInstance: Firestore | null = null;
 
@@ -11,36 +10,34 @@ export function getAdminDb(): Firestore {
   }
 
   if (getApps().length === 0) {
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    // Construct the service account object from individual environment variables.
+    // This is more robust than parsing a large JSON string from an env var.
+    const serviceAccount: ServiceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // The private key must have newlines correctly formatted.
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    };
 
-    if (!serviceAccountJson || serviceAccountJson.includes('<PASTE_YOUR_FULL_SERVICE_ACCOUNT_JSON_HERE>')) {
-      throw new Error(
-        'La variable de entorno FIREBASE_SERVICE_ACCOUNT_JSON no está configurada o es inválida. ' +
-        'Por favor, copia el contenido completo del archivo JSON de tu cuenta de servicio en esta variable dentro del archivo .env.'
-      );
+    // Verify that all required environment variables are present.
+    if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+        throw new Error(
+            'Las credenciales del SDK de Firebase Admin no están configuradas correctamente en las variables de entorno. ' +
+            'Por favor, revisa las variables FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL y FIREBASE_PRIVATE_KEY en tu archivo .env.'
+        );
     }
-
+    
     try {
-      const serviceAccount = JSON.parse(serviceAccountJson) as ServiceAccount;
-      
-      // Corrige la clave privada reemplazando los caracteres de nueva línea escapados ('\\n') por nuevas líneas reales ('\n').
-      // Esto es crucial porque las variables de entorno aplanan las claves multilínea.
-      if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      }
-      
       initializeApp({
         credential: cert(serviceAccount),
       });
-
     } catch (error: any) {
       console.error("Error de inicialización del SDK de Firebase Admin:", error.message);
-      // Lanza el error para que sea visible durante el desarrollo.
+      // Re-throw a more user-friendly error.
       throw new Error(`No se pudo inicializar el SDK de Firebase Admin. Error original: ${error.message}`);
     }
   }
 
-  // Obtiene la instancia de Firestore de la app inicializada (ya sea nueva o existente)
   adminDbInstance = getFirestore(getApp());
   return adminDbInstance;
 }
