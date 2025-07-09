@@ -22,16 +22,7 @@ export function getAdminDb(): Firestore {
 
     try {
       const serviceAccount = JSON.parse(serviceAccountJson) as ServiceAccount;
-
-      if (!serviceAccount.private_key) {
-        throw new Error("El JSON de la cuenta de servicio no contiene una 'private_key'. Revisa el contenido en tu archivo .env.");
-      }
       
-      // **LA SOLUCIÓN CLAVE**: Las variables de entorno convierten los saltos de línea (\n)
-      // en texto literal (\\n). Firebase necesita saltos de línea reales para analizar la clave.
-      // Reemplazamos explícitamente '\\n' por '\n' para corregir el formato.
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-
       initializeApp({
         credential: cert(serviceAccount),
       });
