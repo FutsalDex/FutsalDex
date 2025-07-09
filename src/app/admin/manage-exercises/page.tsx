@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, Loader2, Search, Edit, Trash2, ListChecks } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Search, Edit, Trash2, ListChecks, Save } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Image from 'next/image';
