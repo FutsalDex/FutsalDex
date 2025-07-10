@@ -179,13 +179,25 @@ export default function EjerciciosPage() {
             imagen: data.imagen || '',
             consejos_entrenador: data.consejos_entrenador || '',
             isVisible: data.isVisible,
+            numero: data.numero,
           } as Ejercicio;
         });
 
         let visibleExercises = fetchedEjercicios.filter(ej => ej.isVisible !== false);
 
         if (isRegisteredUser && (isAdmin || isSubscribed)) {
-            visibleExercises.sort((a, b) => (a.ejercicio || '').localeCompare(b.ejercicio || ''));
+            // Sort by 'numero' field. Handles alphanumeric sorting and places exercises without a number at the end.
+            visibleExercises.sort((a, b) => {
+              const numA = a.numero;
+              const numB = b.numero;
+
+              if (numA && !numB) return -1; // a comes first
+              if (!numA && numB) return 1;  // b comes first
+              if (!numA && !numB) return (a.ejercicio || '').localeCompare(b.ejercicio || ''); // fallback to name if both are null
+
+              // Both have a number, compare them. localeCompare with numeric option helps sort "2" before "10".
+              return (numA || '').localeCompare(numB || '', undefined, { numeric: true });
+            });
         }
         
         setAllExercises(visibleExercises);
@@ -446,7 +458,7 @@ export default function EjerciciosPage() {
                     />
                   </div>
                   <CardHeader>
-                    <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.ejercicio}</CardTitle>
+                    <CardTitle className="text-lg font-semibold text-primary font-headline truncate" title={ej.ejercicio}>{ej.numero ? `${ej.numero} - ` : ''}{ej.ejercicio}</CardTitle>
                     {ej.categoria && <Badge variant="secondary" className="mt-1 truncate self-start" title={ej.categoria}>{ej.categoria}</Badge>}
                     <div className="text-xs pt-2 space-y-0.5 text-muted-foreground">
                       <div><strong>Fase:</strong> {ej.fase}</div>
@@ -514,7 +526,7 @@ export default function EjerciciosPage() {
               <ScrollArea className="flex-grow bg-background">
                 <div className="exercise-print-area bg-white text-gray-800 m-0">
                   <div className="p-4 bg-gray-800 text-white flex justify-between items-center">
-                    <h2 className="text-2xl font-bold font-headline">{selectedExercise.ejercicio}</h2>
+                    <h2 className="text-2xl font-bold font-headline">{selectedExercise.numero ? `${selectedExercise.numero} - ` : ''}{selectedExercise.ejercicio}</h2>
                     <div className="text-right">
                       <p className="font-bold text-lg">Duración: {formatDuracion(selectedExercise.duracion)}</p>
                     </div>
