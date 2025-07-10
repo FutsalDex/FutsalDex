@@ -18,6 +18,7 @@ export const CATEGORIAS_TEMATICAS_EJERCICIOS = [
   { id: "desmarques-movilidad", label: "Desmarques y movilidad" },
   { id: "juego-reducido-condicionado", label: "Juego reducido y condicionado" },
   { id: "calentamiento-activacion", label: "Calentamiento y activación" },
+  { id: "sistema-tactico-ofensivo", label: "Sistema táctico ofensivo" },
 ];
 
 export const CATEGORIAS_EDAD_EJERCICIOS = [
