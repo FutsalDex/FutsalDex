@@ -2,23 +2,23 @@
 export const FASES_SESION = ["Inicial", "Principal", "Final"];
 
 export const CATEGORIAS_TEMATICAS_EJERCICIOS = [
-  { id: "finalizacion", label: "Finalización" },
-  { id: "tecnica-individual-combinada", label: "Técnica individual y combinada" },
-  { id: "pase-control", label: "Pase y control" },
-  { id: "transiciones", label: "Transiciones (ofensivas y defensivas)" },
+  { id: "balon-parado-remates", label: "Balón parado y remates" },
+  { id: "calentamiento-activacion", label: "Calentamiento y activación" },
+  { id: "conduccion-regate", label: "Conducción y regate" },
+  { id: "contraataques-ataque-rapido", label: "Contraataques y ataque rápido" },
   { id: "coordinacion-agilidad-velocidad", label: "Coordinación, agilidad y velocidad" },
   { id: "defensa", label: "Defensa (individual, colectiva y táctica)" },
-  { id: "conduccion-regate", label: "Conducción y regate" },
-  { id: "toma-decisiones-vision", label: "Toma de decisiones y visión de juego" },
-  { id: "posesion-circulacion", label: "Posesión y circulación del balón" },
-  { id: "superioridades-inferioridades", label: "Superioridades e inferioridades numéricas" },
-  { id: "portero-trabajo-especifico", label: "Portero y trabajo específico" },
-  { id: "balon-parado-remates", label: "Balón parado y remates" },
-  { id: "contraataques-ataque-rapido", label: "Contraataques y ataque rápido" },
   { id: "desmarques-movilidad", label: "Desmarques y movilidad" },
+  { id: "finalizacion", label: "Finalización" },
   { id: "juego-reducido-condicionado", label: "Juego reducido y condicionado" },
-  { id: "calentamiento-activacion", label: "Calentamiento y activación" },
+  { id: "pase-control", label: "Pase y control" },
+  { id: "portero-trabajo-especifico", label: "Portero y trabajo específico" },
+  { id: "posesion-circulacion", label: "Posesión y circulación del balón" },
   { id: "sistema-tactico-ofensivo", label: "Sistema táctico ofensivo" },
+  { id: "superioridades-inferioridades", label: "Superioridades e inferioridades numéricas" },
+  { id: "tecnica-individual-combinada", label: "Técnica individual y combinada" },
+  { id: "toma-decisiones-vision", label: "Toma de decisiones y visión de juego" },
+  { id: "transiciones", label: "Transiciones (ofensivas y defensivas)" },
 ];
 
 export const CATEGORIAS_EDAD_EJERCICIOS = [
