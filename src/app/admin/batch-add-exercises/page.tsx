@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, ArrowLeft, FileSpreadsheet, UploadCloud, Info, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileSpreadsheet, UploadCloud, Info, Loader2, CheckCircle, XCircle, Download } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { useState, type ChangeEvent } from "react";
@@ -62,6 +62,37 @@ function BatchAddExercisesPageContent() {
       }
     }
   };
+  
+  const handleDownloadTemplate = () => {
+    const headers = Object.values(EXPECTED_HEADERS);
+    const sampleData = [
+      {
+        "Número": "001",
+        "Ejercicio": "Rondo 4 vs 1",
+        "Descripción de la tarea": "Cuatro jugadores en círculo pasan el balón a un toque, mientras un jugador en el centro intenta interceptarlo.",
+        "Objetivos": "Mejorar la velocidad del pase, el control orientado y la presión tras pérdida.",
+        "Espacio y materiales necesarios": "Círculo de 8m de diámetro, 1 balón, 5 conos.",
+        "Número de jugadores": "5",
+        "Duración (min)": "10",
+        "Variantes": "Limitar a dos toques, añadir un segundo defensor.",
+        "Fase": "Inicial",
+        "Categoría": "Pase y control",
+        "Edad": "Alevín (10-11 años), Infantil (12-13 años)",
+        "Consejos para el entrenador": "Fomentar la comunicación y el movimiento sin balón.",
+        "Imagen": "https://i.ibb.co/your-image-url.png"
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "PlantillaEjercicios");
+
+    // Auto-ajustar ancho de columnas
+    const max_width = sampleData.reduce((w, r) => Math.max(w, ...Object.values(r).map(v => v.length)), 10);
+    worksheet["!cols"] = headers.map(() => ({ wch: max_width }));
+
+    XLSX.writeFile(workbook, "FutsalDex_Plantilla_Ejercicios.xlsx");
+  };
 
   const handleProcessFile = async () => {
     if (!selectedFile) {
@@ -108,15 +139,14 @@ function BatchAddExercisesPageContent() {
                 mappedData[key] = row[headerName] ?? "";
             }
             
-            // Explicitly handle and clean the duration value
             let duracionValue = "";
             const rawDuracion = mappedData.duracion;
-            if (rawDuracion !== null && rawDuracion !== undefined && String(rawDuracion).trim() !== "") {
-                const parsedNum = parseInt(String(rawDuracion), 10);
+             if (rawDuracion !== null && rawDuracion !== undefined) {
+                const parsedNum = parseInt(String(rawDuracion).trim(), 10);
                 if (!isNaN(parsedNum)) {
                     duracionValue = String(parsedNum);
                 }
-            }
+             }
 
             const exerciseData: Partial<AddExerciseFormValues> = {
               numero: String(mappedData.numero || ""),
@@ -173,7 +203,7 @@ function BatchAddExercisesPageContent() {
                   <li>Todos los campos marcados como <strong>requeridos</strong> están <strong>completos y no son cadenas vacías</strong>.</li>
                   <li>El campo '{EXPECTED_HEADERS.duracion}' contiene uno de los valores permitidos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}.</li>
                   <li>El campo '{EXPECTED_HEADERS.categoria}' usa el <strong>nombre completo de la categoría</strong>.</li>
-                  <li>El campo '{EXPECTED_HEADERS.edad}' no está vacío y contiene categorías de edad válidas.</li>
+                  <li>El campo '{EXPECTED_HEADERS.edad}' no está vacío y contiene categorías de edad válidas separadas por comas.</li>
                 </ul>
                 <p className="mt-2">Consulta la consola del navegador (presiona F12 y ve a la pestaña "Consola") para ver los errores detallados por cada fila.</p>
               </div>
@@ -286,22 +316,33 @@ function BatchAddExercisesPageContent() {
             Subir Archivo
           </CardTitle>
           <CardDescription>
-            Selecciona un archivo (.xlsx, .xls, .csv) que contenga los ejercicios.
+            Selecciona un archivo (.xlsx, .xls, .csv) que contenga los ejercicios. Para asegurar el formato correcto, puedes descargar nuestra plantilla.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <label htmlFor="excel-file-input" className="block text-sm font-medium text-foreground">
-              Seleccionar archivo
-            </label>
-            <Input
-              id="excel-file-input"
-              type="file"
-              accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv"
-              onChange={handleFileChange}
-              className="h-14 py-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-            />
-            {selectedFile && <p className="text-sm text-muted-foreground">Archivo seleccionado: {selectedFile.name}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <label htmlFor="excel-file-input" className="block text-sm font-medium text-foreground">
+                Seleccionar archivo
+                </label>
+                <Input
+                id="excel-file-input"
+                type="file"
+                accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv"
+                onChange={handleFileChange}
+                className="h-14 py-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                />
+                {selectedFile && <p className="text-sm text-muted-foreground">Archivo seleccionado: {selectedFile.name}</p>}
+            </div>
+             <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                Descargar plantilla
+                </label>
+                <Button onClick={handleDownloadTemplate} variant="outline" className="w-full h-14">
+                    <Download className="mr-2 h-5 w-5" />
+                    Descargar Plantilla Excel
+                </Button>
+            </div>
           </div>
 
           {processedStats && (
@@ -329,7 +370,7 @@ function BatchAddExercisesPageContent() {
                   <li key={header}><strong>{header}</strong></li>
                 ))}
               </ul>
-               <p className="mt-2 text-xs"><strong className="text-destructive">Importante:</strong> Todos los campos marcados como "Requerido" deben tener contenido válido y no ser cadenas vacías. Las celdas vacías en campos requeridos causarán errores de validación.</p>
+               <p className="mt-2 text-xs"><strong className="text-destructive">Importante:</strong> Todos los campos marcados como "Requerido" deben tener contenido válido y no ser cadenas vacías. Las celdas vacías en campos requeridos causarán errores de validación. Las categorías de edad múltiples deben ir separadas por comas.</p>
             </AlertDescription>
           </Alert>
         </CardContent>
