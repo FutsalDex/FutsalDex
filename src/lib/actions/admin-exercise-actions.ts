@@ -81,6 +81,21 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
   };
 }
 
+// --- Get Existing Exercise Names ---
+export async function getExistingExerciseNames(): Promise<string[]> {
+  const adminDb = getAdminDb();
+  const exercisesCollection = adminDb.collection("ejercicios_futsal");
+  const snapshot = await exercisesCollection.select('ejercicio').get();
+  
+  if (snapshot.empty) {
+    return [];
+  }
+
+  const names = snapshot.docs.map(doc => doc.data().ejercicio as string).filter(Boolean);
+  return names;
+}
+
+
 // --- Get Exercises for Admin Panel and Clean ---
 const AdminExerciseSchema = addExerciseSchema.extend({
   id: z.string(),

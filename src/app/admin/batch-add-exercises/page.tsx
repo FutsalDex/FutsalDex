@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas';
 import { DURACION_EJERCICIO_OPCIONES_VALUES } from "@/lib/constants";
-import { batchAddExercises } from "@/lib/actions/admin-exercise-actions";
+import { batchAddExercises, getExistingExerciseNames } from "@/lib/actions/admin-exercise-actions";
 
 const EXPECTED_HEADERS: { [key in keyof Required<Omit<AddExerciseFormValues, 'isVisible'>>]: string } & { [key: string]: string } = {
   numero: "Número",
@@ -37,7 +37,7 @@ function BatchAddExercisesPageContent() {
   const { isAdmin } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processedStats, setProcessedStats] = useState<{ success: number, failed: number, total: number } | null>(null);
+  const [processedStats, setProcessedStats] = useState<{ success: number, failed: number, skipped: number, total: number } | null>(null);
   const { toast } = useToast();
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -88,7 +88,7 @@ function BatchAddExercisesPageContent() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "PlantillaEjercicios");
 
     // Auto-ajustar ancho de columnas
-    const max_width = sampleData.reduce((w, r) => Math.max(w, ...Object.values(r).map(v => v.length)), 10);
+    const max_width = sampleData.reduce((w, r) => Math.max(w, ...Object.values(r).map(v => String(v).length)), 10);
     worksheet["!cols"] = headers.map(() => ({ wch: max_width }));
 
     XLSX.writeFile(workbook, "FutsalDex_Plantilla_Ejercicios.xlsx");
@@ -107,9 +107,13 @@ function BatchAddExercisesPageContent() {
     setProcessedStats(null);
     let successCount = 0;
     let failureCount = 0;
+    let skippedCount = 0;
     let totalRows = 0;
 
     try {
+      const existingExerciseNames = await getExistingExerciseNames();
+      const existingNamesSet = new Set(existingExerciseNames.map(name => name.toLowerCase()));
+      
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
@@ -135,22 +139,28 @@ function BatchAddExercisesPageContent() {
           jsonExercises.forEach((row, index) => {
             const mappedData: { [key: string]: any } = {};
             for (const key in EXPECTED_HEADERS) {
-                const headerName = EXPECTED_HEADERS[key];
+                const headerName = EXPECTED_HEADERS[key as keyof typeof EXPECTED_HEADERS];
                 mappedData[key] = row[headerName] ?? "";
             }
             
-            let duracionValue = "";
+            const exerciseName = String(mappedData.ejercicio || "").trim();
+            if (exerciseName && existingNamesSet.has(exerciseName.toLowerCase())) {
+                skippedCount++;
+                return; // Skip this exercise as it already exists
+            }
+
             const rawDuracion = mappedData.duracion;
-             if (rawDuracion !== null && rawDuracion !== undefined) {
-                const parsedNum = parseInt(String(rawDuracion).trim(), 10);
-                if (!isNaN(parsedNum)) {
-                    duracionValue = String(parsedNum);
-                }
-             }
+            let duracionValue = "";
+            if (rawDuracion !== null && rawDuracion !== undefined) {
+              const duracionStr = String(rawDuracion).trim();
+              if (DURACION_EJERCICIO_OPCIONES_VALUES.includes(duracionStr)) {
+                duracionValue = duracionStr;
+              }
+            }
 
             const exerciseData: Partial<AddExerciseFormValues> = {
               numero: String(mappedData.numero || ""),
-              ejercicio: String(mappedData.ejercicio || ""),
+              ejercicio: exerciseName,
               descripcion: String(mappedData.descripcion || ""),
               objetivos: String(mappedData.objetivos || ""),
               espacio_materiales: String(mappedData.espacio_materiales || ""),
@@ -159,7 +169,7 @@ function BatchAddExercisesPageContent() {
               variantes: String(mappedData.variantes || ""),
               fase: String(mappedData.fase || ""),
               categoria: String(mappedData.categoria || ""),
-              edad: mappedData.edad ? String(mappedData.edad).split(',').map(item => item.trim()).filter(Boolean) : [],
+              edad: mappedData.edad ? String(mappedData.edad).split(',').map((item: string) => item.trim()).filter(Boolean) : [],
               consejos_entrenador: String(mappedData.consejos_entrenador || ""),
               imagen: String(mappedData.imagen || ""),
               isVisible: true,
@@ -222,22 +232,28 @@ function BatchAddExercisesPageContent() {
             successCount = result.successCount;
           }
 
-          setProcessedStats({ success: successCount, failed: failureCount, total: totalRows });
+          setProcessedStats({ success: successCount, failed: failureCount, skipped: skippedCount, total: totalRows });
 
           if (successCount > 0 && failureCount === 0) {
             toast({
               title: "Procesamiento Completado",
-              description: `${successCount} ejercicios importados correctamente.`,
+              description: `${successCount} ejercicios importados correctamente. ${skippedCount > 0 ? `${skippedCount} omitidos por ser duplicados.` : ''}`,
             });
           } else if (successCount > 0 && failureCount > 0) {
              toast({
               title: "Procesamiento Parcial",
-              description: `${successCount} de ${totalRows} ejercicios importados. ${failureCount} fallaron. Revisa los errores.`,
+              description: `${successCount} de ${totalRows} ejercicios importados. ${failureCount} fallaron. ${skippedCount} omitidos. Revisa los errores.`,
               variant: "default",
               duration: 10000,
             });
           } else if (failureCount > 0 && successCount === 0 && totalRows > 0){
             // El toast de error de validación ya es suficiente.
+          } else if (skippedCount > 0 && successCount === 0 && failureCount === 0) {
+            toast({
+              title: "No se añadieron nuevos ejercicios",
+              description: `${skippedCount} ejercicios fueron omitidos por ser duplicados.`,
+              variant: "default",
+            });
           } else if (totalRows === 0 && successCount === 0 && failureCount === 0){
             // Ya manejado por "Archivo Vacío"
           }
@@ -250,7 +266,7 @@ function BatchAddExercisesPageContent() {
             description: procError.message || "Hubo un problema al leer o procesar el contenido del archivo. Verifica que el formato sea correcto.",
             variant: "destructive",
           });
-          setProcessedStats({ success: 0, failed: totalRows > 0 ? totalRows : 0, total: totalRows > 0 ? totalRows : 0 });
+          setProcessedStats({ success: 0, failed: totalRows > 0 ? totalRows : 0, skipped: 0, total: totalRows > 0 ? totalRows : 0 });
         } finally {
           setIsProcessing(false);
         }
@@ -353,7 +369,8 @@ function BatchAddExercisesPageContent() {
               <AlertDescription className={processedStats.failed > 0 && processedStats.success === 0 ? "text-destructive-foreground/90" : (processedStats.failed > 0 ? "text-yellow-600" : "text-green-600")}>
                 Total de filas procesadas: {processedStats.total}. <br/>
                 Ejercicios importados con éxito: {processedStats.success}. <br/>
-                Ejercicios con errores: {processedStats.failed}.
+                Ejercicios con errores: {processedStats.failed}. <br/>
+                Ejercicios omitidos (duplicados): {processedStats.skipped}.
                 {processedStats.failed > 0 && " Revisa la consola del navegador (F12) y las notificaciones para más detalles sobre los errores."}
               </AlertDescription>
             </Alert>
