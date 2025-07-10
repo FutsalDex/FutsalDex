@@ -157,7 +157,7 @@ function ManageExercisesPageContent() {
       if (deletedCount > 0) {
         toast({
           title: "Limpieza Completada",
-          description: `Se eliminaron ${deletedCount} ejercicios sin imagen personalizada.`,
+          description: `Se eliminaron ${deletedCount} ejercicios duplicados.`,
           duration: 7000
         });
       }
@@ -216,7 +216,7 @@ function ManageExercisesPageContent() {
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
       <header className="mb-8 flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold text-primary mb-1 font-headline">Gestionar Ejercicios</h1><p className="text-lg text-foreground/80">Edita y elimina los ejercicios del catálogo.</p></div>
+        <div><h1 className="text-3xl font-bold text-primary mb-1 font-headline">Gestionar Ejercicios</h1><p className="text-lg text-foreground/80">Edita, elimina y gestiona los ejercicios del catálogo.</p></div>
         <Button asChild variant="outline"><Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Panel</Link></Button>
       </header>
 
@@ -226,7 +226,7 @@ function ManageExercisesPageContent() {
             <CardTitle className="font-headline text-xl flex items-center"><ListChecks className="mr-2 h-5 w-5 text-primary" />Listado de Ejercicios</CardTitle>
             <p className="text-sm text-muted-foreground">Total: {filteredExercises.length}</p>
           </div>
-          <CardDescription>Ejercicios con imagen personalizada. Los ejercicios sin imagen han sido eliminados.</CardDescription>
+          <CardDescription>Ejercicios únicos en la base de datos. Los duplicados se han eliminado automáticamente.</CardDescription>
           <div className="relative pt-2"><Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar por nombre..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10" /></div>
         </CardHeader>
         <CardContent>

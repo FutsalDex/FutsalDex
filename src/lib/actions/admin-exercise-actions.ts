@@ -117,12 +117,12 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
     return { exercises: [], deletedCount: 0 };
   }
 
-  const exercisesToKeep: AdminExercise[] = [];
-  const exercisesToDeleteRefs: FirebaseFirestore.DocumentReference[] = [];
-
+  const exercisesByName: { [key: string]: AdminExercise[] } = {};
+  
   snapshot.forEach(doc => {
-    const data = doc.data();
-    if (data.imagen && !data.imagen.includes('placehold.co')) {
+      const data = doc.data();
+      const exerciseName = (data.ejercicio || "").trim().toLowerCase();
+      
       const parsed = AdminExerciseSchema.safeParse({
         id: doc.id,
         numero: data.numero || "",
@@ -140,13 +140,44 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
         imagen: data.imagen || "",
         isVisible: data.isVisible !== false,
       });
-      if (parsed.success) {
-        exercisesToKeep.push(parsed.data);
+
+      if (parsed.success && exerciseName) {
+        if (!exercisesByName[exerciseName]) {
+          exercisesByName[exerciseName] = [];
+        }
+        exercisesByName[exerciseName].push(parsed.data);
+      }
+  });
+
+  const exercisesToKeep: AdminExercise[] = [];
+  const exercisesToDeleteRefs: FirebaseFirestore.DocumentReference[] = [];
+
+  for (const name in exercisesByName) {
+    const group = exercisesByName[name];
+    if (group.length > 1) {
+      // Find the "best" one to keep: prefers non-placeholder images and more complete data
+      group.sort((a, b) => {
+        const aHasPlaceholder = a.imagen.includes('placehold.co');
+        const bHasPlaceholder = b.imagen.includes('placehold.co');
+        if (aHasPlaceholder !== bHasPlaceholder) {
+            return aHasPlaceholder ? 1 : -1; // b is better
+        }
+        // Optional: further sorting by completeness, for now image is primary criteria
+        return (b.descripcion?.length || 0) - (a.descripcion?.length || 0);
+      });
+      
+      const bestToKeep = group[0];
+      exercisesToKeep.push(bestToKeep);
+
+      // Mark the rest for deletion
+      for (let i = 1; i < group.length; i++) {
+        exercisesToDeleteRefs.push(exercisesCollection.doc(group[i].id));
       }
     } else {
-      exercisesToDeleteRefs.push(doc.ref);
+      exercisesToKeep.push(group[0]);
     }
-  });
+  }
+
 
   let deletedCount = 0;
   if (exercisesToDeleteRefs.length > 0) {
