@@ -35,7 +35,6 @@ const nextConfig: NextConfig = {
     allowedDevOrigins: [
       'https://9004-firebase-studio-1748847492158.cluster-3g7bqlotigwuxlqpiut7yq74.cloudworkstations.dev',
       'http://localhost:9004', // Para acceso local desde el navegador del entorno
-      'http://10.88.0.3:9004' // Para la IP interna que Next.js también muestra
     ],
   },
   // --- Fin de la nueva configuración ---
