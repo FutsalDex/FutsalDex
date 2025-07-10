@@ -16,14 +16,14 @@ import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas';
 import { DURACION_EJERCICIO_OPCIONES_VALUES } from "@/lib/constants";
 import { batchAddExercises } from "@/lib/actions/admin-exercise-actions";
 
-const EXPECTED_HEADERS = {
+const EXPECTED_HEADERS: { [key in keyof Required<Omit<AddExerciseFormValues, 'isVisible'>>]: string } & { [key: string]: string } = {
   numero: "Número",
   ejercicio: "Ejercicio",
   descripcion: "Descripción de la tarea",
   objetivos: "Objetivos",
   espacio_materiales: "Espacio y materiales necesarios",
   jugadores: "Número de jugadores",
-  duracion: "Duración (min)", // Updated Label
+  duracion: "Duración (min)",
   variantes: "Variantes",
   fase: "Fase",
   categoria: "Categoría",
@@ -102,33 +102,32 @@ function BatchAddExercisesPageContent() {
           const validationErrors: string[] = [];
 
           jsonExercises.forEach((row, index) => {
-             // Trim the duracion value if it exists
-            const duracionValue = (row[EXPECTED_HEADERS.duracion] ?? "").trim();
+            const mappedData: { [key: string]: any } = {};
+            for (const key in EXPECTED_HEADERS) {
+                const headerName = EXPECTED_HEADERS[key];
+                mappedData[key] = row[headerName] ?? "";
+            }
 
             const exerciseData: Partial<AddExerciseFormValues> = {
-              numero: row[EXPECTED_HEADERS.numero] || "",
-              ejercicio: row[EXPECTED_HEADERS.ejercicio] || "",
-              descripcion: row[EXPECTED_HEADERS.descripcion] || "",
-              objetivos: row[EXPECTED_HEADERS.objetivos] || "",
-              espacio_materiales: row[EXPECTED_HEADERS.espacio_materiales] || "",
-              jugadores: row[EXPECTED_HEADERS.jugadores] || "",
-              duracion: duracionValue,
-              variantes: row[EXPECTED_HEADERS.variantes] || "",
-              fase: row[EXPECTED_HEADERS.fase] || "",
-              categoria: row[EXPECTED_HEADERS.categoria] || "",
-              edad: row[EXPECTED_HEADERS.edad] ? (row[EXPECTED_HEADERS.edad] as string).split(',').map(e => e.trim()).filter(e => e) : [],
-              consejos_entrenador: row[EXPECTED_HEADERS.consejos_entrenador] || "",
-              imagen: row[EXPECTED_HEADERS.imagen] || "",
+              numero: String(mappedData.numero || ""),
+              ejercicio: String(mappedData.ejercicio || ""),
+              descripcion: String(mappedData.descripcion || ""),
+              objetivos: String(mappedData.objetivos || ""),
+              espacio_materiales: String(mappedData.espacio_materiales || ""),
+              jugadores: String(mappedData.jugadores || ""),
+              duracion: String(mappedData.duracion || "").trim(),
+              variantes: String(mappedData.variantes || ""),
+              fase: String(mappedData.fase || ""),
+              categoria: String(mappedData.categoria || ""),
+              edad: mappedData.edad ? String(mappedData.edad).split(',').map(item => item.trim()).filter(Boolean) : [],
+              consejos_entrenador: String(mappedData.consejos_entrenador || ""),
+              imagen: String(mappedData.imagen || ""),
               isVisible: true,
             };
 
             if (!exerciseData.imagen) {
                 exerciseData.imagen = `https://placehold.co/400x300.png?text=${encodeURIComponent(exerciseData.ejercicio || 'Ejercicio')}`;
             }
-
-            exerciseData.numero = exerciseData.numero || "";
-            exerciseData.variantes = exerciseData.variantes || "";
-            exerciseData.consejos_entrenador = exerciseData.consejos_entrenador || "";
 
             const validation = addExerciseSchema.safeParse(exerciseData);
 
@@ -316,19 +315,9 @@ function BatchAddExercisesPageContent() {
             <AlertDescription>
               <p className="font-semibold">Asegúrate de que tu archivo Excel/CSV tenga las siguientes columnas en la primera hoja. Los nombres deben coincidir <strong>EXACTAMENTE</strong> (mayúsculas, minúsculas, espacios, tildes y guiones bajos):</p>
               <ul className="list-disc list-inside text-xs mt-2 space-y-1">
-                <li><strong>{EXPECTED_HEADERS.numero}</strong> (Opcional. Ej: 001)</li>
-                <li><strong>{EXPECTED_HEADERS.ejercicio}</strong> (Requerido. Ej: Pase y movimiento)</li>
-                <li><strong>{EXPECTED_HEADERS.descripcion}</strong> (Requerido)</li>
-                <li><strong>{EXPECTED_HEADERS.objetivos}</strong> (Requerido)</li>
-                <li><strong>{EXPECTED_HEADERS.espacio_materiales}</strong> (Requerido. Ej: Media pista, 5 conos)</li>
-                <li><strong>{EXPECTED_HEADERS.jugadores}</strong> (Requerido. Ej: 10-12)</li>
-                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido. Debe ser uno de los valores permitidos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}. Ej: 10)</li>
-                <li><strong>{EXPECTED_HEADERS.variantes}</strong> (Opcional)</li>
-                <li><strong>{EXPECTED_HEADERS.fase}</strong> (Requerido. Debe ser uno de: Inicial, Principal, Final)</li>
-                <li><strong>{EXPECTED_HEADERS.categoria}</strong> (Requerido. Debe ser el <strong>nombre completo de la categoría</strong>)</li>
-                <li><strong>{EXPECTED_HEADERS.edad}</strong> (Requerido. Ej: "Alevín (10-11 años)". Si son varias, separadas por coma). La celda no puede estar vacía.</li>
-                <li><strong>{EXPECTED_HEADERS.consejos_entrenador}</strong> (Opcional)</li>
-                <li><strong>{EXPECTED_HEADERS.imagen}</strong> (Opcional, URL completa. Si se deja vacío, se usará una imagen genérica)</li>
+                {Object.values(EXPECTED_HEADERS).map(header => (
+                  <li key={header}><strong>{header}</strong></li>
+                ))}
               </ul>
                <p className="mt-2 text-xs"><strong className="text-destructive">Importante:</strong> Todos los campos marcados como "Requerido" deben tener contenido válido y no ser cadenas vacías. Las celdas vacías en campos requeridos causarán errores de validación.</p>
             </AlertDescription>
