@@ -89,7 +89,7 @@ function BatchAddExercisesPageContent() {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const jsonExercises = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as any[];
+          const jsonExercises = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false, cellText: true }) as any[];
           totalRows = jsonExercises.length;
 
           if (totalRows === 0) {
@@ -102,24 +102,23 @@ function BatchAddExercisesPageContent() {
           const validationErrors: string[] = [];
 
           jsonExercises.forEach((row, index) => {
-             // Handle 'duracion' specifically: ensure it's a string for validation.
-            const duracionRawValue = row[EXPECTED_HEADERS.duracion];
-            const duracionValue = (duracionRawValue !== null && duracionRawValue !== undefined) ? String(duracionRawValue).trim() : "";
+             // Trim the duracion value if it exists
+            const duracionValue = (row[EXPECTED_HEADERS.duracion] ?? "").trim();
 
             const exerciseData: Partial<AddExerciseFormValues> = {
-              numero: row[EXPECTED_HEADERS.numero]?.toString() || "",
-              ejercicio: row[EXPECTED_HEADERS.ejercicio]?.toString() || "",
-              descripcion: row[EXPECTED_HEADERS.descripcion]?.toString() || "",
-              objetivos: row[EXPECTED_HEADERS.objetivos]?.toString() || "",
-              espacio_materiales: row[EXPECTED_HEADERS.espacio_materiales]?.toString() || "",
-              jugadores: row[EXPECTED_HEADERS.jugadores]?.toString() || "",
-              duracion: duracionValue as any,
-              variantes: row[EXPECTED_HEADERS.variantes]?.toString() || "",
-              fase: row[EXPECTED_HEADERS.fase]?.toString() || "",
-              categoria: row[EXPECTED_HEADERS.categoria]?.toString() || "",
+              numero: row[EXPECTED_HEADERS.numero] || "",
+              ejercicio: row[EXPECTED_HEADERS.ejercicio] || "",
+              descripcion: row[EXPECTED_HEADERS.descripcion] || "",
+              objetivos: row[EXPECTED_HEADERS.objetivos] || "",
+              espacio_materiales: row[EXPECTED_HEADERS.espacio_materiales] || "",
+              jugadores: row[EXPECTED_HEADERS.jugadores] || "",
+              duracion: duracionValue,
+              variantes: row[EXPECTED_HEADERS.variantes] || "",
+              fase: row[EXPECTED_HEADERS.fase] || "",
+              categoria: row[EXPECTED_HEADERS.categoria] || "",
               edad: row[EXPECTED_HEADERS.edad] ? (row[EXPECTED_HEADERS.edad] as string).split(',').map(e => e.trim()).filter(e => e) : [],
-              consejos_entrenador: row[EXPECTED_HEADERS.consejos_entrenador]?.toString() || "",
-              imagen: row[EXPECTED_HEADERS.imagen]?.toString() || "",
+              consejos_entrenador: row[EXPECTED_HEADERS.consejos_entrenador] || "",
+              imagen: row[EXPECTED_HEADERS.imagen] || "",
               isVisible: true,
             };
 
@@ -140,9 +139,9 @@ function BatchAddExercisesPageContent() {
               const errors = validation.error.errors.map(err => {
                 const fieldName = EXPECTED_HEADERS[err.path[0] as keyof typeof EXPECTED_HEADERS] || err.path[0];
                 let message = err.message;
-                if (err.code === 'invalid_enum_value') {
-                  message = `Valor inválido. Debe ser uno de: ${err.options.join(', ')}.`;
-                }
+                 if (err.code === 'invalid_enum_value') {
+                   message = `Valor inválido. Debe ser uno de: ${DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}.`;
+                 }
                 if (err.code === 'too_small' && err.path[0] === 'edad') {
                   message = `El campo 'Edad' es requerido y no puede estar vacío.`;
                 }
@@ -163,7 +162,7 @@ function BatchAddExercisesPageContent() {
                 <ul className="list-disc list-inside pl-4 space-y-0.5 text-xs">
                   <li>Los nombres de las columnas coinciden <strong>EXACTAMENTE</strong> con los especificados en la sección "Formato del Archivo".</li>
                   <li>Todos los campos marcados como <strong>requeridos</strong> están <strong>completos y no son cadenas vacías</strong>.</li>
-                  <li>El campo '{EXPECTED_HEADERS.duracion}' contiene uno de los valores numéricos permitidos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}.</li>
+                  <li>El campo '{EXPECTED_HEADERS.duracion}' contiene uno de los valores permitidos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}.</li>
                   <li>El campo '{EXPECTED_HEADERS.categoria}' usa el <strong>nombre completo de la categoría</strong>.</li>
                   <li>El campo '{EXPECTED_HEADERS.edad}' no está vacío y contiene categorías de edad válidas.</li>
                 </ul>
@@ -323,7 +322,7 @@ function BatchAddExercisesPageContent() {
                 <li><strong>{EXPECTED_HEADERS.objetivos}</strong> (Requerido)</li>
                 <li><strong>{EXPECTED_HEADERS.espacio_materiales}</strong> (Requerido. Ej: Media pista, 5 conos)</li>
                 <li><strong>{EXPECTED_HEADERS.jugadores}</strong> (Requerido. Ej: 10-12)</li>
-                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido. Debe ser uno de los valores numéricos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}. Ej: 10)</li>
+                <li><strong>{EXPECTED_HEADERS.duracion}</strong> (Requerido. Debe ser uno de los valores permitidos: {DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}. Ej: 10)</li>
                 <li><strong>{EXPECTED_HEADERS.variantes}</strong> (Opcional)</li>
                 <li><strong>{EXPECTED_HEADERS.fase}</strong> (Requerido. Debe ser uno de: Inicial, Principal, Final)</li>
                 <li><strong>{EXPECTED_HEADERS.categoria}</strong> (Requerido. Debe ser el <strong>nombre completo de la categoría</strong>)</li>
