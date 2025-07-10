@@ -102,8 +102,10 @@ function BatchAddExercisesPageContent() {
           const validationErrors: string[] = [];
 
           jsonExercises.forEach((row, index) => {
-            const duracionValue = row[EXPECTED_HEADERS.duracion]?.toString().trim() || "";
-            
+             // Handle 'duracion' specifically: ensure it's a string for validation.
+            const duracionRawValue = row[EXPECTED_HEADERS.duracion];
+            const duracionValue = (duracionRawValue !== null && duracionRawValue !== undefined) ? String(duracionRawValue).trim() : "";
+
             const exerciseData: Partial<AddExerciseFormValues> = {
               numero: row[EXPECTED_HEADERS.numero]?.toString() || "",
               ejercicio: row[EXPECTED_HEADERS.ejercicio]?.toString() || "",
@@ -140,6 +142,9 @@ function BatchAddExercisesPageContent() {
                 let message = err.message;
                 if (err.code === 'invalid_enum_value') {
                   message = `Valor inválido. Debe ser uno de: ${err.options.join(', ')}.`;
+                }
+                if (err.code === 'too_small' && err.path[0] === 'edad') {
+                  message = `El campo 'Edad' es requerido y no puede estar vacío.`;
                 }
                 return `Fila ${index + 2}: Campo '${fieldName}' - ${message}`;
               }).join('; ');
