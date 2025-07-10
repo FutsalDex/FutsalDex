@@ -30,14 +30,21 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // --- Nueva configuración para permitir solicitudes cross-origin en desarrollo ---
   experimental: {
     allowedDevOrigins: [
       'https://9004-firebase-studio-1748847492158.cluster-3g7bqlotigwuxlqpiut7yq74.cloudworkstations.dev',
-      'http://localhost:9004', // Para acceso local desde el navegador del entorno
+      'http://localhost:9004',
     ],
   },
-  // --- Fin de la nueva configuración ---
+  webpack: (config, { isServer }) => {
+    // This optimization helps prevent ChunkLoadError by ensuring shared modules are handled efficiently.
+    if (!isServer) {
+        config.optimization.splitChunks = {
+            chunks: 'all',
+        };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
