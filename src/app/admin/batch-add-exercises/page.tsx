@@ -102,7 +102,8 @@ function BatchAddExercisesPageContent() {
           const validationErrors: string[] = [];
 
           jsonExercises.forEach((row, index) => {
-            const duracionValue = row[EXPECTED_HEADERS.duracion]?.toString().trim();
+            const duracionValue = row[EXPECTED_HEADERS.duracion]?.toString().trim() || "";
+            
             const exerciseData: Partial<AddExerciseFormValues> = {
               numero: row[EXPECTED_HEADERS.numero]?.toString() || "",
               ejercicio: row[EXPECTED_HEADERS.ejercicio]?.toString() || "",
@@ -110,14 +111,14 @@ function BatchAddExercisesPageContent() {
               objetivos: row[EXPECTED_HEADERS.objetivos]?.toString() || "",
               espacio_materiales: row[EXPECTED_HEADERS.espacio_materiales]?.toString() || "",
               jugadores: row[EXPECTED_HEADERS.jugadores]?.toString() || "",
-              duracion: DURACION_EJERCICIO_OPCIONES_VALUES.includes(duracionValue as any) ? duracionValue : "",
+              duracion: duracionValue as any,
               variantes: row[EXPECTED_HEADERS.variantes]?.toString() || "",
               fase: row[EXPECTED_HEADERS.fase]?.toString() || "",
               categoria: row[EXPECTED_HEADERS.categoria]?.toString() || "",
               edad: row[EXPECTED_HEADERS.edad] ? (row[EXPECTED_HEADERS.edad] as string).split(',').map(e => e.trim()).filter(e => e) : [],
               consejos_entrenador: row[EXPECTED_HEADERS.consejos_entrenador]?.toString() || "",
               imagen: row[EXPECTED_HEADERS.imagen]?.toString() || "",
-              isVisible: true, // Default to true for batch uploads
+              isVisible: true,
             };
 
             if (!exerciseData.imagen) {
@@ -128,14 +129,20 @@ function BatchAddExercisesPageContent() {
             exerciseData.variantes = exerciseData.variantes || "";
             exerciseData.consejos_entrenador = exerciseData.consejos_entrenador || "";
 
-
             const validation = addExerciseSchema.safeParse(exerciseData);
 
             if (validation.success) {
               exercisesToSave.push(validation.data);
             } else {
               failureCount++;
-              const errors = validation.error.errors.map(err => `Fila ${index + 2}: Campo '${err.path.join('.')}' ('${EXPECTED_HEADERS[err.path[0] as keyof typeof EXPECTED_HEADERS] || err.path[0]}') - ${err.message}`).join('; ');
+              const errors = validation.error.errors.map(err => {
+                const fieldName = EXPECTED_HEADERS[err.path[0] as keyof typeof EXPECTED_HEADERS] || err.path[0];
+                let message = err.message;
+                if (err.code === 'invalid_enum_value') {
+                  message = `Valor inválido. Debe ser uno de: ${err.options.join(', ')}.`;
+                }
+                return `Fila ${index + 2}: Campo '${fieldName}' - ${message}`;
+              }).join('; ');
               validationErrors.push(errors);
               console.warn(`Error de validación en fila ${index + 2}:`, validation.error.flatten());
             }
