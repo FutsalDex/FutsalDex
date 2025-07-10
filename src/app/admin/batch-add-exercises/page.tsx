@@ -107,6 +107,16 @@ function BatchAddExercisesPageContent() {
                 const headerName = EXPECTED_HEADERS[key];
                 mappedData[key] = row[headerName] ?? "";
             }
+            
+            // Explicitly handle and clean the duration value
+            let duracionValue = "";
+            const rawDuracion = mappedData.duracion;
+            if (rawDuracion !== null && rawDuracion !== undefined && String(rawDuracion).trim() !== "") {
+                const parsedNum = parseInt(String(rawDuracion), 10);
+                if (!isNaN(parsedNum)) {
+                    duracionValue = String(parsedNum);
+                }
+            }
 
             const exerciseData: Partial<AddExerciseFormValues> = {
               numero: String(mappedData.numero || ""),
@@ -115,7 +125,7 @@ function BatchAddExercisesPageContent() {
               objetivos: String(mappedData.objetivos || ""),
               espacio_materiales: String(mappedData.espacio_materiales || ""),
               jugadores: String(mappedData.jugadores || ""),
-              duracion: String(mappedData.duracion || "").trim(),
+              duracion: duracionValue,
               variantes: String(mappedData.variantes || ""),
               fase: String(mappedData.fase || ""),
               categoria: String(mappedData.categoria || ""),
@@ -138,7 +148,7 @@ function BatchAddExercisesPageContent() {
               const errors = validation.error.errors.map(err => {
                 const fieldName = EXPECTED_HEADERS[err.path[0] as keyof typeof EXPECTED_HEADERS] || err.path[0];
                 let message = err.message;
-                 if (err.code === 'invalid_enum_value') {
+                 if (err.code === 'invalid_enum_value' && err.path[0] === 'duracion') {
                    message = `Valor inválido. Debe ser uno de: ${DURACION_EJERCICIO_OPCIONES_VALUES.join(', ')}.`;
                  }
                 if (err.code === 'too_small' && err.path[0] === 'edad') {
