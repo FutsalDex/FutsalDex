@@ -77,7 +77,10 @@ function EditExerciseForm({ exercise, onFormSubmit, closeDialog }: { exercise: A
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <ScrollArea className="h-[60vh] p-4">
                     <div className="space-y-6">
-                        <FormField control={form.control} name="ejercicio" render={({ field }) => ( <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <FormField control={form.control} name="ejercicio" render={({ field }) => ( <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                             <FormField control={form.control} name="numero" render={({ field }) => ( <FormItem><FormLabel>Número (Opcional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        </div>
                         <FormField control={form.control} name="descripcion" render={({ field }) => ( <FormItem><FormLabel>Descripción</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="objetivos" render={({ field }) => ( <FormItem><FormLabel>Objetivos</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem> )} />
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
