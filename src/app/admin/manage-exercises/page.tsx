@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, Loader2, Search, Edit, Trash2, ListChecks, Save, Download } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Search, Edit, Trash2, ListChecks, Save, Download, Filter } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Image from 'next/image';
@@ -39,6 +39,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 const ITEMS_PER_PAGE = 10;
+const ALL_FILTER_VALUE = "ALL";
 
 function EditExerciseForm({ exercise, onFormSubmit, closeDialog }: { exercise: AdminExercise, onFormSubmit: () => void, closeDialog: () => void }) {
     const { toast } = useToast();
@@ -149,6 +150,7 @@ function ManageExercisesPageContent() {
   const [isExporting, setIsExporting] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState(ALL_FILTER_VALUE);
   const [currentPage, setCurrentPage] = useState(1);
   
   const [exerciseToEdit, setExerciseToEdit] = useState<AdminExercise | null>(null);
@@ -203,7 +205,6 @@ function ManageExercisesPageContent() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Ejercicios");
 
-        // Auto-adjust column widths
         const max_widths = Object.keys(dataForSheet[0] || {}).map(header => ({
             wch: Math.max(header.length, ...dataForSheet.map(row => String(row[header as keyof typeof row] || '').length))
         }));
@@ -230,8 +231,11 @@ function ManageExercisesPageContent() {
     if (searchTerm) {
       exercises = exercises.filter(e => e.ejercicio.toLowerCase().includes(searchTerm.toLowerCase()));
     }
+    if (categoryFilter !== ALL_FILTER_VALUE) {
+        exercises = exercises.filter(e => e.categoria === categoryFilter);
+    }
     return exercises;
-  }, [allExercises, searchTerm]);
+  }, [allExercises, searchTerm, categoryFilter]);
 
   const paginatedExercises = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -310,6 +314,16 @@ function ManageExercisesPageContent() {
           <CardDescription>Ejercicios únicos en la base de datos. Los duplicados se han eliminado automáticamente.</CardDescription>
           <div className="flex flex-col sm:flex-row gap-4 pt-2">
             <div className="relative flex-grow"><Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar por nombre..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10" /></div>
+            <Select value={categoryFilter} onValueChange={(value) => { setCategoryFilter(value); setCurrentPage(1); }}>
+                <SelectTrigger className="w-full sm:w-[250px]">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Filtrar por categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value={ALL_FILTER_VALUE}>Todas las Categorías</SelectItem>
+                    {CATEGORIAS_TEMATICAS_EJERCICIOS.map(c => <SelectItem key={c.id} value={c.label}>{c.label}</SelectItem>)}
+                </SelectContent>
+            </Select>
             <Button variant="destructive" onClick={() => setIsDeleteAllDialogOpen(true)} disabled={isLoading || allExercises.length === 0}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Eliminar Todos
