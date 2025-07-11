@@ -218,3 +218,41 @@ export async function deleteExercise({ exerciseId }: DeleteExerciseInput): Promi
   await adminDb.collection("ejercicios_futsal").doc(exerciseId).delete();
   return { success: true };
 }
+
+// --- Get All Exercises for Export ---
+export async function getAllExercisesForExport(): Promise<AdminExercise[]> {
+    const adminDb = getAdminDb();
+    const exercisesCollection = adminDb.collection("ejercicios_futsal");
+    const snapshot = await exercisesCollection.orderBy('ejercicio', 'asc').get();
+
+    if (snapshot.empty) {
+        return [];
+    }
+
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        const parsed = AdminExerciseSchema.safeParse({
+            id: doc.id,
+            numero: data.numero || "",
+            ejercicio: data.ejercicio || "",
+            descripcion: data.descripcion || "",
+            objetivos: data.objetivos || "",
+            espacio_materiales: data.espacio_materiales || "",
+            jugadores: data.jugadores || "",
+            duracion: data.duracion || "10",
+            variantes: data.variantes || "",
+            fase: data.fase || "",
+            categoria: data.categoria || "",
+            edad: Array.isArray(data.edad) ? data.edad : (typeof data.edad === 'string' ? [data.edad] : []),
+            consejos_entrenador: data.consejos_entrenador || "",
+            imagen: data.imagen || "",
+            isVisible: data.isVisible !== false,
+        });
+
+        // Return valid data, or a default structure for invalid docs to avoid crashes
+        if (parsed.success) {
+            return parsed.data;
+        }
+        return null;
+    }).filter((ex): ex is AdminExercise => ex !== null);
+}

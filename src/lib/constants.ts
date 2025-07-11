@@ -1,4 +1,5 @@
 
+
 export const FASES_SESION = ["Inicial", "Principal", "Final"];
 
 export const CATEGORIAS_TEMATICAS_EJERCICIOS = [
@@ -19,7 +20,7 @@ export const CATEGORIAS_TEMATICAS_EJERCICIOS = [
   { id: "tecnica-individual-combinada", label: "Técnica individual y combinada" },
   { id: "toma-decisiones-vision", label: "Toma de decisiones y visión de juego" },
   { id: "transiciones", label: "Transiciones (ofensivas y defensivas)" },
-];
+].sort((a, b) => a.label.localeCompare(b.label));
 
 export const CATEGORIAS_EDAD_EJERCICIOS = [
   "Benjamín (8-9 años)",
@@ -48,4 +49,20 @@ export const DURACION_EJERCICIO_OPCIONES = [
 
 export const DURACION_EJERCICIO_OPCIONES_VALUES = DURACION_EJERCICIO_OPCIONES.map(opt => opt.value) as [string, ...string[]];
 
-export const POSICIONES_FUTSAL = ["Portero", "Cierre", "Ala", "Pívot", "Ala-Cierre", "Ala-Pívot"];
+export const POSICIONES_FUTSAL = ["Portero", "Cierre", "Ala", "Pívot", "Ala-Cierre", "Ala-Pívot", "Universal"];
+
+export const EXPECTED_HEADERS: { [key: string]: string } = {
+  numero: "Número",
+  ejercicio: "Ejercicio",
+  descripcion: "Descripción de la tarea",
+  objetivos: "Objetivos",
+  espacio_materiales: "Espacio y materiales necesarios",
+  jugadores: "Número de jugadores",
+  duracion: "Duración (min)",
+  variantes: "Variantes",
+  fase: "Fase",
+  categoria: "Categoría",
+  edad: "Edad",
+  consejos_entrenador: "Consejos para el entrenador",
+  imagen: "Imagen",
+};

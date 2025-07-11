@@ -5,15 +5,16 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, Loader2, Search, Edit, Trash2, ListChecks, Save } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Search, Edit, Trash2, ListChecks, Save, Download } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Image from 'next/image';
+import * as XLSX from 'xlsx';
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addExerciseSchema, type AddExerciseFormValues } from "@/lib/schemas";
-import { AdminExercise, getAdminExercisesAndClean, updateExercise, deleteExercise } from "@/lib/actions/admin-exercise-actions";
+import { AdminExercise, getAdminExercisesAndClean, updateExercise, deleteExercise, getAllExercisesForExport } from "@/lib/actions/admin-exercise-actions";
 
 import {
   Table,
@@ -33,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
+import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES, EXPECTED_HEADERS } from "@/lib/constants";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 
@@ -87,7 +88,7 @@ function EditExerciseForm({ exercise, onFormSubmit, closeDialog }: { exercise: A
                              <FormField control={form.control} name="fase" render={({ field }) => ( <FormItem><FormLabel>Fase</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{FASES_SESION.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
                              <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem><FormLabel>Categoría</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{CATEGORIAS_TEMATICAS_EJERCICIOS.map(c => <SelectItem key={c.id} value={c.label}>{c.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
                         </div>
-                        <FormField name="edad" render={() => (
+                        <FormField control={form.control} name="edad" render={() => (
                             <FormItem>
                                 <FormLabel>Edades</FormLabel>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 border rounded-md">
@@ -145,6 +146,7 @@ function ManageExercisesPageContent() {
   const [allExercises, setAllExercises] = useState<AdminExercise[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -174,6 +176,52 @@ function ManageExercisesPageContent() {
   useEffect(() => {
     fetchExercises();
   }, [fetchExercises]);
+
+  const handleExportAll = async () => {
+    setIsExporting(true);
+    try {
+        const exercisesToExport = await getAllExercisesForExport();
+        const dataForSheet = exercisesToExport.map(ex => ({
+            [EXPECTED_HEADERS.numero]: ex.numero || '',
+            [EXPECTED_HEADERS.ejercicio]: ex.ejercicio,
+            [EXPECTED_HEADERS.descripcion]: ex.descripcion,
+            [EXPECTED_HEADERS.objetivos]: ex.objetivos,
+            [EXPECTED_HEADERS.espacio_materiales]: ex.espacio_materiales,
+            [EXPECTED_HEADERS.jugadores]: ex.jugadores,
+            [EXPECTED_HEADERS.duracion]: ex.duracion,
+            [EXPECTED_HEADERS.variantes]: ex.variantes || '',
+            [EXPECTED_HEADERS.fase]: ex.fase,
+            [EXPECTED_HEADERS.categoria]: ex.categoria,
+            [EXPECTED_HEADERS.edad]: Array.isArray(ex.edad) ? ex.edad.join(', ') : '',
+            [EXPECTED_HEADERS.consejos_entrenador]: ex.consejos_entrenador || '',
+            [EXPECTED_HEADERS.imagen]: ex.imagen || '',
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Ejercicios");
+
+        // Auto-adjust column widths
+        const max_widths = Object.keys(dataForSheet[0] || {}).map(header => ({
+            wch: Math.max(header.length, ...dataForSheet.map(row => String(row[header as keyof typeof row] || '').length))
+        }));
+        worksheet["!cols"] = max_widths;
+
+        XLSX.writeFile(workbook, "FutsalDex_Todos_Ejercicios.xlsx");
+
+        toast({
+            title: "Exportación Completa",
+            description: `Se han exportado ${exercisesToExport.length} ejercicios.`
+        });
+
+    } catch (error) {
+        console.error("Error exporting exercises:", error);
+        toast({ title: "Error de Exportación", description: "No se pudieron exportar los ejercicios.", variant: "destructive" });
+    } finally {
+        setIsExporting(false);
+    }
+  };
+
 
   const filteredExercises = useMemo(() => {
     let exercises = [...allExercises];
@@ -220,7 +268,15 @@ function ManageExercisesPageContent() {
     <div className="container mx-auto px-4 py-8 md:px-6">
       <header className="mb-8 flex items-center justify-between">
         <div><h1 className="text-3xl font-bold text-primary mb-1 font-headline">Gestionar Ejercicios</h1><p className="text-lg text-foreground/80">Edita, elimina y gestiona los ejercicios del catálogo.</p></div>
-        <Button asChild variant="outline"><Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Panel</Link></Button>
+        <div className="flex gap-2">
+            <Button onClick={handleExportAll} variant="outline" disabled={isExporting}>
+                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Exportar Todo
+            </Button>
+            <Button asChild variant="outline">
+                <Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Panel</Link>
+            </Button>
+        </div>
       </header>
 
       <Card className="shadow-lg">
