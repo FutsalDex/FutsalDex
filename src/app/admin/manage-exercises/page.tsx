@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addExerciseSchema, type AddExerciseFormValues } from "@/lib/schemas";
-import { AdminExercise, getAdminExercisesAndClean, updateExercise, deleteExercise, getAllExercisesForExport } from "@/lib/actions/admin-exercise-actions";
+import { AdminExercise, getAdminExercisesAndClean, updateExercise, deleteExercise, getAllExercisesForExport, deleteAllExercises } from "@/lib/actions/admin-exercise-actions";
 
 import {
   Table,
@@ -153,6 +153,8 @@ function ManageExercisesPageContent() {
   
   const [exerciseToEdit, setExerciseToEdit] = useState<AdminExercise | null>(null);
   const [exerciseToDelete, setExerciseToDelete] = useState<AdminExercise | null>(null);
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const fetchExercises = useCallback(async () => {
     setIsLoading(true);
@@ -253,6 +255,26 @@ function ManageExercisesPageContent() {
     setIsDeleting(null);
   };
 
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true);
+    try {
+      const result = await deleteAllExercises();
+      toast({
+        title: "Eliminación Completada",
+        description: `Se han eliminado ${result.deletedCount} ejercicios.`,
+      });
+      setAllExercises([]); // Clear UI immediately
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error deleting all exercises:", error);
+      toast({ title: "Error", description: "No se pudieron eliminar todos los ejercicios.", variant: "destructive" });
+    } finally {
+      setIsDeletingAll(false);
+      setIsDeleteAllDialogOpen(false);
+    }
+  };
+
+
   if (!isAdmin) {
     return (
       <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
@@ -286,7 +308,13 @@ function ManageExercisesPageContent() {
             <p className="text-sm text-muted-foreground">Total: {filteredExercises.length}</p>
           </div>
           <CardDescription>Ejercicios únicos en la base de datos. Los duplicados se han eliminado automáticamente.</CardDescription>
-          <div className="relative pt-2"><Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar por nombre..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10" /></div>
+          <div className="flex flex-col sm:flex-row gap-4 pt-2">
+            <div className="relative flex-grow"><Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar por nombre..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10" /></div>
+            <Button variant="destructive" onClick={() => setIsDeleteAllDialogOpen(true)} disabled={isLoading || allExercises.length === 0}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar Todos
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -348,6 +376,18 @@ function ManageExercisesPageContent() {
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <AlertDialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader><AlertDialogTitle>¿Estás ABSOLUTAMENTE seguro?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer. Se eliminarán TODOS los ejercicios ({allExercises.length}) de la base de datos de forma permanente. Esto afectará a las sesiones guardadas que los utilicen.</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll} className="bg-destructive hover:bg-destructive/90">
+                      {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                      Sí, eliminar todo
+                    </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

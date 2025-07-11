@@ -219,6 +219,51 @@ export async function deleteExercise({ exerciseId }: DeleteExerciseInput): Promi
   return { success: true };
 }
 
+// --- Delete All Exercises ---
+export async function deleteAllExercises(): Promise<{ deletedCount: number }> {
+    const adminDb = getAdminDb();
+    const collectionRef = adminDb.collection("ejercicios_futsal");
+    const snapshot = await collectionRef.limit(500).get();
+    let deletedCount = 0;
+
+    if (snapshot.empty) {
+        return { deletedCount: 0 };
+    }
+
+    while (!snapshot.empty) {
+        const batch = adminDb.batch();
+        snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        const result = await batch.commit();
+        deletedCount += result.length;
+        
+        // Fetch the next batch
+        const nextSnapshot = await collectionRef.limit(500).get();
+        if (nextSnapshot.empty) {
+            break;
+        }
+        // This is a simplified approach. A more robust solution for very large collections
+        // would use cursors. For a few thousand documents, this is generally sufficient.
+        const anotherSnapshot = await collectionRef.limit(500).get();
+        if(anotherSnapshot.empty) break;
+    }
+    
+    // Repeat until the collection is empty
+    let lastSnapshot = await collectionRef.limit(500).get();
+    while(lastSnapshot.size > 0) {
+      const batch = adminDb.batch();
+      lastSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      deletedCount += lastSnapshot.size;
+      lastSnapshot = await collectionRef.limit(500).get();
+    }
+
+    return { deletedCount };
+}
+
 // --- Get All Exercises for Export ---
 export async function getAllExercisesForExport(): Promise<AdminExercise[]> {
     const adminDb = getAdminDb();
