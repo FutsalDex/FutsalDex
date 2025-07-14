@@ -29,12 +29,6 @@ runConfig:
 # Specifies the environment variables to be available to your app.
 # https://firebase.google.com/docs/app-hosting/configure-env-vars
 env:
-  # This is a special variable that is replaced by the App Hosting backend ID.
-  - variable: APP_HOSTING_BACKEND_ID
-    value: __APP_HOSTING_BACKEND_ID__
-  # This is a special variable that is replaced by the Firebase project ID.
-  - variable: FIREBASE_PROJECT_ID
-    value: __FIREBASE_PROJECT_ID__
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: __FIREBASE_API_KEY__
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
