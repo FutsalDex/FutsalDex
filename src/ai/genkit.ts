@@ -1,4 +1,4 @@
-import {genkit, type Genkit} from 'genkit';
+import {genkit, type Genkit, defineFlow as originalDefineFlow} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
 // A "cached" instance of the Genkit AI object.
