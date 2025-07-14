@@ -1,25 +1,12 @@
-import {genkit, type Genkit, defineFlow as originalDefineFlow} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
-
-// A "cached" instance of the Genkit AI object.
-// This is a server-side module, so this variable will be preserved
-// across function invocations in the same container.
-let aiInstance: Genkit | null = null;
+import type { Genkit } from 'genkit';
+import { initializeGenkit } from './init';
 
 /**
  * Returns a cached, lazily-initialized instance of the Genkit AI object.
- * This can help prevent initialization conflicts in server environments by
- * ensuring the AI plugins are only initialized when first needed.
+ * This function acts as a proxy to the main initialization logic,
+ * ensuring it's only called when absolutely necessary.
  * @returns {Genkit} The Genkit instance.
  */
 export function getGenkitAi(): Genkit {
-    if (aiInstance) {
-        return aiInstance;
-    }
-    
-    aiInstance = genkit({
-        plugins: [googleAI()],
-    });
-
-    return aiInstance;
+    return initializeGenkit();
 }

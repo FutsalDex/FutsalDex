@@ -10,8 +10,8 @@
  * - SupportChatOutput - The return type for the askCoach function.
  */
 
-import {getGenkitAi} from '@/ai/genkit';
-import {z} from 'zod';
+import { getGenkitAi } from '@/ai/genkit';
+import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Message } from 'genkit';

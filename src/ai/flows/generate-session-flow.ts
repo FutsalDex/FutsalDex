@@ -8,8 +8,8 @@
  * - GeneratedSessionOutput - The return type for the generateSession function.
  */
 
-import {getGenkitAi} from '@/ai/genkit';
-import {z} from 'zod';
+import { getGenkitAi } from '@/ai/genkit';
+import { z } from 'zod';
 
 const ai = getGenkitAi();
 
