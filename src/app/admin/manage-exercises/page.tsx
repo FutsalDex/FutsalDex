@@ -115,6 +115,7 @@ function EditExerciseForm({ exercise, onFormSubmit, closeDialog }: { exercise: A
                                 <FormMessage />
                             </FormItem>
                         )} />
+                        <FormField control={form.control} name="consejos_entrenador" render={({ field }) => ( <FormItem><FormLabel>Consejos para el Entrenador (Opcional)</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="imagen" render={({ field }) => ( <FormItem><FormLabel>URL Imagen</FormLabel><FormControl><Input type="url" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="isVisible" render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
