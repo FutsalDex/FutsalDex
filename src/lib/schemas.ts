@@ -16,6 +16,16 @@ export const registerSchema = z.object({
   path: ["confirmPassword"], // path of error
 });
 
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, { message: "La contraseña actual es requerida." }),
+  newPassword: z.string().min(6, { message: "La nueva contraseña debe tener al menos 6 caracteres." }),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Las nuevas contraseñas no coinciden.",
+  path: ["confirmPassword"],
+});
+
+
 export const exerciseFilterSchema = z.object({
   nombre: z.string().optional(),
   edad: z.string().optional(),

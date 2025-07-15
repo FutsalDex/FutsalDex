@@ -1,10 +1,11 @@
+
 "use client";
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { LogIn, LogOut, UserPlus, Edit3, BookUser, Menu, Heart, ShieldCheck, FileText, CalendarDays, Star, Bot, BarChart2, LifeBuoy, Users } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Edit3, BookUser, Menu, Heart, ShieldCheck, FileText, CalendarDays, Star, Bot, BarChart2, LifeBuoy, Users, UserCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -121,6 +122,12 @@ export default function Header() {
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild className="cursor-pointer">
+                   <Link href="/perfil">
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        <span>Perfil</span>
+                    </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={signOut} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Cerrar sesión</span>
@@ -191,6 +198,12 @@ export default function Header() {
                      user && (
                       <>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild className="cursor-pointer">
+                            <Link href="/perfil">
+                                <UserCircle className="mr-2 h-4 w-4" />
+                                <span>Perfil</span>
+                            </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={signOut} className="cursor-pointer">
                           <LogOut className="mr-2 h-4 w-4" />
                           <span>Cerrar sesión</span>

@@ -7,12 +7,15 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut as firebaseSignOut
+  signOut as firebaseSignOut,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
 import type { z } from 'zod';
-import type { loginSchema, registerSchema } from '@/lib/schemas';
+import type { loginSchema, registerSchema, passwordChangeSchema } from '@/lib/schemas';
 
 const ADMIN_EMAIL = 'futsaldex@gmail.com'; // Email del superusuario
 
@@ -23,9 +26,11 @@ const mapAuthError = (error: AuthError): string => {
         case 'auth/wrong-password':
         case 'auth/user-not-found':
         case 'auth/invalid-credential':
-            return 'Las credenciales son incorrectas. Por favor, revisa tu email y contraseña.';
+            return 'Las credenciales son incorrectas. Por favor, revisa tu email y/o contraseña.';
         case 'auth/email-already-in-use':
             return 'Este correo electrónico ya está registrado. Por favor, inicia sesión o usa un email diferente.';
+        case 'auth/requires-recent-login':
+            return 'Esta operación es sensible y requiere una autenticación reciente. Por favor, vuelve a iniciar sesión antes de intentarlo de nuevo.';
         default:
             return error.message || 'Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo.';
     }
@@ -44,6 +49,7 @@ type AuthContextType = {
   login: (values: z.infer<typeof loginSchema>) => Promise<FirebaseUser | null>;
   register: (values: z.infer<typeof registerSchema>) => Promise<FirebaseUser | null>;
   signOut: () => Promise<void>;
+  changePassword: (currentPass: string, newPass: string) => Promise<boolean>;
   error: string | null;
   clearError: () => void;
 };
@@ -191,6 +197,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setError(mapAuthError(authError));
     }
   };
+  
+  const changePassword = async (currentPass: string, newPass: string) => {
+    setError(null);
+    const auth = getFirebaseAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser || !currentUser.email) {
+      setError("No hay un usuario autenticado para realizar esta acción.");
+      return false;
+    }
+
+    const credential = EmailAuthProvider.credential(currentUser.email, currentPass);
+
+    try {
+      // Re-authenticate user to confirm their identity
+      await reauthenticateWithCredential(currentUser, credential);
+      // If re-authentication is successful, update the password
+      await updatePassword(currentUser, newPass);
+      return true;
+    } catch (e) {
+      const authError = e as AuthError;
+      setError(mapAuthError(authError));
+      return false;
+    }
+  };
 
   const clearError = () => {
     setError(null);
@@ -199,7 +229,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isRegisteredUser = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionExpiresAt, login, register, signOut, error, clearError }}>
+    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionExpiresAt, login, register, signOut, changePassword, error, clearError }}>
       {children}
     </AuthContext.Provider>
   );
