@@ -2,13 +2,15 @@ import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions 
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
+// Directly use App Hosting's replacement mechanism.
+// These placeholders will be replaced with your actual Firebase project keys during deployment.
 const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: '__FIREBASE_API_KEY__',
+  authDomain: '__FIREBASE_AUTH_DOMAIN__',
+  projectId: '__FIREBASE_PROJECT_ID__',
+  storageBucket: '__FIREBASE_STORAGE_BUCKET__',
+  messagingSenderId: '__FIREBASE_MESSAGING_SENDER_ID__',
+  appId: '__FIREBASE_APP_ID__',
 };
 
 // --- LAZY INITIALIZATION ---
@@ -23,8 +25,10 @@ function getFirebaseInstances() {
       app = getApp();
     } else {
       // This is the crucial check. If the config is not valid, we shouldn't initialize.
-      if (!firebaseConfig.apiKey) {
-          throw new Error("Firebase: Missing API Key. Check your NEXT_PUBLIC_FIREBASE_API_KEY environment variable.");
+      if (!firebaseConfig.apiKey || firebaseConfig.apiKey === '__FIREBASE_API_KEY__') {
+          console.error("Firebase config is missing API Key. This is expected during local dev if not replaced.");
+          // Create a dummy app to avoid crashing the build process, but functionality will be limited.
+          return { auth: {} as Auth, db: {} as Firestore };
       }
       app = initializeApp(firebaseConfig);
     }

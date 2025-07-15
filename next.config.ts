@@ -30,24 +30,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    allowedDevOrigins: [
-      'https://9004-firebase-studio-1748847492158.cluster-3g7bqlotigwuxlqpiut7yq74.cloudworkstations.dev',
-      'http://localhost:9004',
-    ],
-  },
-  webpack: (config, { isServer }) => {
-    // This optimization helps prevent ChunkLoadError by ensuring shared modules are handled efficiently.
-    if (!isServer) {
-        config.optimization.splitChunks = {
-            chunks: 'all',
-        };
-    }
-    return config;
-  },
-  // The 'env' object here ensures these variables are available client-side.
-  // Next.js automatically handles variables prefixed with NEXT_PUBLIC_ if they
-  // are present in the environment during the build process.
 };
 
 export default nextConfig;
