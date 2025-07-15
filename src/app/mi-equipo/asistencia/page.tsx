@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Save, ArrowLeft, CalendarIcon, History, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getFirebaseDb } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { produce } from 'immer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -24,7 +24,6 @@ import { Progress } from '@/components/ui/progress';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { v4 as uuidv4 } from 'uuid';
-import { saveAttendance } from '@/lib/actions/user-actions';
 
 interface RosterPlayer {
   id: string;
@@ -212,7 +211,13 @@ function AsistenciaPageContent() {
         const dateString = format(selectedDate, 'yyyy-MM-dd');
         
         try {
-            await saveAttendance({ userId: user.uid, dateString, attendance });
+            const db = getFirebaseDb();
+            const docRef = doc(db, 'usuarios', user.uid, 'team', 'attendance');
+            await setDoc(docRef, {
+                [dateString]: attendance,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+
             toast({ title: "Asistencia Guardada", description: `La asistencia para el ${format(selectedDate, 'PPP', { locale: es })} ha sido guardada.` });
             await fetchFullData(); // Re-fetch to update history
         } catch (error) {

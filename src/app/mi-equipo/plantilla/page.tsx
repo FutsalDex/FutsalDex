@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getFirebaseDb } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { produce } from 'immer';
 import { POSICIONES_FUTSAL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +20,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { saveRoster } from '@/lib/actions/user-actions';
 
 // Player data structure for the roster (what is saved to DB)
 interface RosterPlayer {
@@ -244,14 +243,19 @@ function MiPlantillaPageContent() {
         nombre: p.nombre,
         posicion: p.posicion,
       }));
-      await saveRoster({
-        userId: user.uid,
-        club,
-        equipo,
-        campeonato,
-        players: rosterToSave,
-      });
-      toast({ title: "Equipo Guardado", description: "Los datos de tu equipo se han guardado correctamente." });
+      const docRef = getTeamDocRef();
+      if (docRef) {
+        await setDoc(docRef, {
+            club,
+            equipo,
+            campeonato,
+            players: rosterToSave,
+            updatedAt: serverTimestamp(),
+        });
+        toast({ title: "Equipo Guardado", description: "Los datos de tu equipo se han guardado correctamente." });
+      } else {
+        throw new Error("No se pudo obtener la referencia del documento.");
+      }
     } catch (error) {
       console.error("Error saving team:", error);
       toast({ title: "Error al Guardar", description: "No se pudo guardar el equipo.", variant: "destructive" });
