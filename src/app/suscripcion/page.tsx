@@ -17,7 +17,7 @@ const basicFeatures = [
   "Calendario de Equipo integrado",
 ];
 
-const topFeatures = [
+const proFeatures = [
   ...basicFeatures,
   "Gestión de Plantilla y Estadísticas de Jugadores",
   "Control de Asistencia a entrenamientos",
@@ -80,14 +80,14 @@ export default function SuscripcionPage() {
           </CardFooter>
         </Card>
 
-        {/* Top Plan */}
+        {/* Pro Plan */}
         <Card className="flex flex-col shadow-xl border-accent border-2 relative">
            <Badge variant="default" className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-accent-foreground">
             Más Popular
           </Badge>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-headline text-accent">
-              Suscripción Top
+              Suscripción Pro
             </CardTitle>
             <CardDescription>La experiencia completa con herramientas de planificación y análisis de equipo.</CardDescription>
           </CardHeader>
@@ -102,7 +102,7 @@ export default function SuscripcionPage() {
               </p>
             </div>
              <ul className="space-y-3 text-sm">
-              {topFeatures.map((feature, index) => (
+              {proFeatures.map((feature, index) => (
                 <li key={index} className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 mt-0.5 text-green-500 shrink-0" />
                   <span className={!basicFeatures.includes(feature) ? 'font-bold text-accent' : ''}>{feature}</span>
@@ -113,7 +113,7 @@ export default function SuscripcionPage() {
           <CardFooter>
             <Button asChild size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-lg">
               <Link href={isRegisteredUser ? "#" : "/register"}>
-                {isRegisteredUser ? "Seleccionar Plan Top" : "Empezar con Top"}
+                {isRegisteredUser ? "Seleccionar Plan Pro" : "Empezar con Pro"}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -131,13 +131,13 @@ export default function SuscripcionPage() {
         </CardHeader>
         <CardContent className="text-center max-w-2xl mx-auto">
             <p className="text-foreground/90">
-                Durante todo el 2025, disfruta de un <strong className="text-primary">descuento del 25%</strong> en tu primer año de suscripción, tanto en el plan Básico como en el Top.
+                Durante todo el 2025, disfruta de un <strong className="text-primary">descuento del 25%</strong> en tu primer año de suscripción, tanto en el plan Básico como en el Pro.
             </p>
              <p className="mt-4">
                 Usa el código <code className="font-bold bg-primary/20 text-primary p-1 rounded-md">futsaldex25</code> al momento de pagar para aplicar la bonificación.
             </p>
             <div className="mt-4 text-sm text-muted-foreground">
-                <p>Plan Básico por solo <strong>8,91€/año</strong>. Plan Top por solo <strong>17,91€/año</strong>.</p>
+                <p>Plan Básico por solo <strong>8,91€/año</strong>. Plan Pro por solo <strong>17,91€/año</strong>.</p>
             </div>
         </CardContent>
       </Card>
