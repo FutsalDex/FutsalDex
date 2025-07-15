@@ -60,31 +60,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       if (currentUser) {
         const userDocRef = doc(db, "usuarios", currentUser.uid);
-        const docSnap = await getDoc(userDocRef);
+        try {
+            const docSnap = await getDoc(userDocRef);
 
-        const isAdminByEmail = currentUser.email === ADMIN_EMAIL;
-        const isAdminByRole = docSnap.exists() && docSnap.data().role === 'admin';
-        const finalIsAdmin = isAdminByEmail || isAdminByRole;
-        
-        setIsAdmin(finalIsAdmin);
+            const isAdminByEmail = currentUser.email === ADMIN_EMAIL;
+            const isAdminByRole = docSnap.exists() && docSnap.data().role === 'admin';
+            const finalIsAdmin = isAdminByEmail || isAdminByRole;
+            
+            setIsAdmin(finalIsAdmin);
 
-        // --- Subscription & Trial Logic ---
-        let finalIsSubscribed = false;
-        if (docSnap.exists()) {
-            const userData = docSnap.data();
-            // Case 1: User has a real, active subscription.
-            if (userData.subscriptionStatus === 'active') {
-                finalIsSubscribed = true;
-            } 
-            // Case 2: User is not subscribed, but might be on trial.
-            else if (userData.trialEndsAt instanceof Timestamp) {
-                // Check if the trial period is still valid.
-                if (new Date() < userData.trialEndsAt.toDate()) {
-                    finalIsSubscribed = true; // Trial is active
+            // --- Subscription & Trial Logic ---
+            let finalIsSubscribed = false;
+            if (docSnap.exists()) {
+                const userData = docSnap.data();
+                // Case 1: User has a real, active subscription.
+                if (userData.subscriptionStatus === 'active') {
+                    finalIsSubscribed = true;
+                } 
+                // Case 2: User is not subscribed, but might be on trial.
+                else if (userData.trialEndsAt instanceof Timestamp) {
+                    // Check if the trial period is still valid.
+                    if (new Date() < userData.trialEndsAt.toDate()) {
+                        finalIsSubscribed = true; // Trial is active
+                    }
                 }
             }
+            setIsSubscribed(finalIsSubscribed);
+        } catch (dbError) {
+            console.error("Error fetching user document from Firestore:", dbError);
+            setIsAdmin(false);
+            setIsSubscribed(false);
         }
-        setIsSubscribed(finalIsSubscribed);
 
       } else {
         // No user logged in, reset all flags

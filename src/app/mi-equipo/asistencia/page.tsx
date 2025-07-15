@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { Loader2, Save, ArrowLeft, CalendarIcon, History, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { produce } from 'immer';
 import Link from 'next/link';
@@ -106,6 +106,7 @@ function AsistenciaPageContent() {
         }
         setIsLoading(true);
         try {
+            const db = getFirebaseDb();
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
             const attendanceDocRef = doc(db, 'usuarios', user.uid, 'team', 'attendance');
 

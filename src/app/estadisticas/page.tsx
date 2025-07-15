@@ -11,7 +11,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
@@ -164,7 +164,7 @@ function EstadisticasPageContent() {
 
   const getTeamDocRef = useCallback(() => {
       if (!user) return null;
-      return doc(db, 'usuarios', user.uid, 'team', 'roster');
+      return doc(getFirebaseDb(), 'usuarios', user.uid, 'team', 'roster');
   }, [user]);
 
   useEffect(() => {
@@ -337,6 +337,7 @@ function EstadisticasPageContent() {
 
     setIsSaving(true);
     try {
+        const db = getFirebaseDb();
         await addDoc(collection(db, "partidos_estadisticas"), {
             userId: user.uid,
             myTeamName: finalMyTeamName,

@@ -18,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/contexts/auth-context";
 import { manualSessionSchema } from "@/lib/schemas";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { collection, getDocs, query, where, limit, orderBy as firestoreOrderBy } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, Info, Filter } from "lucide-react";
@@ -97,6 +97,7 @@ function CrearSesionContent() {
       const fetchNextSessionNumber = async () => {
         setIsFetchingNextSessionNumber(true);
         try {
+          const db = getFirebaseDb();
           const q = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
           const querySnapshot = await getDocs(q);
           const existingNumbers = querySnapshot.docs.map(doc => doc.data().numero_sesion as string | undefined);
@@ -116,6 +117,7 @@ function CrearSesionContent() {
   const fetchEjerciciosPorFase = useCallback(async (fase: string, setter: React.Dispatch<React.SetStateAction<Ejercicio[]>>, loadingKey: keyof typeof loadingEjercicios) => {
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: true }));
     try {
+      const db = getFirebaseDb();
       const q = query(
         collection(db, 'ejercicios_futsal'), 
         where('fase', '==', fase), 
@@ -286,6 +288,7 @@ function CrearSesionContent() {
             const fetchNextSessionNumber = async () => {
                 setIsFetchingNextSessionNumber(true);
                 try {
+                    const db = getFirebaseDb();
                     const qSessions = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
                     const snapshot = await getDocs(qSessions);
                     const existingNumbers = snapshot.docs.map(doc => doc.data().numero_sesion as string | undefined);

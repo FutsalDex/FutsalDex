@@ -2,8 +2,8 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp, getDoc as getRosterDoc } from "firebase/firestore";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, orderBy, getDocs, Timestamp, getDoc as getRosterDoc, doc } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -128,6 +128,7 @@ function HistorialPageContent() {
         const fetchRosterInfo = async () => {
           if (!user) return;
           try {
+            const db = getFirebaseDb();
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
             const rosterSnap = await getRosterDoc(rosterDocRef);
             if (rosterSnap.exists()) {
@@ -160,6 +161,7 @@ function HistorialPageContent() {
         }
         setIsLoading(true);
         try {
+            const db = getFirebaseDb();
             const q = query(
                 collection(db, "partidos_estadisticas"),
                 where("userId", "==", user.uid),

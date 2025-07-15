@@ -11,7 +11,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from "@/lib/firebase";
 import { collection, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -202,6 +202,7 @@ function EditMatchPageContent() {
       setIsLoading(true);
 
       try {
+        const db = getFirebaseDb();
         const matchDocRef = doc(db, "partidos_estadisticas", matchId);
         const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
 
@@ -336,6 +337,7 @@ function EditMatchPageContent() {
      };
 
      try {
+        const db = getFirebaseDb();
         const matchDocRef = doc(db, "partidos_estadisticas", matchId);
         await updateDoc(matchDocRef, updatedData);
         toast({ title: "Partido Actualizado", description: "Los cambios se han guardado correctamente." });

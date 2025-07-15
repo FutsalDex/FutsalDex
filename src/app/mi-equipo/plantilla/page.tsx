@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { produce } from 'immer';
 import { POSICIONES_FUTSAL } from '@/lib/constants';
@@ -74,7 +74,7 @@ function MiPlantillaPageContent() {
 
   const getTeamDocRef = useCallback(() => {
       if (!user) return null;
-      return doc(db, 'usuarios', user.uid, 'team', 'roster');
+      return doc(getFirebaseDb(), 'usuarios', user.uid, 'team', 'roster');
   }, [user]);
 
   const fetchTeamAndAggregateStats = useCallback(async () => {
@@ -102,6 +102,7 @@ function MiPlantillaPageContent() {
         }
 
         // 2. Fetch all matches for the user
+        const db = getFirebaseDb();
         const matchesQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
         const matchesSnapshot = await getDocs(matchesQuery);
         const matches: MatchData[] = matchesSnapshot.docs.map(d => d.data() as MatchData);

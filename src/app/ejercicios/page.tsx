@@ -505,7 +505,7 @@ export default function EjerciciosPage() {
                 <Lock className="h-8 w-8 text-accent mr-4" />
                 <div>
                   <h3 className="text-lg font-semibold text-accent font-headline">Acceso Limitado</h3>
-                  <p className="text-sm text-accent/80">Estás viendo una vista previa (15 ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a todo el catálogo de ejercicios y todas las funciones.</p>
+                  <p className="text-sm text-accent/80">Estás viendo una vista previa (15 ejercicios). Regístrate para acceder a todo el catálogo de ejercicios y todas las funciones.</p>
                 </div>
               </div>
               <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">

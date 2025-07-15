@@ -2,7 +2,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from "@/lib/firebase";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -157,6 +157,7 @@ function HistorialDetallePageContent() {
         }
         setIsLoading(true);
         try {
+            const db = getFirebaseDb();
             const docRef = doc(db, "partidos_estadisticas", matchId);
             const docSnap = await getDoc(docRef);
 
