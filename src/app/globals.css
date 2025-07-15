@@ -5,57 +5,57 @@
 
 @layer base {
   :root {
-    --background: 200 71% 89%; /* #D0EBF7 */
-    --foreground: 210 30% 20%; /* Dark Blue */
+    --background: 210 40% 98%; /* Very light cool gray */
+    --foreground: 215 28% 17%; /* Dark desaturated blue */
 
-    --card: 0 0% 100%; /* White cards for better readability on light blue bg */
-    --card-foreground: 210 30% 20%;
+    --card: 210 40% 100%;
+    --card-foreground: 215 28% 17%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 30% 20%;
+    --popover: 210 40% 100%;
+    --popover-foreground: 215 28% 17%;
 
-    --primary: 197 78% 52%; /* #29ABE2 */
-    --primary-foreground: 0 0% 100%; /* White text on primary blue */
+    --primary: 158 40% 50%; /* #52B37D - Pastel Green */
+    --primary-foreground: 215 28% 17%;
 
-    --secondary: 197 70% 80%; /* Lighter blue for secondary elements */
-    --secondary-foreground: 210 30% 20%;
+    --secondary: 158 30% 85%;
+    --secondary-foreground: 215 28% 17%;
 
-    --muted: 200 60% 85%;
-    --muted-foreground: 210 25% 45%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 25% 45%;
 
-    --accent: 27 78% 52%; /* #E28729 */
-    --accent-foreground: 0 0% 100%;
+    --accent: 158 50% 65%; /* A slightly more saturated green for accents */
+    --accent-foreground: 215 28% 17%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 197 60% 80%;
-    --input: 0 0% 100%;
-    --ring: 197 78% 52%;
+    --border: 210 40% 90%;
+    --input: 210 40% 94%;
+    --ring: 158 40% 50%;
 
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 210 30% 15%;
-    --foreground: 200 71% 90%;
-    --card: 210 30% 20%;
-    --card-foreground: 200 71% 90%;
-    --popover: 210 30% 20%;
-    --popover-foreground: 200 71% 90%;
-    --primary: 197 78% 52%;
-    --primary-foreground: 210 30% 15%;
-    --secondary: 197 70% 30%;
-    --secondary-foreground: 200 71% 90%;
-    --muted: 210 30% 25%;
-    --muted-foreground: 200 71% 70%;
-    --accent: 27 78% 52%;
-    --accent-foreground: 0 0% 100%;
+    --background: 215 28% 17%;
+    --foreground: 210 40% 98%;
+    --card: 215 28% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 215 28% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 158 40% 50%;
+    --primary-foreground: 215 28% 17%;
+    --secondary: 158 30% 30%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 28% 22%;
+    --muted-foreground: 210 40% 70%;
+    --accent: 158 50% 65%;
+    --accent-foreground: 215 28% 17%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 197 70% 30%;
-    --input: 210 30% 25%;
-    --ring: 197 78% 52%;
+    --border: 215 28% 25%;
+    --input: 215 28% 22%;
+    --ring: 158 40% 50%;
   }
 }
 
@@ -97,62 +97,54 @@
     font-size: 10pt; 
   }
 
-  /* Hide the print button container itself when printing */
   .print-button-container {
     display: none !important;
   }
   
-  /* Hide the dialog's close button (X) during printing */
-  [role="dialog"] > button[aria-label="Close"], /* ShadCN Dialog Close */
-  [role="dialog"] > button[class*="DialogPrimitive.Close"], /* ShadCN Dialog Close based on internal class name part */
-  button[class*="DialogClose"] { /* General fallback if a specific class is used for close button */
+  [role="dialog"] > button[aria-label="Close"],
+  [role="dialog"] > button[class*="DialogPrimitive.Close"],
+  button[class*="DialogClose"] {
     display: none !important;
   }
 
-
-  /* Hide main site header/footer and other non-dialog elements */
   body > header, body > footer, body > nav,
-  main > :not([role="dialog"]) { /* Hides direct children of main that are not the dialog */
+  main > :not([role="dialog"]) {
     display: none !important;
   }
   
-  /* If Shadcn dialog adds overflow:hidden to body or html, try to override for print */
   html, body {
     overflow: visible !important;
     height: auto !important;
     background-color: white !important; 
   }
 
-  /* Style the dialog content itself for printing */
   [role="dialog"] {
     visibility: visible !important;
     position: static !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important; /* Reset DialogContent padding */
+    padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
-    overflow: visible !important; /* Crucial for printing full content */
-    max-height: none !important; /* Allow full height */
-    animation: none !important; /* Disable entry/exit animations */
+    overflow: visible !important;
+    max-height: none !important;
+    animation: none !important;
     left: auto !important;
     top: auto !important;
     transform: none !important;
-    border-radius: 0 !important; /* Remove rounded corners for print */
-    background-color: white !important; /* Ensure dialog background is white */
+    border-radius: 0 !important;
+    background-color: white !important;
   }
   
-  /* Ensure text is black for printing and background is white */
   .session-print-area, .session-print-area *,
   .exercise-print-area, .exercise-print-area * {
     color: black !important;
     background-color: white !important; 
   }
   
-  /* General print styling for images and text flow */
   img {
-    max-width: 100% !important; /* Ensure images don't overflow */
+    max-width: 100% !important;
     page-break-inside: avoid;
   }
 
@@ -165,12 +157,10 @@
      page-break-inside: avoid;
   }
 
-  /* Ensure web fonts are used if available, or fall back gracefully */
   body {
-    font-family: 'PT Sans', sans-serif; /* Match your body font */
+    font-family: 'PT Sans', sans-serif;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', sans-serif; /* Match your headline font */
+    font-family: 'Poppins', sans-serif;
   }
 }
-    

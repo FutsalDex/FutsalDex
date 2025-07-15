@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BarChart2, BookUser, CalendarDays, ArrowRight, LifeBuoy, ClipboardCheck, Activity } from "lucide-react";
+import { Users, BarChart2, BookUser, CalendarDays, ArrowRight, LifeBuoy, ClipboardCheck, Activity, Timer } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -43,6 +43,12 @@ const featureCards = [
         description: "Visualiza un resumen de los datos más relevantes de tu equipo y tus sesiones.",
         href: "/mi-equipo/estadisticas-generales",
         icon: Activity,
+    },
+    {
+        title: "Marcador",
+        description: "Un cronómetro y marcador interactivo para llevar el control del tiempo, goles y faltas durante un partido.",
+        href: "/marcador",
+        icon: Timer,
     },
     {
         title: "Soporte Técnico",
