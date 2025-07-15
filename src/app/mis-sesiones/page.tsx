@@ -8,7 +8,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, Info } from "lucide-react";
+import { Loader2, Eye, Bot, Edit2, Trash2, Filter as FilterIcon, CalendarDays, Info, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -317,11 +317,19 @@ function MisSesionesContent() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold text-primary mb-2 font-headline">Mis Sesiones</h1>
-        <p className="text-lg text-foreground/80">
-          Aquí encontrarás todas las sesiones de entrenamiento que has creado.
-        </p>
+      <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+            <h1 className="text-3xl font-bold text-primary mb-1 font-headline">Mis Sesiones</h1>
+            <p className="text-lg text-foreground/80">
+                Aquí encontrarás todas las sesiones de entrenamiento que has creado.
+            </p>
+        </div>
+        <Button asChild variant="outline">
+            <Link href="/mi-equipo">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver al Panel
+            </Link>
+        </Button>
       </header>
 
       <Card className="mb-8 shadow-md">

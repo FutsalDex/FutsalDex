@@ -97,7 +97,7 @@ function SoportePageContent() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-      <header className="mb-8 flex items-center justify-between">
+      <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
             <LifeBuoy className="mr-3 h-8 w-8"/>
@@ -110,7 +110,7 @@ function SoportePageContent() {
         <Button asChild variant="outline">
           <Link href="/mi-equipo">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver a Mi Equipo
+            Volver al Panel
           </Link>
         </Button>
       </header>

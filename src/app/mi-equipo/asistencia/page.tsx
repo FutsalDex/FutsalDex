@@ -233,7 +233,7 @@ function AsistenciaPageContent() {
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
-            <header className="mb-8 flex items-center justify-between">
+            <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-primary mb-1 font-headline">Control de Asistencia</h1>
                     <p className="text-lg text-foreground/80">
