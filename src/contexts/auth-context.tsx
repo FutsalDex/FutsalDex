@@ -31,12 +31,16 @@ const mapAuthError = (error: AuthError): string => {
     }
 };
 
+type SubscriptionType = 'Pro' | 'Básica' | 'Prueba' | null;
+
 type AuthContextType = {
   user: FirebaseUser | null;
   loading: boolean;
   isRegisteredUser: boolean;
   isAdmin: boolean;
   isSubscribed: boolean;
+  subscriptionType: SubscriptionType;
+  subscriptionExpiresAt: Date | null;
   login: (values: z.infer<typeof loginSchema>) => Promise<FirebaseUser | null>;
   register: (values: z.infer<typeof registerSchema>) => Promise<FirebaseUser | null>;
   signOut: () => Promise<void>;
@@ -52,6 +56,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriptionType, setSubscriptionType] = useState<SubscriptionType>(null);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<Date | null>(null);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -71,34 +77,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             // --- Subscription & Trial Logic ---
             let finalIsSubscribed = false;
-
+            let finalSubsType: SubscriptionType = null;
+            let finalSubExpiresAt: Date | null = null;
+            
             if (currentUser.email === 'dimateo73@gmail.com') {
                 finalIsSubscribed = true;
+                finalSubsType = 'Pro';
+                const expiration = new Date();
+                expiration.setFullYear(expiration.getFullYear() + 1);
+                finalSubExpiresAt = expiration;
+
             } else if (docSnap.exists()) {
                 const userData = docSnap.data();
-                // Case 1: User has a real, active subscription.
                 if (userData.subscriptionStatus === 'active') {
                     finalIsSubscribed = true;
-                } 
-                // Case 2: User is not subscribed, but might be on trial.
-                else if (userData.trialEndsAt instanceof Timestamp) {
-                    // Check if the trial period is still valid.
-                    if (new Date() < userData.trialEndsAt.toDate()) {
-                        finalIsSubscribed = true; // Trial is active
+                    // You would typically get the type and expiry from the subscription data
+                    finalSubsType = userData.subscriptionType || 'Pro'; // Default to Pro if not specified
+                    if (userData.subscriptionExpiresAt instanceof Timestamp) {
+                         finalSubExpiresAt = userData.subscriptionExpiresAt.toDate();
+                    }
+                } else if (userData.trialEndsAt instanceof Timestamp) {
+                    const trialEndDate = userData.trialEndsAt.toDate();
+                    if (new Date() < trialEndDate) {
+                        finalIsSubscribed = true;
+                        finalSubsType = 'Prueba';
+                        finalSubExpiresAt = trialEndDate;
                     }
                 }
             }
             setIsSubscribed(finalIsSubscribed);
+            setSubscriptionType(finalSubsType);
+            setSubscriptionExpiresAt(finalSubExpiresAt);
+
         } catch (dbError) {
             console.error("Error fetching user document from Firestore:", dbError);
             setIsAdmin(false);
             setIsSubscribed(false);
+            setSubscriptionType(null);
+            setSubscriptionExpiresAt(null);
         }
 
       } else {
         // No user logged in, reset all flags
         setIsAdmin(false);
         setIsSubscribed(false);
+        setSubscriptionType(null);
+        setSubscriptionExpiresAt(null);
       }
       setLoading(false);
     });
@@ -175,7 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isRegisteredUser = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, login, register, signOut, error, clearError }}>
+    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionExpiresAt, login, register, signOut, error, clearError }}>
       {children}
     </AuthContext.Provider>
   );
