@@ -33,6 +33,7 @@ function SoportePageContent() {
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
+  const [guestQuestionCount, setGuestQuestionCount] = useState(0);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,39 +45,44 @@ function SoportePageContent() {
     }
   }, [messages]);
 
+  const guestLimitReached = !isRegisteredUser && guestQuestionCount >= 3;
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    const messageText = inputValue.trim();
+    if (!messageText || isSending) return;
+
     if (!isRegisteredUser) {
-        toast({ title: "Acción Requerida", description: "Debes iniciar sesión para chatear con el soporte.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
-        return;
-    }
-    if (!isSubscribed && !isAdmin) {
+        if (guestLimitReached) {
+            toast({ title: "Límite de preguntas alcanzado", description: "Para seguir chateando con el Entrenador IA, por favor regístrate.", action: <ToastAction altText="Registrarse" onClick={() => router.push('/register')}>Registrarse</ToastAction> });
+            return;
+        }
+    } else if (!isSubscribed && !isAdmin) {
         toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para usar el soporte con IA.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
         return;
     }
     
-    const messageText = inputValue.trim();
-    if (!messageText || isSending || !user) return;
+    if (!user && isRegisteredUser) return; // Should not happen, but for safety
 
     setIsSending(true);
     setInputValue("");
     
-    // Optimistically update UI with user's message
     setMessages(prev => [...prev, { sender: 'user', text: messageText }]);
+    if (!isRegisteredUser) {
+        setGuestQuestionCount(prev => prev + 1);
+    }
 
     try {
+      // For guests, we don't save history, so chatId is always null.
       const response = await askCoach({ 
         question: messageText,
-        chatId: chatId, // Will be null for the first message
-        userId: user.uid,
+        chatId: isRegisteredUser ? chatId : null, 
+        userId: user?.uid || "guest-user",
       });
 
-      // Update UI with AI response
       setMessages(prev => [...prev, { sender: 'ai', text: response.answer }]);
       
-      // Set the chat ID for subsequent messages if it's the first message
-      if (!chatId) {
+      if (isRegisteredUser && !chatId) {
         setChatId(response.chatId);
       }
 
@@ -87,7 +93,6 @@ function SoportePageContent() {
         description: "Hubo un problema al contactar con el entrenador. Por favor, inténtalo de nuevo más tarde.",
         variant: "destructive"
       });
-      // Add an error message to the chat UI
       setMessages(prev => [...prev, { sender: 'ai', text: "Lo siento, estoy teniendo problemas para conectarme en este momento." }]);
     } finally {
       setIsSending(false);
@@ -126,11 +131,10 @@ function SoportePageContent() {
                     <Info className="h-5 w-5 text-accent" />
                     <AlertTitle className="font-headline text-accent">Modo Invitado</AlertTitle>
                     <AlertDescription className="text-accent/90">
-                        <Link href="/login" className="font-bold underline hover:text-accent/70">
-                            Inicia sesión
-                        </Link>{" "}
-                        o{" "}
-                        <Link href="/register" className="font-bold underline hover:text-accent/70">regrístrate</Link> para chatear con nuestro entrenador IA.
+                        Como invitado, puedes hacer hasta <strong>3 preguntas</strong> al entrenador IA para probar la funcionalidad.{" "}
+                        <Link href="/register" className="font-bold underline hover:text-accent/70">
+                            Regístrate
+                        </Link>{" "}para preguntas ilimitadas.
                     </AlertDescription>
                 </Alert>
             </div>
@@ -151,7 +155,7 @@ function SoportePageContent() {
                    {message.sender === 'user' && (
                      <Avatar className="h-8 w-8">
                        <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'U'} />
-                       <AvatarFallback>{user?.email?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
+                       <AvatarFallback>{user?.email?.[0]?.toUpperCase() ?? 'I'}</AvatarFallback>
                     </Avatar>
                   )}
                 </div>
@@ -174,15 +178,20 @@ function SoportePageContent() {
             <Input 
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Escribe tu pregunta aquí..."
+              placeholder={guestLimitReached ? "Regístrate para seguir chateando" : "Escribe tu pregunta aquí..."}
               autoComplete="off"
-              disabled={isSending || !isRegisteredUser}
+              disabled={isSending || guestLimitReached || (isRegisteredUser && (!isSubscribed && !isAdmin))}
             />
-            <Button type="submit" size="icon" disabled={isSending || !inputValue.trim() || !isRegisteredUser}>
+            <Button type="submit" size="icon" disabled={isSending || !inputValue.trim() || guestLimitReached || (isRegisteredUser && (!isSubscribed && !isAdmin))}>
               {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}
               <span className="sr-only">Enviar</span>
             </Button>
           </form>
+           {!isRegisteredUser && (
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                    Preguntas restantes: {Math.max(0, 3 - guestQuestionCount)} de 3.
+                </p>
+            )}
         </div>
       </Card>
     </div>
