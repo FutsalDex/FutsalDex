@@ -5,25 +5,35 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
 let adminDbInstance: Firestore | null = null;
 
+function isServiceAccountConfigured(sa: ServiceAccount): boolean {
+    return !!sa.projectId && !sa.projectId.startsWith('__') &&
+           !!sa.clientEmail && !sa.clientEmail.startsWith('__') &&
+           !!sa.privateKey && !sa.privateKey.startsWith('__');
+}
+
 export function getAdminDb(): Firestore {
   if (adminDbInstance) {
     return adminDbInstance;
   }
 
-  // Las variables de entorno __FIREBASE_...__ son reemplazadas automáticamente por App Hosting durante el despliegue.
   const serviceAccount: ServiceAccount = {
       projectId: process.env.FIREBASE_PROJECT_ID || '__FIREBASE_PROJECT_ID__',
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '__FIREBASE_CLIENT_EMAIL__',
       privateKey: (process.env.FIREBASE_PRIVATE_KEY || '__FIREBASE_PRIVATE_KEY__').replace(/\\n/g, '\n'),
   };
-
-  if (!serviceAccount.projectId || serviceAccount.projectId.startsWith('__')) {
+  
+  if (!isServiceAccountConfigured(serviceAccount)) {
       console.warn(
           'Las credenciales del SDK de Firebase Admin no están configuradas para el entorno de servidor. ' +
-          'Esto es normal durante el desarrollo local si no se han configurado los secretos, pero es un error en producción.'
+          'Las funciones de administrador (como guardado de datos) no funcionarán en el entorno local. ' +
+          'Esto es normal si no se han configurado secretos para desarrollo local. En producción, esto es un error.'
       );
-      // Devuelve un objeto mock para evitar que la aplicación crashee en entornos donde no se necesita (como el build del cliente).
-      return {} as Firestore; 
+      // Devolvemos un objeto que lanzará un error claro si se intenta usar
+      return new Proxy({}, {
+          get(target, prop) {
+              throw new Error(`Se intentó acceder a '${String(prop)}' en una instancia no inicializada de Firebase Admin DB. Asegúrate de que las credenciales del servidor estén configuradas en tu entorno local si necesitas usar funciones de administrador.`);
+          }
+      }) as Firestore;
   }
 
   if (getApps().length === 0) {
