@@ -1,6 +1,6 @@
-import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,9 +11,36 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// --- LAZY INITIALIZATION ---
 
-export { app, auth, db };
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+
+function getFirebaseInstances() {
+  if (!app) {
+    if (getApps().length > 0) {
+      app = getApp();
+    } else {
+      // This is the crucial check. If the config is not valid, we shouldn't initialize.
+      if (!firebaseConfig.apiKey) {
+          throw new Error("Firebase: Missing API Key. Check your NEXT_PUBLIC_FIREBASE_API_KEY environment variable.");
+      }
+      app = initializeApp(firebaseConfig);
+    }
+    auth = getAuth(app);
+    db = getFirestore(app);
+  }
+  return { app, auth, db };
+}
+
+// Export a function that ensures initialization before returning instances
+function getFirebaseAuth() {
+  return getFirebaseInstances().auth;
+}
+
+function getFirebaseDb() {
+  return getFirebaseInstances().db;
+}
+
+export { getFirebaseAuth, getFirebaseDb };

@@ -2,7 +2,7 @@
 "use client";
 import type { User as FirebaseUser, AuthError } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { auth, db } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -10,6 +10,7 @@ import {
   signOut as firebaseSignOut
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { getFirebaseDb } from '@/lib/firebase';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
 
@@ -53,6 +54,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
+    const auth = getFirebaseAuth();
+    const db = getFirebaseDb();
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
@@ -95,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (values: z.infer<typeof loginSchema>) => {
     setError(null);
+    const auth = getFirebaseAuth();
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       // onAuthStateChanged will handle setting admin/subscription state
@@ -108,6 +112,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (values: z.infer<typeof registerSchema>) => {
     setError(null);
+    const auth = getFirebaseAuth();
+    const db = getFirebaseDb();
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const newUser = userCredential.user;
@@ -143,6 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     setError(null);
+    const auth = getFirebaseAuth();
     try {
       await firebaseSignOut(auth);
       // onAuthStateChanged will handle resetting states to false

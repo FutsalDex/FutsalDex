@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { collection as firestoreCollection, getDocs, limit, query, where } from 'firebase/firestore';
 import Image from 'next/image';
 import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, Eye, FileDown, ArrowLeft } from 'lucide-react';
@@ -155,6 +155,7 @@ export default function EjerciciosPage() {
       }
 
       try {
+        const db = getFirebaseDb();
         const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
         const qLimit = (isRegisteredUser && (isAdmin || isSubscribed)) ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
         
@@ -241,6 +242,7 @@ export default function EjerciciosPage() {
     if (user && isRegisteredUser) {
       const loadFavorites = async () => {
         try {
+          const db = getFirebaseDb();
           const favsRef = firestoreCollection(db, "usuarios", user.uid, "user_favorites");
           const querySnapshot = await getDocs(favsRef);
           const userFavorites: FavoriteState = {};
