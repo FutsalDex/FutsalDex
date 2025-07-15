@@ -1,3 +1,6 @@
+// Cargar variables de entorno del archivo .env para desarrollo local
+require('dotenv').config();
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
