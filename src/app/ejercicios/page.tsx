@@ -68,6 +68,7 @@ interface FavoriteState {
 
 const createGuestExercises = (): Ejercicio[] => {
     const demoData: Omit<Ejercicio, 'id'>[] = [
+        // Fase Inicial
         {
             ejercicio: "Rondo de Calentamiento 4 vs 1",
             descripcion: "Un rondo clásico para iniciar la sesión, enfocado en la velocidad del pase y la movilidad. Los jugadores de fuera deben realizar pases a un toque, mientras el defensor presiona para recuperar.",
@@ -82,6 +83,20 @@ const createGuestExercises = (): Ejercicio[] => {
             isVisible: true,
             consejos_entrenador: "Insistir en la comunicación y el movimiento sin balón.",
         },
+        {
+            ejercicio: "Activación con Pases y Movilidad",
+            descripcion: "Jugadores en parejas con un balón. Realizan pases cortos y largos mientras se desplazan por el espacio, alternando con ejercicios de movilidad articular (círculos de tobillo, rodillas arriba, etc.).",
+            objetivos: "Aumentar la temperatura corporal, preparar las articulaciones y mejorar la coordinación óculo-pédica.",
+            espacio_materiales: "Balones (1 por pareja).",
+            jugadores: "Todo el equipo",
+            duracion: "10",
+            fase: "Inicial",
+            categoria: "Calentamiento y activación",
+            edad: ["Benjamín (8-9 años)", "Alevín (10-11 años)", "Infantil (12-13 años)", "Cadete (14-15 años)", "Juvenil (16-18 años)", "Senior (+18 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        // Fase Principal
         {
             ejercicio: "Finalización 2 vs 1 + Portero",
             descripcion: "Dos atacantes parten desde el centro del campo contra un único defensor. Deben colaborar para superar al defensor y finalizar con un tiro a portería.",
@@ -110,6 +125,124 @@ const createGuestExercises = (): Ejercicio[] => {
             isVisible: true,
         },
         {
+            ejercicio: "Defensa en Inferioridad 2 vs 3",
+            descripcion: "Ejercicio táctico donde dos defensores deben coordinarse para evitar que tres atacantes finalicen la jugada. Se enfoca en la basculación y la comunicación.",
+            objetivos: "Mejorar los principios de la defensa en inferioridad, la cobertura y el posicionamiento.",
+            espacio_materiales: "Media pista, 1 portería.",
+            jugadores: "5 jugadores + 1 Portero",
+            duracion: "15",
+            fase: "Principal",
+            categoria: "Defensa (individual, colectiva y táctica)",
+            edad: ["Cadete (14-15 años)", "Juvenil (16-18 años)", "Senior (+18 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        {
+            ejercicio: "Transiciones Ataque-Defensa",
+            descripcion: "Partido en campo reducido donde al marcar un gol, el equipo que anota debe replegar rápidamente para defender un contraataque del equipo contrario, que se inicia de inmediato.",
+            objetivos: "Automatizar la reacción tras pérdida y tras recuperación, mejorando la velocidad de transición.",
+            espacio_materiales: "Pista completa, 2 porterías, balones.",
+            jugadores: "8-10 jugadores",
+            duracion: "20",
+            fase: "Principal",
+            categoria: "Transiciones (ofensivas y defensivas)",
+            edad: ["Juvenil (16-18 años)", "Senior (+18 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        {
+            ejercicio: "Circuito de Conducción y Regate",
+            descripcion: "Un circuito con conos y picas donde los jugadores deben realizar diferentes tipos de conducción (interior, exterior) y regates específicos (bicicleta, croqueta).",
+            objetivos: "Mejorar la técnica de conducción y el dominio del regate en diferentes situaciones.",
+            espacio_materiales: "Conos, picas, balones.",
+            jugadores: "Individual, por turnos",
+            duracion: "15",
+            fase: "Principal",
+            categoria: "Conducción y regate",
+            edad: ["Benjamín (8-9 años)", "Alevín (10-11 años)", "Infantil (12-13 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        {
+            ejercicio: "Superioridad Numérica 3 vs 2",
+            descripcion: "Tres atacantes intentan marcar gol contra dos defensores. Se enfoca en la rápida circulación del balón para encontrar al jugador libre.",
+            objetivos: "Mejorar la toma de decisiones en ataque, la creación de espacios y la finalización en superioridad.",
+            espacio_materiales: "Media pista, 1 portería, balones.",
+            jugadores: "5 jugadores + 1 Portero",
+            duracion: "15",
+            fase: "Principal",
+            categoria: "Superioridades e inferioridades numéricas",
+            edad: ["Infantil (12-13 años)", "Cadete (14-15 años)", "Juvenil (16-18 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        {
+            ejercicio: "Juego de Pies para Porteros",
+            descripcion: "Trabajo específico para porteros con una escalera de agilidad y conos, realizando desplazamientos rápidos, saltos y salidas, finalizando con un blocaje de balón.",
+            objetivos: "Mejorar la agilidad, la coordinación y la velocidad de reacción del portero.",
+            espacio_materiales: "Escalera de agilidad, conos, balones.",
+            jugadores: "1-2 Porteros",
+            duracion: "10",
+            fase: "Principal",
+            categoria: "Portero y trabajo específico",
+            edad: ["Alevín (10-11 años)", "Infantil (12-13 años)", "Cadete (14-15 años)", "Juvenil (16-18 años)", "Senior (+18 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        {
+            ejercicio: "Balón Parado: Saque de Esquina",
+            descripcion: "Práctica de una jugada de estrategia ensayada desde el saque de esquina, con bloqueos y movimientos de desmarque para liberar a un rematador.",
+            objetivos: "Memorizar y ejecutar una jugada de estrategia de saque de esquina.",
+            espacio_materiales: "Media pista, 1 portería, balones.",
+            jugadores: "5-6 jugadores",
+            duracion: "10",
+            fase: "Principal",
+            categoria: "Balón parado y remates",
+            edad: ["Cadete (14-15 años)", "Juvenil (16-18 años)", "Senior (+18 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        {
+            ejercicio: "Técnica Individual: Control y Pase",
+            descripcion: "Jugadores en parejas, practicando diferentes tipos de controles (orientados, con planta, etc.) y pases (interior, exterior, empeine) a distintas distancias y velocidades.",
+            objetivos: "Perfeccionar la técnica individual de los gestos básicos del juego.",
+            espacio_materiales: "Balones (1 por pareja).",
+            jugadores: "Todo el equipo",
+            duracion: "10",
+            fase: "Principal",
+            categoria: "Técnica individual y combinada",
+            edad: ["Benjamín (8-9 años)", "Alevín (10-11 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+         {
+            ejercicio: "Desmarques y Apoyos",
+            descripcion: "Un jugador con balón en el centro, rodeado por compañeros que realizan desmarques de ruptura y de apoyo. El pasador debe identificar el movimiento correcto y realizar el pase adecuado.",
+            objetivos: "Mejorar la movilidad sin balón y la comunicación no verbal entre pasador y receptor.",
+            espacio_materiales: "Cuadrado de 15x15m, balones.",
+            jugadores: "4-5 jugadores",
+            duracion: "10",
+            fase: "Principal",
+            categoria: "Desmarques y movilidad",
+            edad: ["Infantil (12-13 años)", "Cadete (14-15 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        {
+            ejercicio: "Toma de Decisiones 2 vs 2",
+            descripcion: "Partido 2 vs 2 en espacio reducido con el objetivo de fomentar la toma de decisiones rápidas (driblar, pasar, tirar) en situaciones de igualdad numérica.",
+            objetivos: "Mejorar la capacidad cognitiva y la toma de decisiones bajo presión.",
+            espacio_materiales: "Cuadrado de 10x10m, 2 mini-porterías.",
+            jugadores: "4 jugadores",
+            duracion: "15",
+            fase: "Principal",
+            categoria: "Toma de decisiones y visión de juego",
+            edad: ["Infantil (12-13 años)", "Cadete (14-15 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
+        // Fase Final
+        {
             ejercicio: "Estiramientos y Vuelta a la Calma",
             descripcion: "Serie de estiramientos estáticos de los principales grupos musculares utilizados en el fútbol sala, combinados con una respiración profunda y controlada.",
             objetivos: "Reducir la tensión muscular, mejorar la flexibilidad y facilitar la recuperación post-entrenamiento.",
@@ -122,8 +255,21 @@ const createGuestExercises = (): Ejercicio[] => {
             imagen: "https://placehold.co/400x300.png",
             isVisible: true,
         },
+        {
+            ejercicio: "Juego de Precisión",
+            descripcion: "Los jugadores, como vuelta a la calma, intentan golpear un cono o una pica desde diferentes distancias con pases rasos. Se realiza a baja intensidad.",
+            objetivos: "Relajación activa, concentración y mejora de la precisión del pase.",
+            espacio_materiales: "Conos, balones.",
+            jugadores: "Todo el equipo",
+            duracion: "5",
+            fase: "Final",
+            categoria: "Pase y control",
+            edad: ["Alevín (10-11 años)", "Infantil (12-13 años)"],
+            imagen: "https://placehold.co/400x300.png",
+            isVisible: true,
+        },
     ];
-    return demoData.map((ex, index) => ({...ex, id: `guest_ex_${index}`} as Ejercicio));
+    return demoData.slice(0, GUEST_ITEM_LIMIT).map((ex, index) => ({...ex, id: `guest_ex_${index}`} as Ejercicio));
 };
 
 
@@ -359,7 +505,7 @@ export default function EjerciciosPage() {
                 <Lock className="h-8 w-8 text-accent mr-4" />
                 <div>
                   <h3 className="text-lg font-semibold text-accent font-headline">Acceso Limitado</h3>
-                  <p className="text-sm text-accent/80">Estás viendo una vista previa ({GUEST_ITEM_LIMIT} ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a más de 500 ejercicios y todas las funciones.</p>
+                  <p className="text-sm text-accent/80">Estás viendo una vista previa (15 ejercicios). <Link href="/register" className="font-bold underline hover:text-accent">Regístrate</Link> para acceder a todo el catálogo de ejercicios y todas las funciones.</p>
                 </div>
               </div>
               <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
