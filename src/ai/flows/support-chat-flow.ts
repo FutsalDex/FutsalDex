@@ -22,7 +22,7 @@ const ai = getGenkitAi();
 const SupportChatInputSchema = z.object({
   question: z.string().describe("The user's question for the AI coach."),
   chatId: z.string().optional().describe("The unique ID for the chat session."),
-  userId: z.string().describe("The user's unique ID."),
+  userId: z.string().describe("The user's unique ID. Can be 'guest-user' for non-registered users."),
 });
 
 const SupportChatOutputSchema = z.object({
@@ -43,27 +43,38 @@ interface ChatMessage {
 
 // Exported main function
 export async function askCoach(input: SupportChatInput): Promise<SupportChatOutput> {
-  const adminDb = getAdminDb();
-  const currentChatId = input.chatId || adminDb.collection('support_chats').doc().id;
+  const isGuest = input.userId === 'guest-user';
+  let adminDb: FirebaseFirestore.Firestore | null = null;
+  let currentChatId: string;
+  let chatDocRef: FirebaseFirestore.DocumentReference | null = null;
   let history: Message[] = [];
-  const chatDocRef = adminDb.collection("support_chats").doc(currentChatId);
 
-  // 1. Fetch existing history if this is an ongoing chat
-  if (input.chatId) {
-    try {
-      const docSnap = await chatDocRef.get();
-      if (docSnap.exists) {
-        const data = docSnap.data();
-        if (data?.messages && Array.isArray(data.messages)) {
-            history = (data.messages as ChatMessage[]).map(msg => ({
-              role: msg.role === 'ai' ? 'model' : 'user',
-              parts: [{ text: msg.content }],
-            }));
+  // --- Database operations only for registered users ---
+  if (!isGuest) {
+    adminDb = getAdminDb();
+    currentChatId = input.chatId || adminDb.collection('support_chats').doc().id;
+    chatDocRef = adminDb.collection("support_chats").doc(currentChatId);
+
+    // 1. Fetch existing history if this is an ongoing chat
+    if (input.chatId) {
+      try {
+        const docSnap = await chatDocRef.get();
+        if (docSnap.exists) {
+          const data = docSnap.data();
+          if (data?.messages && Array.isArray(data.messages)) {
+              history = (data.messages as ChatMessage[]).map(msg => ({
+                role: msg.role === 'ai' ? 'model' : 'user',
+                parts: [{ text: msg.content }],
+              }));
+          }
         }
+      } catch (error) {
+        console.error("Error fetching chat history:", error);
       }
-    } catch (error) {
-      console.error("Error fetching chat history:", error);
     }
+  } else {
+    // For guests, we don't persist chat, so the ID is ephemeral for this turn.
+    currentChatId = 'guest-chat';
   }
 
   // 2. Call the AI model
@@ -91,39 +102,41 @@ When providing advice, follow these principles:
     throw new Error("The AI model did not return a valid answer.");
   }
   
-  // 3. Save the new turn to Firestore using Admin SDK
-  const userMessage = {
-    role: 'user',
-    content: input.question,
-    createdAt: FieldValue.serverTimestamp(),
-  };
+  // 3. Save the new turn to Firestore for registered users
+  if (!isGuest && chatDocRef) {
+    const userMessage = {
+      role: 'user',
+      content: input.question,
+      createdAt: FieldValue.serverTimestamp(),
+    };
 
-  const aiMessage = {
-    role: 'ai',
-    content: answer,
-    createdAt: FieldValue.serverTimestamp(),
-  };
+    const aiMessage = {
+      role: 'ai',
+      content: answer,
+      createdAt: FieldValue.serverTimestamp(),
+    };
 
-  try {
-    const docSnap = await chatDocRef.get();
-    if (docSnap.exists) {
-      // Chat exists, update it
-      await chatDocRef.update({
-        messages: FieldValue.arrayUnion(userMessage, aiMessage),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    } else {
-      // New chat, create it
-      await chatDocRef.set({
-        userId: input.userId,
-        title: input.question.substring(0, 40) + '...',
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        messages: [userMessage, aiMessage],
-      });
+    try {
+      const docSnap = await chatDocRef.get();
+      if (docSnap.exists) {
+        // Chat exists, update it
+        await chatDocRef.update({
+          messages: FieldValue.arrayUnion(userMessage, aiMessage),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else {
+        // New chat, create it
+        await chatDocRef.set({
+          userId: input.userId,
+          title: input.question.substring(0, 40) + '...',
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          messages: [userMessage, aiMessage],
+        });
+      }
+    } catch (error) {
+      console.error("Error saving chat to Firestore:", error);
     }
-  } catch (error) {
-    console.error("Error saving chat to Firestore:", error);
   }
 
   // 4. Return the response to the client
