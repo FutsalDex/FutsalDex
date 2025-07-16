@@ -3,12 +3,14 @@
 /**
  * @fileOverview A collection of server-side actions for user data mutations.
  * These actions use the Firebase Admin SDK to ensure they are executed with
- * server-side permissions.
+ * server-side permissions where needed, or the client SDK for user-specific queries.
  */
 
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getFirebaseDb } from '@/lib/firebase';
+import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Favorite Exercise ---
@@ -135,11 +137,14 @@ type FetchMatchesInput = z.infer<typeof FetchMatchesInputSchema>;
 
 export async function fetchMatchesForUser({ userId }: FetchMatchesInput): Promise<any[]> {
     try {
-        const adminDb = getAdminDb();
-        const q = adminDb.collection("partidos_estadisticas")
-            .where("userId", "==", userId)
-            .orderBy("fecha", "desc");
-        const querySnapshot = await q.get();
+        const clientDb = getFirebaseDb();
+        const q = query(
+            collection(clientDb, "partidos_estadisticas"),
+            where("userId", "==", userId),
+            orderBy("fecha", "desc")
+        );
+
+        const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(doc => {
             const data = doc.data();
             const createdAtTimestamp = data.createdAt as Timestamp;
