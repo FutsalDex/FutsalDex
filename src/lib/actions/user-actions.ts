@@ -3,14 +3,12 @@
 /**
  * @fileOverview A collection of server-side actions for user data mutations.
  * These actions use the Firebase Admin SDK to ensure they are executed with
- * server-side permissions, but include a fallback to an in-memory cache
- * for local development environments where the Admin SDK may not be initialized.
+ * server-side permissions.
  */
 
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { getFromCache, setInCache } from '@/lib/cache';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Favorite Exercise ---
@@ -33,9 +31,8 @@ export async function toggleFavorite({ userId, exerciseId, isFavorite }: ToggleF
     }
     return { success: true };
   } catch (error) {
-    console.warn("Admin DB not available for toggleFavorite, using cache fallback.", error);
-    // Cache fallback logic if needed, for now just returning success
-    return { success: true };
+    console.error("Error toggling favorite:", error);
+    throw new Error("Failed to update favorite status.");
   }
 }
 
@@ -68,12 +65,8 @@ export async function saveSession({ userId, sessionData }: SaveSessionInput): Pr
     });
     return { sessionId: docRef.id };
   } catch (error: any) {
-    console.warn("Admin DB not available for saveSession, using cache fallback.", error.message);
-    if (error.message.includes("Ya hay una sesión")) throw error;
-    // Fallback for local dev
-    const newId = `session_${Date.now()}`;
-    setInCache(`session_${newId}`, { id: newId, ...sessionData, userId });
-    return { sessionId: newId };
+    console.error("Error saving session:", error.message);
+    throw error;
   }
 }
 
@@ -90,11 +83,8 @@ export async function deleteMatch({ matchId }: DeleteMatchInput): Promise<{ succ
     const adminDb = getAdminDb();
     await adminDb.collection("partidos_estadisticas").doc(matchId).delete();
   } catch (error) {
-    console.warn("Admin DB not available for deleteMatch, using cache fallback.", error);
-    // Fallback for local dev
-    const allMatches = getFromCache<any[]>('matches', 3600 * 1000) || [];
-    const updatedMatches = allMatches.filter(m => m.id !== matchId);
-    setInCache('matches', updatedMatches);
+    console.error("Error deleting match:", error);
+    throw new Error("Failed to delete match.");
   }
   return { success: true };
 }
@@ -110,7 +100,8 @@ export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<
     const adminDb = getAdminDb();
     await adminDb.collection("mis_sesiones").doc(sessionId).delete();
   } catch(error) {
-     console.warn("Admin DB not available for deleteSession, using cache fallback.", error);
+     console.error("Error deleting session:", error);
+     throw new Error("Failed to delete session.");
   }
   return { success: true };
 }
@@ -130,18 +121,8 @@ export async function saveMatch({ matchData }: SaveMatchInput): Promise<{ matchI
       });
       return { matchId: docRef.id };
     } catch (error) {
-       console.warn("Admin DB not available for saveMatch, using cache fallback.", error);
-       // Fallback for local dev
-       const newId = `match_${uuidv4()}`;
-       const newMatch = { 
-          id: newId, 
-          ...matchData,
-          createdAt: new Date().toISOString()
-        };
-       const allMatches = getFromCache<any[]>('matches', 3600 * 1000) || [];
-       allMatches.push(newMatch);
-       setInCache('matches', allMatches);
-       return { matchId: newId };
+       console.error("Error saving match:", error);
+       throw new Error("Failed to save match.");
     }
 }
 
@@ -171,21 +152,7 @@ export async function fetchMatchesForUser({ userId }: FetchMatchesInput): Promis
             };
         });
     } catch (error) {
-        console.warn("Admin DB not available for fetchMatchesForUser, using cache fallback.", error);
-        // Fallback for local dev
-        const allMatches = getFromCache<any[]>('matches', 3600 * 1000) || [];
-        // Filter by user and sort
-        const userMatches = allMatches
-            .filter(m => m.userId === userId)
-            .sort((a, b) => {
-                const dateA = new Date(a.fecha).getTime();
-                const dateB = new Date(b.fecha).getTime();
-                if (dateB !== dateA) return dateB - dateA;
-                
-                const createdAtA = new Date(a.createdAt).getTime();
-                const createdAtB = new Date(b.createdAt).getTime();
-                return createdAtB - createdAtA;
-            });
-        return userMatches;
+        console.error("Error fetching matches:", error);
+        throw new Error("Failed to fetch matches for user.");
     }
 }

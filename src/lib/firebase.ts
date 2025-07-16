@@ -40,6 +40,3 @@ export function getFirebaseDb(): Firestore {
   initializeFirebase();
   return db!;
 }
-
-// Export `db` directly for pages that were using it
-export { db };
