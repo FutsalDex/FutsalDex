@@ -12,7 +12,7 @@ import { addExerciseSchema } from '@/lib/schemas';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
-import { collection, query, getDocs, writeBatch as clientWriteBatch, doc } from 'firebase/firestore';
+import { collection, query, getDocs, writeBatch as clientWriteBatch, doc, orderBy } from 'firebase/firestore';
 
 
 // --- Add Exercise ---
@@ -112,64 +112,38 @@ const AdminExerciseListOutputSchema = z.object({
 });
 export type AdminExerciseListOutput = z.infer<typeof AdminExerciseListOutputSchema>;
 
+
 export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutput> {
-  let adminDb;
-  try {
-    adminDb = getAdminDb();
-    await adminDb.listCollections();
-  } catch (e) {
-    console.warn(
-      "Admin SDK no disponible en entorno local. " +
-      "Se omitirá la limpieza de ejercicios duplicados y se usarán datos de cliente."
-    );
+    // This function will now use the client SDK to avoid local dev permission issues.
+    // The cleaning logic is removed to simplify permissions. Duplicates can be managed by the admin.
     const clientDb = getFirebaseDb();
-    const snapshot = await getDocs(collection(clientDb, "ejercicios_futsal"));
+    const q = query(collection(clientDb, "ejercicios_futsal"), orderBy('ejercicio', 'asc'));
+    const snapshot = await getDocs(q);
+    
     const exercises = snapshot.docs.map(docSnap => {
         const data = docSnap.data();
-        const parsed = AdminExerciseSchema.safeParse({ id: docSnap.id, ...data });
+        const parsed = AdminExerciseSchema.safeParse({
+            id: docSnap.id,
+            numero: data.numero || "",
+            ejercicio: data.ejercicio || "",
+            descripcion: data.descripcion || "",
+            objetivos: data.objetivos || "",
+            espacio_materiales: data.espacio_materiales || "",
+            jugadores: data.jugadores || "",
+            duracion: data.duracion || "10",
+            variantes: data.variantes || "",
+            fase: data.fase || "",
+            categoria: data.categoria || "",
+            edad: Array.isArray(data.edad) ? data.edad : (typeof data.edad === 'string' ? [data.edad] : []),
+            consejos_entrenador: data.consejos_entrenador || "",
+            imagen: data.imagen || "",
+            isVisible: data.isVisible !== false,
+        });
         return parsed.success ? parsed.data : null;
     }).filter((ex): ex is AdminExercise => ex !== null);
-
+    
+    // The automatic cleaning is disabled to prevent permission errors.
     return { exercises, deletedCount: 0 };
-  }
-
-  // --- Production Logic ---
-  // In production, we fetch all exercises using the admin SDK.
-  // We are removing the cleaning logic that was causing permission issues.
-  const exercisesCollection = adminDb.collection("ejercicios_futsal");
-  const snapshot = await exercisesCollection.orderBy('ejercicio', 'asc').get();
-
-  if (snapshot.empty) {
-    return { exercises: [], deletedCount: 0 };
-  }
-
-  const exercises = snapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-      const parsed = AdminExerciseSchema.safeParse({
-        id: docSnap.id,
-        numero: data.numero || "",
-        ejercicio: data.ejercicio || "",
-        descripcion: data.descripcion || "",
-        objetivos: data.objetivos || "",
-        espacio_materiales: data.espacio_materiales || "",
-        jugadores: data.jugadores || "",
-        duracion: data.duracion || "10",
-        variantes: data.variantes || "",
-        fase: data.fase || "",
-        categoria: data.categoria || "",
-        edad: Array.isArray(data.edad) ? data.edad : (typeof data.edad === 'string' ? [data.edad] : []),
-        consejos_entrenador: data.consejos_entrenador || "",
-        imagen: data.imagen || "",
-        isVisible: data.isVisible !== false,
-      });
-
-      return parsed.success ? parsed.data : null;
-  }).filter((ex): ex is AdminExercise => ex !== null);
-
-
-  // The cleaning logic is removed to prevent permission errors.
-  // Duplicates can be managed manually by the admin for now.
-  return { exercises, deletedCount: 0 };
 }
 
 
