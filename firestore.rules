@@ -3,44 +3,26 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Ejercicios: Lectura pública, escritura solo para administradores (a implementar).
-    // Por ahora, la escritura se gestiona con el SDK de Admin en el servidor.
+    // Los ejercicios son de lectura pública para todos, pero solo los administradores pueden escribir.
     match /ejercicios_futsal/{exerciseId} {
       allow read: if true;
-      allow write: if false; // Previene escrituras desde el cliente.
+      allow write, delete, create: if false; // La escritura se gestionará desde el backend con Admin SDK.
     }
 
-    // Datos de Usuarios: Cada usuario solo puede leer y escribir su propio documento.
+    // Los usuarios pueden registrarse (crear su propio documento),
+    // y solo ellos pueden leer o actualizar su propio documento. Nadie más.
     match /usuarios/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-
-      // Subcolecciones de usuario: solo el propietario puede acceder.
-      match /user_favorites/{favId} {
-         allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-      match /team/{docId} {
-         allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-
-    // Sesiones: solo el propietario puede leer y escribir sus sesiones.
-    match /mis_sesiones/{sessionId} {
-      allow read, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-
-    // Partidos: solo el propietario puede leer y escribir sus partidos.
-    match /partidos_estadisticas/{partidoId} {
-       allow read, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
     }
     
-    // Chats de Soporte: solo el propietario puede acceder a sus chats.
-    match /support_chats/{chatId} {
-       allow read, write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    // Regla para TODAS las subcolecciones de un usuario.
+    // Un usuario puede hacer cualquier cosa (leer, escribir, borrar) en los documentos
+    // que están dentro de sus propias subcolecciones.
+    match /usuarios/{userId}/{collection}/{docId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Regla de denegación por defecto para cualquier otra colección.
-    match /{document=**} {
-      allow read, write: if false;
-    }
+
+    // Por defecto, se deniega el acceso a cualquier otra colección no especificada.
   }
 }
