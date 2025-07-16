@@ -38,7 +38,7 @@ service cloud.firestore {
       // Un usuario puede crear un nuevo documento si el userId que va a guardar es el suyo.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
-    
+
     // Chats de soporte del usuario (colección de nivel raíz)
     match /support_chats/{chatId} {
       // Para leer o actualizar un chat existente.
