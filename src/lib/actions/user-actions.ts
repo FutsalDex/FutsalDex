@@ -9,7 +9,6 @@
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import { manualSessionSchema, RosterPlayerSchema, AttendanceDataSchema, MatchStatsSchema, OpponentPlayerSchema, TeamStatsSchema } from '@/lib/schemas';
 
 // --- Favorite Exercise ---
 
@@ -84,4 +83,19 @@ export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<
   const adminDb = getAdminDb();
   await adminDb.collection("mis_sesiones").doc(sessionId).delete();
   return { success: true };
+}
+
+// --- Save Match ---
+const SaveMatchInputSchema = z.object({
+    matchData: z.any(),
+});
+type SaveMatchInput = z.infer<typeof SaveMatchInputSchema>;
+
+export async function saveMatch({ matchData }: SaveMatchInput): Promise<{ matchId: string }> {
+    const adminDb = getAdminDb();
+    const docRef = await adminDb.collection("partidos_estadisticas").add({
+      ...matchData,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { matchId: docRef.id };
 }

@@ -12,7 +12,7 @@ import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,7 +29,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { POSICIONES_FUTSAL } from "@/lib/constants";
+import { saveMatch } from "@/lib/actions/user-actions";
 
 
 // --- Helper Components ---
@@ -338,24 +338,23 @@ function EstadisticasPageContent() {
 
 
     setIsSaving(true);
+    const matchData = {
+        userId: user.uid,
+        myTeamName: finalMyTeamName,
+        opponentTeamName: finalOpponentTeamName,
+        myTeamWasHome: myTeamWasHome,
+        fecha,
+        hora: hora || null,
+        campeonato,
+        jornada,
+        tipoPartido: tipoPartido || null,
+        myTeamStats,
+        opponentTeamStats,
+        myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
+        opponentPlayers: filterOpponentPlayers(opponentPlayers),
+    };
     try {
-        const db = getFirebaseDb();
-        await addDoc(collection(db, "partidos_estadisticas"), {
-            userId: user.uid,
-            myTeamName: finalMyTeamName,
-            opponentTeamName: finalOpponentTeamName,
-            myTeamWasHome: myTeamWasHome,
-            fecha,
-            hora: hora || null,
-            campeonato,
-            jornada,
-            tipoPartido: tipoPartido || null,
-            myTeamStats,
-            opponentTeamStats,
-            myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
-            opponentPlayers: filterOpponentPlayers(opponentPlayers),
-            createdAt: serverTimestamp(),
-        });
+        await saveMatch({ matchData });
         toast({ title: "Estadísticas Guardadas", description: "El partido se ha guardado en tu historial." });
         resetAllStats();
     } catch (error) {
