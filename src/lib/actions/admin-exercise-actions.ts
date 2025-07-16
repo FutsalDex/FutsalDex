@@ -116,15 +116,12 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
   let adminDb;
   try {
     adminDb = getAdminDb();
-    // This line will throw if the Admin SDK is not initialized, and we'll catch it.
     await adminDb.listCollections();
   } catch (e) {
     console.warn(
       "Admin SDK no disponible en entorno local. " +
-      "Se omitirá la limpieza de ejercicios duplicados. " +
-      "La limpieza se ejecutará en producción."
+      "Se omitirá la limpieza de ejercicios duplicados y se usarán datos de cliente."
     );
-    // Fallback to client SDK just to read the data without cleaning
     const clientDb = getFirebaseDb();
     const snapshot = await getDocs(collection(clientDb, "ejercicios_futsal"));
     const exercises = snapshot.docs.map(docSnap => {
@@ -136,19 +133,18 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
     return { exercises, deletedCount: 0 };
   }
 
+  // --- Production Logic ---
+  // In production, we fetch all exercises using the admin SDK.
+  // We are removing the cleaning logic that was causing permission issues.
   const exercisesCollection = adminDb.collection("ejercicios_futsal");
-  const snapshot = await exercisesCollection.get();
+  const snapshot = await exercisesCollection.orderBy('ejercicio', 'asc').get();
 
   if (snapshot.empty) {
     return { exercises: [], deletedCount: 0 };
   }
 
-  const exercisesByName: { [key: string]: AdminExercise[] } = {};
-  
-  snapshot.forEach(docSnap => {
+  const exercises = snapshot.docs.map(docSnap => {
       const data = docSnap.data();
-      const exerciseName = (data.ejercicio || "").trim().toLowerCase();
-      
       const parsed = AdminExerciseSchema.safeParse({
         id: docSnap.id,
         numero: data.numero || "",
@@ -167,55 +163,13 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
         isVisible: data.isVisible !== false,
       });
 
-      if (parsed.success && exerciseName) {
-        if (!exercisesByName[exerciseName]) {
-          exercisesByName[exerciseName] = [];
-        }
-        exercisesByName[exerciseName].push(parsed.data);
-      }
-  });
+      return parsed.success ? parsed.data : null;
+  }).filter((ex): ex is AdminExercise => ex !== null);
 
-  const exercisesToKeep: AdminExercise[] = [];
-  const exercisesToDeleteRefs: FirebaseFirestore.DocumentReference[] = [];
 
-  for (const name in exercisesByName) {
-    const group = exercisesByName[name];
-    if (group.length > 1) {
-      group.sort((a, b) => {
-        const aHasPlaceholder = a.imagen.includes('placehold.co');
-        const bHasPlaceholder = b.imagen.includes('placehold.co');
-        if (aHasPlaceholder !== bHasPlaceholder) {
-            return aHasPlaceholder ? 1 : -1;
-        }
-        return (b.descripcion?.length || 0) - (a.descripcion?.length || 0);
-      });
-      
-      const bestToKeep = group[0];
-      exercisesToKeep.push(bestToKeep);
-
-      for (let i = 1; i < group.length; i++) {
-        exercisesToDeleteRefs.push(adminDb.collection("ejercicios_futsal").doc(group[i].id));
-      }
-    } else {
-      exercisesToKeep.push(group[0]);
-    }
-  }
-
-  let deletedCount = 0;
-  if (exercisesToDeleteRefs.length > 0) {
-    deletedCount = exercisesToDeleteRefs.length;
-    const BATCH_SIZE = 499;
-    for (let i = 0; i < exercisesToDeleteRefs.length; i += BATCH_SIZE) {
-        const batch = adminDb.batch();
-        const chunk = exercisesToDeleteRefs.slice(i, i + BATCH_SIZE);
-        chunk.forEach(ref => batch.delete(ref));
-        await batch.commit();
-    }
-  }
-
-  exercisesToKeep.sort((a, b) => (a.ejercicio || '').localeCompare(b.ejercicio || ''));
-
-  return { exercises: exercisesToKeep, deletedCount };
+  // The cleaning logic is removed to prevent permission errors.
+  // Duplicates can be managed manually by the admin for now.
+  return { exercises, deletedCount: 0 };
 }
 
 
