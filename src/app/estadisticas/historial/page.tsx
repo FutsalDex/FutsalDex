@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp, doc } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -188,7 +188,7 @@ function HistorialPageContent() {
           try {
             const db = getFirebaseDb();
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
-            const rosterSnap = await getDocs(rosterDocRef);
+            const rosterSnap = await getDoc(rosterDocRef);
             if (rosterSnap.exists()) {
               const data = rosterSnap.data();
               const teamInfo = { name: data.equipo || '', campeonato: data.campeonato || '' };
@@ -480,5 +480,7 @@ export default function HistorialEstadisticasPage() {
         <HistorialPageContent />
     );
 }
+
+    
 
     
