@@ -10,6 +10,9 @@ import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
+import { getFirebaseDb } from '@/lib/firebase';
+import { addDoc, collection, serverTimestamp as clientServerTimestamp } from 'firebase/firestore';
+
 
 // --- Favorite Exercise ---
 
@@ -114,10 +117,11 @@ type SaveMatchInput = z.infer<typeof SaveMatchInputSchema>;
 
 export async function saveMatch({ matchData }: SaveMatchInput): Promise<{ matchId: string }> {
     try {
-      const adminDb = getAdminDb();
-      const docRef = await adminDb.collection("partidos_estadisticas").add({
+      const clientDb = getFirebaseDb();
+      const collectionRef = collection(clientDb, "partidos_estadisticas");
+      const docRef = await addDoc(collectionRef, {
         ...matchData,
-        createdAt: FieldValue.serverTimestamp(),
+        createdAt: clientServerTimestamp(),
       });
       return { matchId: docRef.id };
     } catch (error) {
@@ -125,5 +129,3 @@ export async function saveMatch({ matchData }: SaveMatchInput): Promise<{ matchI
        throw new Error("Failed to save match.");
     }
 }
-
-    
