@@ -1,57 +1,33 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Exercises are public to read for everyone
+
+    // Regla 1: Denegar todo por defecto para máxima seguridad.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Regla 2: La colección de ejercicios es de lectura pública para todos.
+    // La escritura se gestiona a través del panel de admin con el SDK de servidor,
+    // que ignora estas reglas. Por tanto, la escritura desde el cliente está denegada.
     match /ejercicios_futsal/{exerciseId} {
       allow read: if true;
-      // Write access is restricted to admin roles (handled via server-side actions)
-      allow write: if false; 
+      allow write: if false;
     }
 
-    // User profile data
+    // Regla 3: Un usuario puede leer y actualizar su propio documento de usuario.
+    // La creación se permite si el UID del usuario coincide con el ID del documento.
     match /usuarios/{userId} {
-      // Users can read and update their own profile
       allow read, update: if request.auth != null && request.auth.uid == userId;
-      // Admins can read any user profile
-      allow read: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
-      // Only server/admin actions can create or delete user documents
-      allow create, delete: if false;
+      allow create: if request.auth != null && request.auth.uid == userId;
     }
 
-    // User-specific favorite exercises
-    match /usuarios/{userId}/user_favorites/{exerciseId} {
-      // Users can manage their own favorites
+    // Regla 4: Un usuario puede gestionar todos los documentos en sus propias subcolecciones.
+    // Esto cubre 'mis_sesiones', 'partidos_estadisticas', 'user_favorites', y la subcolección 'team'.
+    match /usuarios/{userId}/{subcollection}/{docId} {
       allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // User-specific team roster
-     match /usuarios/{userId}/team/{docId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // User-specific sessions
-    match /mis_sesiones/{sessionId} {
-      // A user can do anything with a session document if their UID matches the userId field in it.
-      // This applies to read, update, and delete.
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      // A user can create a new session document if the userId they are setting matches their own UID.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-
-    // User-specific match statistics
-    match /partidos_estadisticas/{partidoId} {
-       // A user can do anything with a match document if their UID matches the userId field in it.
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-       // A user can create a new match document if the userId they are setting matches their own UID.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    
-    // User-specific support chats
-    match /support_chats/{chatId} {
-      // A user can manage their own chat document if their UID matches the userId field.
-      allow read, write, create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
