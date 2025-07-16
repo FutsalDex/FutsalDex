@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp, getDoc as getRosterDoc, doc } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -40,7 +40,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertTitle, AlertDescription as AlertDesc } from "@/components/ui/alert";
-import { deleteMatch, saveMatch, fetchMatchesForUser } from "@/lib/actions/user-actions";
+import { deleteMatch, saveMatch } from "@/lib/actions/user-actions";
 
 
 // New Match Schema
@@ -124,14 +124,71 @@ function HistorialPageContent() {
       }
     });
 
+    const fetchMatches = useCallback(async () => {
+        if (!isRegisteredUser) {
+            setMatches(createGuestMatches());
+            setIsLoading(false);
+            return;
+        }
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const db = getFirebaseDb();
+            const q = query(
+                collection(db, "partidos_estadisticas"),
+                where("userId", "==", user.uid),
+                orderBy("fecha", "desc")
+            );
+
+            const querySnapshot = await getDocs(q);
+            const fetchedMatches = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                const createdAtTimestamp = data.createdAt as Timestamp;
+                const createdAtISO = createdAtTimestamp?.toDate ? createdAtTimestamp.toDate().toISOString() : new Date().toISOString();
+                
+                return {
+                    id: doc.id,
+                    myTeamName: data.myTeamName || '',
+                    opponentTeamName: data.opponentTeamName || '',
+                    fecha: data.fecha || '',
+                    hora: data.hora,
+                    tipoPartido: data.tipoPartido,
+                    myTeamPlayers: data.myTeamPlayers || [],
+                    opponentPlayers: data.opponentPlayers || [],
+                    createdAt: createdAtISO,
+                } as SavedMatch;
+            });
+            setMatches(fetchedMatches);
+        } catch (error: any) {
+            console.error("Error fetching match history:", error);
+            toast({
+                title: "Error al Cargar Partidos",
+                description: "No se pudieron cargar tus partidos. Revisa la consola (F12) para más detalles.",
+                variant: "destructive"
+            });
+        }
+        setIsLoading(false);
+    }, [user, toast, isRegisteredUser]);
+
     useEffect(() => {
-        if (!isRegisteredUser) return;
+        if (isRegisteredUser) {
+            fetchMatches();
+        } else {
+            setMatches(createGuestMatches());
+            setIsLoading(false);
+        }
+    }, [isRegisteredUser, fetchMatches]);
+
+    useEffect(() => {
+        if (!isRegisteredUser || !user) return;
         const fetchRosterInfo = async () => {
-          if (!user) return;
           try {
             const db = getFirebaseDb();
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
-            const rosterSnap = await getRosterDoc(rosterDocRef);
+            const rosterSnap = await getDocs(rosterDocRef);
             if (rosterSnap.exists()) {
               const data = rosterSnap.data();
               const teamInfo = { name: data.equipo || '', campeonato: data.campeonato || '' };
@@ -153,35 +210,6 @@ function HistorialPageContent() {
         fetchRosterInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, isRegisteredUser]);
-
-    const fetchMatches = useCallback(async () => {
-        if (!isRegisteredUser) {
-            setMatches(createGuestMatches());
-            setIsLoading(false);
-            return;
-        }
-        if (!user) {
-            setIsLoading(false);
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const fetchedMatches = await fetchMatchesForUser({ userId: user.uid });
-            setMatches(fetchedMatches as SavedMatch[]);
-        } catch (error: any) {
-            console.error("Error fetching match history:", error);
-            toast({
-                title: "Error al Cargar Partidos",
-                description: "No se pudieron cargar tus partidos. Inténtalo de nuevo.",
-                variant: "destructive"
-            });
-        }
-        setIsLoading(false);
-    }, [user, toast, isRegisteredUser]);
-
-    useEffect(() => {
-        fetchMatches();
-    }, [fetchMatches]);
     
     const handleDeleteClick = (id: string) => {
       setMatchToDeleteId(id);
@@ -452,3 +480,5 @@ export default function HistorialEstadisticasPage() {
         <HistorialPageContent />
     );
 }
+
+    

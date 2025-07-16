@@ -8,8 +8,6 @@
 
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
-import { getFirebaseDb } from '@/lib/firebase';
-import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -128,44 +126,4 @@ export async function saveMatch({ matchData }: SaveMatchInput): Promise<{ matchI
     }
 }
 
-
-// --- Fetch Matches for User ---
-const FetchMatchesInputSchema = z.object({
-    userId: z.string(),
-});
-type FetchMatchesInput = z.infer<typeof FetchMatchesInputSchema>;
-
-export async function fetchMatchesForUser({ userId }: FetchMatchesInput): Promise<any[]> {
-    try {
-        const clientDb = getFirebaseDb();
-        const q = query(
-            collection(clientDb, "partidos_estadisticas"),
-            where("userId", "==", userId),
-            orderBy("fecha", "desc")
-        );
-
-        const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            
-            // Safely handle timestamp serialization
-            const createdAtTimestamp = data.createdAt as Timestamp;
-            let createdAtISO = new Date().toISOString(); // Default value
-            if (createdAtTimestamp && typeof createdAtTimestamp.toDate === 'function') {
-                createdAtISO = createdAtTimestamp.toDate().toISOString();
-            }
-
-            return {
-                id: doc.id,
-                ...data,
-                // Ensure fecha is a string, provide a default if it's missing or invalid
-                fecha: typeof data.fecha === 'string' && data.fecha ? data.fecha : new Date().toISOString().split('T')[0],
-                // Convert Timestamp to ISO string for serialization
-                createdAt: createdAtISO,
-            };
-        });
-    } catch (error) {
-        console.error("Error fetching matches:", error);
-        throw new Error("Failed to fetch matches for user.");
-    }
-}
+    
