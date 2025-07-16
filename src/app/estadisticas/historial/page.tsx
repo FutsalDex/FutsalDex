@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Eye, History, PlusCircle, Edit, Trash2, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, History, PlusCircle, BarChart2, Trash2, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -78,6 +78,7 @@ const createInitialTeamStats = () => ({
   turnovers: { firstHalf: 0, secondHalf: 0 },
   steals: { firstHalf: 0, secondHalf: 0 },
   timeouts: { firstHalf: 0, secondHalf: 0 },
+  faltas: { firstHalf: 0, secondHalf: 0 },
 });
 
 const createGuestMatches = (): SavedMatch[] => {
@@ -243,13 +244,15 @@ function HistorialPageContent() {
           opponentTeamStats: createInitialTeamStats(),
           myTeamPlayers: [],
           opponentPlayers: [],
+          timer: { duration: 25 * 60 },
         };
 
         try {
-            await saveMatch({ matchData: newMatchData as any });
+            const { matchId } = await saveMatch({ matchData: newMatchData as any });
             toast({ title: "Partido Añadido", description: "El nuevo partido se ha guardado. Ahora puedes editarlo para añadir estadísticas." });
             setIsAddMatchDialogOpen(false);
             fetchMatches(); // Refresh the list
+            router.push(`/estadisticas/edit/${matchId}`);
         } catch (error) {
             console.error("Error saving new match: ", error);
             toast({ title: "Error al Guardar", description: "No se pudo añadir el nuevo partido.", variant: "destructive" });
@@ -358,7 +361,7 @@ function HistorialPageContent() {
                                       <Button type="button" variant="ghost" onClick={() => setIsAddMatchDialogOpen(false)}>Cancelar</Button>
                                       <Button type="submit" disabled={isSavingMatch}>
                                           {isSavingMatch && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                          Guardar Partido
+                                          Guardar y Editar
                                       </Button>
                                   </DialogFooter>
                                 </form>
@@ -410,8 +413,8 @@ function HistorialPageContent() {
                                 <Button asChild variant="ghost" size="icon" title="Ver Detalles" disabled={!isRegisteredUser}>
                                   <Link href={`/estadisticas/historial/${match.id}`}><Eye className="h-4 w-4"/></Link>
                                 </Button>
-                                <Button asChild variant="ghost" size="icon" title="Editar Estadísticas" disabled={!isRegisteredUser}>
-                                  <Link href={`/estadisticas/edit/${match.id}`}><Edit className="h-4 w-4"/></Link>
+                                <Button asChild variant="ghost" size="icon" title="Gestionar Partido en Vivo" disabled={!isRegisteredUser}>
+                                  <Link href={`/estadisticas/edit/${match.id}`}><BarChart2 className="h-4 w-4"/></Link>
                                 </Button>
                                 <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)} disabled={!isRegisteredUser}>
                                   <Trash2 className="h-4 w-4 text-destructive"/>

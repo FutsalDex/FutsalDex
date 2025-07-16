@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Edit, Info } from "lucide-react";
-import React, { useState, useEffect, useCallback } from "react";
+import { BarChart2, Plus, Minus, RotateCw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -91,6 +91,7 @@ interface TeamStats {
   turnovers: HalfStats;
   steals: HalfStats;
   timeouts: HalfStats;
+  faltas: HalfStats;
 }
 
 const initialHalfStats: HalfStats = { firstHalf: 0, secondHalf: 0 };
@@ -104,6 +105,7 @@ const createInitialTeamStats = (): TeamStats => ({
   turnovers: { ...initialHalfStats },
   steals: { ...initialHalfStats },
   timeouts: { ...initialHalfStats },
+  faltas: { ...initialHalfStats },
 });
 
 // Demo data creators
@@ -130,14 +132,16 @@ const createGuestTeamStats = (isMyTeam: boolean): TeamStats => {
             shots: { onTarget: { firstHalf: 5, secondHalf: 7 }, offTarget: { firstHalf: 3, secondHalf: 4 }, blocked: { firstHalf: 1, secondHalf: 2 } },
             turnovers: { firstHalf: 6, secondHalf: 8 },
             steals: { firstHalf: 9, secondHalf: 11 },
-            timeouts: { firstHalf: 1, secondHalf: 0 }
+            timeouts: { firstHalf: 1, secondHalf: 0 },
+            faltas: { firstHalf: 4, secondHalf: 3 },
         };
     }
     return {
         shots: { onTarget: { firstHalf: 4, secondHalf: 6 }, offTarget: { firstHalf: 2, secondHalf: 3 }, blocked: { firstHalf: 3, secondHalf: 1 } },
         turnovers: { firstHalf: 10, secondHalf: 9 },
         steals: { firstHalf: 5, secondHalf: 7 },
-        timeouts: { firstHalf: 0, secondHalf: 1 }
+        timeouts: { firstHalf: 0, secondHalf: 1 },
+        faltas: { firstHalf: 2, secondHalf: 5 },
     };
 };
 
@@ -171,6 +175,47 @@ function EditMatchPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState<'local' | 'visitante'>('local');
+
+  // Timer State
+  const [timerDuration, setTimerDuration] = useState(25 * 60); // 25 minutes in seconds
+  const [time, setTime] = useState(timerDuration);
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [activeHalf, setActiveHalf] = useState<'firstHalf' | 'secondHalf'>('firstHalf');
+
+  const myTeamTotalFouls = useMemo(() => {
+    if (!myTeamStats) return 0;
+    return myTeamStats.faltas[activeHalf]
+  }, [myTeamStats, activeHalf]);
+
+  const opponentTeamTotalFouls = useMemo(() => {
+    if (!opponentTeamStats) return 0;
+    return opponentTeamStats.faltas[activeHalf]
+  }, [opponentTeamStats, activeHalf]);
+
+  // Timer Effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isTimerActive && time > 0) {
+      interval = setInterval(() => {
+        setTime((prevTime) => prevTime - 1);
+      }, 1000);
+    } else if (isTimerActive && time === 0) {
+      setIsTimerActive(false);
+      toast({
+        title: "Final de la parte",
+        description: `El tiempo para la ${activeHalf === 'firstHalf' ? 'primera' : 'segunda'} parte ha terminado.`,
+      });
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerActive, time, activeHalf, toast]);
+  
+  const formatTime = useMemo(() => {
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, [time]);
 
   useEffect(() => {
     const setupDemoMode = () => {
@@ -238,6 +283,8 @@ function EditMatchPageContent() {
             const defaults = createInitialTeamStats();
             if (!data) return defaults;
             return {
+                ...defaults,
+                ...data,
                 shots: {
                     onTarget: { ...defaults.shots.onTarget, ...data.shots?.onTarget },
                     offTarget: { ...defaults.shots.offTarget, ...data.shots?.offTarget },
@@ -246,6 +293,7 @@ function EditMatchPageContent() {
                 turnovers: { ...defaults.turnovers, ...data.turnovers },
                 steals: { ...defaults.steals, ...data.steals },
                 timeouts: { ...defaults.timeouts, ...data.timeouts },
+                faltas: { ...defaults.faltas, ...data.faltas },
             };
         };
         
@@ -256,6 +304,9 @@ function EditMatchPageContent() {
         setTipoPartido(matchData.tipoPartido || "");
         setMyTeamStats(mergeWithDefaults(matchData.myTeamStats));
         setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
+        setTime(matchData.timer?.duration || 25 * 60);
+        setTimerDuration(matchData.timer?.duration || 25 * 60);
+
 
         const roster: Player[] = rosterData.players || [];
         const enrichedMyTeamPlayers = roster.map(rosterPlayer => {
@@ -333,6 +384,7 @@ function EditMatchPageContent() {
         opponentTeamStats,
         myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
         opponentPlayers: filterOpponentPlayers(opponentPlayers),
+        timer: { duration: timerDuration },
         updatedAt: serverTimestamp(),
      };
 
@@ -396,6 +448,15 @@ function EditMatchPageContent() {
       setter(produce(draft => {
           (draft[index] as any)[field] = Math.max(0, (draft[index] as any)[field] + delta);
       }));
+
+      if(field === 'faltas') {
+        const teamSetter = team === 'myTeam' ? setMyTeamStats : setOpponentTeamStats;
+        teamSetter(produce(draft => {
+            if(draft) {
+                draft.faltas[activeHalf] = Math.max(0, draft.faltas[activeHalf] + delta);
+            }
+        }));
+      }
   }
 
   const handleSetMyTeam = (side: 'local' | 'visitor') => {
@@ -610,14 +671,14 @@ function EditMatchPageContent() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
-      <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <header className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
-                <Edit className="mr-3 h-8 w-8"/>
-                Editar Estadísticas de Partido
+                <BarChart2 className="mr-3 h-8 w-8"/>
+                Marcador y Estadísticas en Vivo
             </h1>
             <p className="text-lg text-foreground/80">
-                Modifica las estadísticas guardadas de este partido.
+                Gestiona el partido en tiempo real.
             </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -627,62 +688,9 @@ function EditMatchPageContent() {
                     Cancelar
                 </Link>
             </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" disabled={!isRegisteredUser}>
-                  <FileText className="mr-2 h-4 w-4"/>
-                  Datos del Partido
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Datos del Partido</DialogTitle>
-                  <DialogDescription>
-                    Modifica la información general del encuentro.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="fecha" className="text-right">Fecha</Label>
-                    <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="hora" className="text-right">Hora</Label>
-                    <Input id="hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="tipoPartido" className="text-right">Tipo</Label>
-                    <Select value={tipoPartido} onValueChange={setTipoPartido}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Seleccionar tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Amistoso">Amistoso</SelectItem>
-                        <SelectItem value="Liga">Liga</SelectItem>
-                        <SelectItem value="Torneo">Torneo</SelectItem>
-                        <SelectItem value="Copa">Copa</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="campeonato" className="text-right">Campeonato</Label>
-                    <Input id="campeonato" value={campeonato} onChange={(e) => setCampeonato(e.target.value)} placeholder="Ej: Liga Local" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="jornada" className="text-right">Jornada</Label>
-                    <Input id="jornada" value={jornada} onChange={(e) => setJornada(e.target.value)} placeholder="Ej: Jornada 5" className="col-span-3" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button">Aceptar</Button>
-                  </DialogClose>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
             <Button onClick={handleUpdateStats} disabled={isSaving || !isRegisteredUser}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Actualizar Partido
+                Guardar y Salir
             </Button>
         </div>
       </header>
@@ -699,28 +707,33 @@ function EditMatchPageContent() {
             </Alert>
         )}
 
-      <Card className="mb-6">
-        <CardHeader>
-            <CardTitle>Información del Partido</CardTitle>
-            <CardDescription>
-                Edita los nombres de los equipos. Usa el botón para asignar rápidamente el nombre de tu equipo guardado en tu plantilla.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <Label htmlFor="localTeamName">Equipo Local</Label>
-                    <div className="flex gap-2 items-center">
-                        <Input id="localTeamName" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} placeholder="Nombre del equipo local" disabled={!isRegisteredUser}/>
-                         <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('local')} className="px-3 text-xs shrink-0" disabled={!isRegisteredUser}>Usar mi equipo</Button>
-                    </div>
+      <Card className="mb-6 text-center">
+        <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-around w-full">
+                <div className="flex-1">
+                    <p className="font-bold truncate text-lg">{localTeamName}</p>
+                     {myTeamSide === 'local' && myTeamTotalFouls >= 5 && <ShieldAlert className="mx-auto mt-1 h-5 w-5 text-destructive" />}
                 </div>
-                <div>
-                    <Label htmlFor="visitorTeamName">Equipo Visitante</Label>
-                    <div className="flex gap-2 items-center">
-                        <Input id="visitorTeamName" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} placeholder="Nombre del equipo visitante" disabled={!isRegisteredUser}/>
-                        <Button type="button" variant="outline" size="sm" onClick={() => handleSetMyTeam('visitante')} className="px-3 text-xs shrink-0" disabled={!isRegisteredUser}>Usar mi equipo</Button>
-                    </div>
+                <div className="flex-1 text-4xl font-bold text-primary">
+                    {(myTeamSide === 'local' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals, 0)} - {(myTeamSide === 'visitante' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals, 0)}
+                </div>
+                <div className="flex-1">
+                    <p className="font-bold truncate text-lg">{visitorTeamName}</p>
+                    {myTeamSide === 'visitante' && myTeamTotalFouls >= 5 && <ShieldAlert className="mx-auto mt-1 h-5 w-5 text-destructive" />}
+                    {myTeamSide !== 'visitante' && opponentTeamTotalFouls >= 5 && <ShieldAlert className="mx-auto mt-1 h-5 w-5 text-destructive" />}
+                </div>
+            </div>
+             <div className="bg-primary text-primary-foreground rounded-lg px-6 py-2 my-2 inline-block">
+                <h1 className="text-5xl font-bold tracking-widest font-mono">{formatTime}</h1>
+            </div>
+            <div className="flex justify-center items-center gap-4">
+                <Button onClick={() => setIsTimerActive(!isTimerActive)} className="w-32" variant={isTimerActive ? 'destructive' : 'default'}>
+                    {isTimerActive ? <Pause className="mr-2" /> : <Play className="mr-2" />}
+                    {isTimerActive ? 'Pausar' : 'Iniciar'}
+                </Button>
+                <div className="flex items-center gap-2">
+                    <Button onClick={() => setActiveHalf('firstHalf')} variant={activeHalf === 'firstHalf' ? 'secondary' : 'outline'} size="sm">1ª Parte</Button>
+                    <Button onClick={() => setActiveHalf('secondHalf')} variant={activeHalf === 'secondHalf' ? 'secondary' : 'outline'} size="sm">2ª Parte</Button>
                 </div>
             </div>
         </CardContent>
