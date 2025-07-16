@@ -11,7 +11,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { getFirebaseDb } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp as clientServerTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp as clientServerTimestamp, doc, deleteDoc } from 'firebase/firestore';
 
 
 // --- Favorite Exercise ---
@@ -83,8 +83,8 @@ type DeleteMatchInput = z.infer<typeof DeleteMatchInputSchema>;
 
 export async function deleteMatch({ matchId }: DeleteMatchInput): Promise<{ success: boolean }> {
   try {
-    const adminDb = getAdminDb();
-    await adminDb.collection("partidos_estadisticas").doc(matchId).delete();
+    const clientDb = getFirebaseDb();
+    await deleteDoc(doc(clientDb, "partidos_estadisticas", matchId));
   } catch (error) {
     console.error("Error deleting match:", error);
     throw new Error("Failed to delete match.");
@@ -100,8 +100,8 @@ type DeleteSessionInput = z.infer<typeof DeleteSessionInputSchema>;
 
 export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<{ success: boolean }> {
   try {
-    const adminDb = getAdminDb();
-    await adminDb.collection("mis_sesiones").doc(sessionId).delete();
+    const clientDb = getFirebaseDb();
+    await deleteDoc(doc(clientDb, "mis_sesiones", sessionId));
   } catch(error) {
      console.error("Error deleting session:", error);
      throw new Error("Failed to delete session.");

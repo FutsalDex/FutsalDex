@@ -338,6 +338,8 @@ function EstadisticasPageContent() {
 
 
     setIsSaving(true);
+    
+    // Create a clean data object to pass to the server action
     const matchData = {
         userId: user.uid,
         myTeamName: finalMyTeamName,
@@ -348,11 +350,12 @@ function EstadisticasPageContent() {
         campeonato,
         jornada,
         tipoPartido: tipoPartido || null,
-        myTeamStats,
-        opponentTeamStats,
+        myTeamStats: { ...myTeamStats }, // Create a plain copy
+        opponentTeamStats: { ...opponentTeamStats }, // Create a plain copy
         myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
         opponentPlayers: filterOpponentPlayers(opponentPlayers),
     };
+
     try {
         await saveMatch({ matchData });
         toast({ title: "Estadísticas Guardadas", description: "El partido se ha guardado en tu historial." });
