@@ -66,7 +66,7 @@ interface SavedMatch {
     tipoPartido?: string;
     myTeamPlayers?: { goals: number; }[];
     opponentPlayers: { goals: number; }[];
-    createdAt: Timestamp;
+    createdAt: string; // Changed to string for serialization
 }
 
 const createInitialTeamStats = () => ({
@@ -88,9 +88,9 @@ const createGuestMatches = (): SavedMatch[] => {
         return date.toISOString().split('T')[0];
     };
     return [
-        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: 5 }], opponentPlayers: [{ goals: 3 }], createdAt: Timestamp.now() },
-        { id: 'demo2', myTeamName: 'Furia Roja', opponentTeamName: 'FutsalDex Demo', fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: 2 }], opponentPlayers: [{ goals: 2 }], createdAt: Timestamp.now() },
-        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: 7 }], opponentPlayers: [{ goals: 4 }], createdAt: Timestamp.now() },
+        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: 5 }], opponentPlayers: [{ goals: 3 }], createdAt: new Date().toISOString() },
+        { id: 'demo2', myTeamName: 'Furia Roja', opponentTeamName: 'FutsalDex Demo', fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: 2 }], opponentPlayers: [{ goals: 2 }], createdAt: new Date().toISOString() },
+        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: 7 }], opponentPlayers: [{ goals: 4 }], createdAt: new Date().toISOString() },
     ];
 };
 

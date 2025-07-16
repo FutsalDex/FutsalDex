@@ -136,12 +136,7 @@ export async function saveMatch({ matchData }: SaveMatchInput): Promise<{ matchI
        const newMatch = { 
           id: newId, 
           ...matchData,
-          // Firestore Timestamps can't be directly created on client, so we simulate
-          createdAt: {
-            toDate: () => new Date(),
-            _seconds: Math.floor(Date.now() / 1000),
-            _nanoseconds: (Date.now() % 1000) * 1000000
-          } as unknown as Timestamp
+          createdAt: new Date().toISOString()
         };
        const allMatches = getFromCache<any[]>('matches', 3600 * 1000) || [];
        allMatches.push(newMatch);
@@ -165,7 +160,16 @@ export async function fetchMatchesForUser({ userId }: FetchMatchesInput): Promis
             .orderBy("fecha", "desc")
             .orderBy("createdAt", "desc");
         const querySnapshot = await q.get();
-        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            const createdAtTimestamp = data.createdAt as Timestamp;
+            return {
+                id: doc.id,
+                ...data,
+                // Convert Timestamp to ISO string for serialization
+                createdAt: createdAtTimestamp?.toDate ? createdAtTimestamp.toDate().toISOString() : new Date().toISOString(),
+            };
+        });
     } catch (error) {
         console.warn("Admin DB not available for fetchMatchesForUser, using cache fallback.", error);
         // Fallback for local dev
@@ -177,7 +181,10 @@ export async function fetchMatchesForUser({ userId }: FetchMatchesInput): Promis
                 const dateA = new Date(a.fecha).getTime();
                 const dateB = new Date(b.fecha).getTime();
                 if (dateB !== dateA) return dateB - dateA;
-                return b.createdAt._seconds - a.createdAt._seconds;
+                
+                const createdAtA = new Date(a.createdAt).getTime();
+                const createdAtB = new Date(b.createdAt).getTime();
+                return createdAtB - createdAtA;
             });
         return userMatches;
     }
