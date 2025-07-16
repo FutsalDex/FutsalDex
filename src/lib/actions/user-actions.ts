@@ -138,8 +138,7 @@ export async function fetchMatchesForUser({ userId }: FetchMatchesInput): Promis
         const adminDb = getAdminDb();
         const q = adminDb.collection("partidos_estadisticas")
             .where("userId", "==", userId)
-            .orderBy("fecha", "desc")
-            .orderBy("createdAt", "desc");
+            .orderBy("fecha", "desc");
         const querySnapshot = await q.get();
         return querySnapshot.docs.map(doc => {
             const data = doc.data();
