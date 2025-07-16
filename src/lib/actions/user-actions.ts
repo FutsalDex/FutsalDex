@@ -147,12 +147,21 @@ export async function fetchMatchesForUser({ userId }: FetchMatchesInput): Promis
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(doc => {
             const data = doc.data();
+            
+            // Safely handle timestamp serialization
             const createdAtTimestamp = data.createdAt as Timestamp;
+            let createdAtISO = new Date().toISOString(); // Default value
+            if (createdAtTimestamp && typeof createdAtTimestamp.toDate === 'function') {
+                createdAtISO = createdAtTimestamp.toDate().toISOString();
+            }
+
             return {
                 id: doc.id,
                 ...data,
+                // Ensure fecha is a string, provide a default if it's missing or invalid
+                fecha: typeof data.fecha === 'string' && data.fecha ? data.fecha : new Date().toISOString().split('T')[0],
                 // Convert Timestamp to ISO string for serialization
-                createdAt: createdAtTimestamp?.toDate ? createdAtTimestamp.toDate().toISOString() : new Date().toISOString(),
+                createdAt: createdAtISO,
             };
         });
     } catch (error) {
