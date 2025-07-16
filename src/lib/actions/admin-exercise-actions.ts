@@ -113,7 +113,29 @@ const AdminExerciseListOutputSchema = z.object({
 export type AdminExerciseListOutput = z.infer<typeof AdminExerciseListOutputSchema>;
 
 export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutput> {
-  const adminDb = getAdminDb();
+  let adminDb;
+  try {
+    adminDb = getAdminDb();
+    // This line will throw if the Admin SDK is not initialized, and we'll catch it.
+    await adminDb.listCollections();
+  } catch (e) {
+    console.warn(
+      "Admin SDK no disponible en entorno local. " +
+      "Se omitirá la limpieza de ejercicios duplicados. " +
+      "La limpieza se ejecutará en producción."
+    );
+    // Fallback to client SDK just to read the data without cleaning
+    const clientDb = getFirebaseDb();
+    const snapshot = await getDocs(collection(clientDb, "ejercicios_futsal"));
+    const exercises = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        const parsed = AdminExerciseSchema.safeParse({ id: docSnap.id, ...data });
+        return parsed.success ? parsed.data : null;
+    }).filter((ex): ex is AdminExercise => ex !== null);
+
+    return { exercises, deletedCount: 0 };
+  }
+
   const exercisesCollection = adminDb.collection("ejercicios_futsal");
   const snapshot = await exercisesCollection.get();
 
