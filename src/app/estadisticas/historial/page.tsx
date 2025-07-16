@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp, doc } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp, doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
