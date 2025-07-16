@@ -12,7 +12,7 @@ import { addExerciseSchema } from '@/lib/schemas';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
-import { collection, query, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, getDocs, writeBatch as clientWriteBatch, doc } from 'firebase/firestore';
 
 
 // --- Add Exercise ---
@@ -113,9 +113,9 @@ const AdminExerciseListOutputSchema = z.object({
 export type AdminExerciseListOutput = z.infer<typeof AdminExerciseListOutputSchema>;
 
 export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutput> {
-  const db = getFirebaseDb(); // Use client SDK
-  const exercisesCollection = collection(db, "ejercicios_futsal");
-  const snapshot = await getDocs(query(exercisesCollection));
+  const adminDb = getAdminDb();
+  const exercisesCollection = adminDb.collection("ejercicios_futsal");
+  const snapshot = await exercisesCollection.get();
 
   if (snapshot.empty) {
     return { exercises: [], deletedCount: 0 };
@@ -154,7 +154,7 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
   });
 
   const exercisesToKeep: AdminExercise[] = [];
-  const exercisesToDeleteRefs: any[] = []; // Using 'any' for client-side doc ref
+  const exercisesToDeleteRefs: FirebaseFirestore.DocumentReference[] = [];
 
   for (const name in exercisesByName) {
     const group = exercisesByName[name];
@@ -172,7 +172,7 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
       exercisesToKeep.push(bestToKeep);
 
       for (let i = 1; i < group.length; i++) {
-        exercisesToDeleteRefs.push(doc(db, "ejercicios_futsal", group[i].id));
+        exercisesToDeleteRefs.push(adminDb.collection("ejercicios_futsal").doc(group[i].id));
       }
     } else {
       exercisesToKeep.push(group[0]);
@@ -184,7 +184,7 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
     deletedCount = exercisesToDeleteRefs.length;
     const BATCH_SIZE = 499;
     for (let i = 0; i < exercisesToDeleteRefs.length; i += BATCH_SIZE) {
-        const batch = writeBatch(db); // Use client-side writeBatch
+        const batch = adminDb.batch();
         const chunk = exercisesToDeleteRefs.slice(i, i + BATCH_SIZE);
         chunk.forEach(ref => batch.delete(ref));
         await batch.commit();

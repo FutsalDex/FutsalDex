@@ -4,6 +4,7 @@ import { initializeApp, getApps, getApp, cert, type ServiceAccount } from 'fireb
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
 let adminDbInstance: Firestore | null = null;
+let isInitialized = false;
 
 function isServiceAccountConfigured(sa: ServiceAccount): boolean {
     return !!sa.projectId && !sa.projectId.startsWith('__') &&
@@ -12,9 +13,15 @@ function isServiceAccountConfigured(sa: ServiceAccount): boolean {
 }
 
 export function getAdminDb(): Firestore {
-  if (adminDbInstance) {
-    return adminDbInstance;
+  if (isInitialized) {
+    if (adminDbInstance) {
+      return adminDbInstance;
+    }
+    // If it was initialized but failed, throw the clear error.
+    throw new Error(`Se intentó usar una instancia de Firebase Admin DB que no pudo ser inicializada. Revisa la configuración de credenciales del servidor.`);
   }
+
+  isInitialized = true; // Mark as initialized to prevent re-running this logic
 
   const serviceAccount: ServiceAccount = {
       projectId: process.env.FIREBASE_PROJECT_ID || '__FIREBASE_PROJECT_ID__',
@@ -28,10 +35,14 @@ export function getAdminDb(): Firestore {
           'Las funciones de administrador (como guardado de datos) no funcionarán en el entorno local. ' +
           'Esto es normal si no se han configurado secretos para desarrollo local. En producción, esto es un error.'
       );
-      // Devolvemos un objeto que lanzará un error claro si se intenta usar
+      // Return a proxy that will throw a more helpful error upon use
       return new Proxy({}, {
           get(target, prop) {
-              throw new Error(`Se intentó acceder a '${String(prop)}' en una instancia no inicializada de Firebase Admin DB. Asegúrate de que las credenciales del servidor estén configuradas en tu entorno local si necesitas usar funciones de administrador.`);
+              // Only throw for functions that would interact with Firestore
+              if (typeof prop === 'string' && ['collection', 'batch', 'doc'].includes(prop)) {
+                  throw new Error(`Se intentó acceder a '${prop}' en una instancia no inicializada de Firebase Admin DB. Asegúrate de que las credenciales del servidor estén configuradas en tu entorno local si necesitas usar funciones de administrador.`);
+              }
+              return (target as any)[prop];
           }
       }) as Firestore;
   }
