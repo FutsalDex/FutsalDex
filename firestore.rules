@@ -1,45 +1,46 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Reglas para la colección de usuarios
+    // Ejercicios: Lectura pública, escritura solo para administradores (a implementar).
+    // Por ahora, la escritura se gestiona con el SDK de Admin en el servidor.
+    match /ejercicios_futsal/{exerciseId} {
+      allow read: if true;
+      allow write: if false; // Previene escrituras desde el cliente.
+    }
+
+    // Datos de Usuarios: Cada usuario solo puede leer y escribir su propio documento.
     match /usuarios/{userId} {
-      // Un usuario solo puede leer y escribir sus propios datos
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
-      // Un usuario solo puede leer y escribir en sus propias subcolecciones
-      match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Subcolecciones de usuario: solo el propietario puede acceder.
+      match /user_favorites/{favId} {
+         allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /team/{docId} {
+         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Reglas para la colección de ejercicios
-    match /ejercicios_futsal/{exerciseId} {
-      // CUALQUIERA puede leer los ejercicios (es información pública)
-      allow read: if true;
-      // SOLO los usuarios autenticados pueden crear, actualizar o eliminar ejercicios
-      // (Se refinará más adelante para que solo los admins puedan hacerlo desde el backend)
-      allow write: if request.auth != null;
-    }
-
-    // Reglas para las sesiones guardadas por los usuarios
+    // Sesiones: solo el propietario puede leer y escribir sus sesiones.
     match /mis_sesiones/{sessionId} {
-      // Un usuario solo puede leer y escribir sus propias sesiones
-      allow read, write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
 
-    // Reglas para los partidos guardados por los usuarios
+    // Partidos: solo el propietario puede leer y escribir sus partidos.
     match /partidos_estadisticas/{partidoId} {
-      // Un usuario solo puede leer y escribir sus propios partidos
-      allow read, write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+       allow read, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
     
-    // Reglas para el chat de soporte
+    // Chats de Soporte: solo el propietario puede acceder a sus chats.
     match /support_chats/{chatId} {
-        // Un usuario puede leer y escribir en sus propios chats
-        allow read, write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+       allow read, write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Regla de denegación por defecto para cualquier otra colección.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
