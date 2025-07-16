@@ -9,8 +9,9 @@
 
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getFromCache, setInCache } from '@/lib/cache';
+import { v4 as uuidv4 } from 'uuid';
 
 // --- Favorite Exercise ---
 
@@ -90,6 +91,10 @@ export async function deleteMatch({ matchId }: DeleteMatchInput): Promise<{ succ
     await adminDb.collection("partidos_estadisticas").doc(matchId).delete();
   } catch (error) {
     console.warn("Admin DB not available for deleteMatch, using cache fallback.", error);
+    // Fallback for local dev
+    const allMatches = getFromCache<any[]>('matches', 3600 * 1000) || [];
+    const updatedMatches = allMatches.filter(m => m.id !== matchId);
+    setInCache('matches', updatedMatches);
   }
   return { success: true };
 }
@@ -127,8 +132,53 @@ export async function saveMatch({ matchData }: SaveMatchInput): Promise<{ matchI
     } catch (error) {
        console.warn("Admin DB not available for saveMatch, using cache fallback.", error);
        // Fallback for local dev
-       const newId = `match_${Date.now()}`;
-       setInCache(`match_${newId}`, { id: newId, ...matchData });
+       const newId = `match_${uuidv4()}`;
+       const newMatch = { 
+          id: newId, 
+          ...matchData,
+          // Firestore Timestamps can't be directly created on client, so we simulate
+          createdAt: {
+            toDate: () => new Date(),
+            _seconds: Math.floor(Date.now() / 1000),
+            _nanoseconds: (Date.now() % 1000) * 1000000
+          } as unknown as Timestamp
+        };
+       const allMatches = getFromCache<any[]>('matches', 3600 * 1000) || [];
+       allMatches.push(newMatch);
+       setInCache('matches', allMatches);
        return { matchId: newId };
+    }
+}
+
+
+// --- Fetch Matches for User ---
+const FetchMatchesInputSchema = z.object({
+    userId: z.string(),
+});
+type FetchMatchesInput = z.infer<typeof FetchMatchesInputSchema>;
+
+export async function fetchMatchesForUser({ userId }: FetchMatchesInput): Promise<any[]> {
+    try {
+        const adminDb = getAdminDb();
+        const q = adminDb.collection("partidos_estadisticas")
+            .where("userId", "==", userId)
+            .orderBy("fecha", "desc")
+            .orderBy("createdAt", "desc");
+        const querySnapshot = await q.get();
+        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.warn("Admin DB not available for fetchMatchesForUser, using cache fallback.", error);
+        // Fallback for local dev
+        const allMatches = getFromCache<any[]>('matches', 3600 * 1000) || [];
+        // Filter by user and sort
+        const userMatches = allMatches
+            .filter(m => m.userId === userId)
+            .sort((a, b) => {
+                const dateA = new Date(a.fecha).getTime();
+                const dateB = new Date(b.fecha).getTime();
+                if (dateB !== dateA) return dateB - dateA;
+                return b.createdAt._seconds - a.createdAt._seconds;
+            });
+        return userMatches;
     }
 }

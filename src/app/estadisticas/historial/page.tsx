@@ -40,7 +40,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertTitle, AlertDescription as AlertDesc } from "@/components/ui/alert";
-import { deleteMatch, saveMatch } from "@/lib/actions/user-actions";
+import { deleteMatch, saveMatch, fetchMatchesForUser } from "@/lib/actions/user-actions";
 
 
 // New Match Schema
@@ -154,39 +154,26 @@ function HistorialPageContent() {
     }, [user, isRegisteredUser]);
 
     const fetchMatches = useCallback(async () => {
-        if (!user || !isRegisteredUser) {
+        if (!isRegisteredUser) {
             setMatches(createGuestMatches());
+            setIsLoading(false);
+            return;
+        }
+        if (!user) {
             setIsLoading(false);
             return;
         }
         setIsLoading(true);
         try {
-            const db = getFirebaseDb();
-            const q = query(
-                collection(db, "partidos_estadisticas"),
-                where("userId", "==", user.uid),
-                orderBy("fecha", "desc"),
-                orderBy("createdAt", "desc")
-            );
-            const querySnapshot = await getDocs(q);
-            const fetchedMatches = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SavedMatch));
-            setMatches(fetchedMatches);
+            const fetchedMatches = await fetchMatchesForUser({ userId: user.uid });
+            setMatches(fetchedMatches as SavedMatch[]);
         } catch (error: any) {
             console.error("Error fetching match history:", error);
-            if (error.code === 'failed-precondition') {
-                toast({
-                    title: "Índice Requerido",
-                    description: "Se necesita un índice en Firestore para esta consulta. Por favor, crea el índice desde el enlace en la consola de errores de tu navegador.",
-                    variant: "destructive",
-                    duration: 20000,
-                });
-            } else {
-                toast({
+            toast({
                 title: "Error al Cargar Partidos",
                 description: "No se pudieron cargar tus partidos. Inténtalo de nuevo.",
                 variant: "destructive"
-                });
-            }
+            });
         }
         setIsLoading(false);
     }, [user, toast, isRegisteredUser]);
