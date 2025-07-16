@@ -1,33 +1,50 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Regla 1: Denegar todo por defecto para máxima seguridad.
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Regla 2: La colección de ejercicios es de lectura pública para todos.
-    // La escritura se gestiona a través del panel de admin con el SDK de servidor,
-    // que ignora estas reglas. Por tanto, la escritura desde el cliente está denegada.
+    
+    // Los ejercicios son de lectura pública para todos
     match /ejercicios_futsal/{exerciseId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if false; // La escritura solo debe realizarse desde el servidor (Admin SDK)
     }
 
-    // Regla 3: Un usuario puede leer y actualizar su propio documento de usuario.
-    // La creación se permite si el UID del usuario coincide con el ID del documento.
+    // Perfil de usuario y sus subcolecciones
     match /usuarios/{userId} {
+      // Un usuario solo puede leer y actualizar su propio perfil.
       allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
+      // Un administrador puede leer el perfil de cualquier usuario.
+      allow get: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      
+      // Reglas para todas las subcolecciones de un usuario (favoritos, equipo, etc.)
+      match /{subcollection}/{docId} {
+        // El usuario debe estar autenticado y el ID del usuario en la URL debe coincidir con su propio ID.
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
-    // Regla 4: Un usuario puede gestionar todos los documentos en sus propias subcolecciones.
-    // Esto cubre 'mis_sesiones', 'partidos_estadisticas', 'user_favorites', y la subcolección 'team'.
-    match /usuarios/{userId}/{subcollection}/{docId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    // Sesiones de entrenamiento del usuario (colección de nivel raíz)
+    match /mis_sesiones/{sessionId} {
+      // Un usuario puede leer/actualizar/eliminar si su UID coincide con el guardado en el documento.
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Un usuario puede crear un nuevo documento si el userId que va a guardar es el suyo.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Estadísticas de partidos del usuario (colección de nivel raíz)
+    match /partidos_estadisticas/{partidoId} {
+      // Un usuario puede leer/actualizar/eliminar si su UID coincide con el guardado en el documento.
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Un usuario puede crear un nuevo documento si el userId que va a guardar es el suyo.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Chats de soporte del usuario (colección de nivel raíz)
+    match /support_chats/{chatId} {
+      // Para leer o actualizar un chat existente.
+      allow read, update: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Para crear un nuevo chat.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
