@@ -11,6 +11,9 @@ import { z } from 'zod';
 import { addExerciseSchema } from '@/lib/schemas';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { getFirebaseDb } from '@/lib/firebase';
+import { collection, query, getDocs, writeBatch, doc } from 'firebase/firestore';
+
 
 // --- Add Exercise ---
 
@@ -83,9 +86,10 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
 
 // --- Get Existing Exercise Names ---
 export async function getExistingExerciseNames(): Promise<string[]> {
-  const adminDb = getAdminDb();
-  const exercisesCollection = adminDb.collection("ejercicios_futsal");
-  const snapshot = await exercisesCollection.select('ejercicio').get();
+  const db = getFirebaseDb();
+  const exercisesCollection = collection(db, "ejercicios_futsal");
+  const q = query(exercisesCollection);
+  const snapshot = await getDocs(q);
   
   if (snapshot.empty) {
     return [];
@@ -109,9 +113,9 @@ const AdminExerciseListOutputSchema = z.object({
 export type AdminExerciseListOutput = z.infer<typeof AdminExerciseListOutputSchema>;
 
 export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutput> {
-  const adminDb = getAdminDb();
-  const exercisesCollection = adminDb.collection("ejercicios_futsal");
-  const snapshot = await exercisesCollection.get();
+  const db = getFirebaseDb(); // Use client SDK
+  const exercisesCollection = collection(db, "ejercicios_futsal");
+  const snapshot = await getDocs(query(exercisesCollection));
 
   if (snapshot.empty) {
     return { exercises: [], deletedCount: 0 };
@@ -119,12 +123,12 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
 
   const exercisesByName: { [key: string]: AdminExercise[] } = {};
   
-  snapshot.forEach(doc => {
-      const data = doc.data();
+  snapshot.forEach(docSnap => {
+      const data = docSnap.data();
       const exerciseName = (data.ejercicio || "").trim().toLowerCase();
       
       const parsed = AdminExerciseSchema.safeParse({
-        id: doc.id,
+        id: docSnap.id,
         numero: data.numero || "",
         ejercicio: data.ejercicio || "",
         descripcion: data.descripcion || "",
@@ -150,41 +154,37 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
   });
 
   const exercisesToKeep: AdminExercise[] = [];
-  const exercisesToDeleteRefs: FirebaseFirestore.DocumentReference[] = [];
+  const exercisesToDeleteRefs: any[] = []; // Using 'any' for client-side doc ref
 
   for (const name in exercisesByName) {
     const group = exercisesByName[name];
     if (group.length > 1) {
-      // Find the "best" one to keep: prefers non-placeholder images and more complete data
       group.sort((a, b) => {
         const aHasPlaceholder = a.imagen.includes('placehold.co');
         const bHasPlaceholder = b.imagen.includes('placehold.co');
         if (aHasPlaceholder !== bHasPlaceholder) {
-            return aHasPlaceholder ? 1 : -1; // b is better
+            return aHasPlaceholder ? 1 : -1;
         }
-        // Optional: further sorting by completeness, for now image is primary criteria
         return (b.descripcion?.length || 0) - (a.descripcion?.length || 0);
       });
       
       const bestToKeep = group[0];
       exercisesToKeep.push(bestToKeep);
 
-      // Mark the rest for deletion
       for (let i = 1; i < group.length; i++) {
-        exercisesToDeleteRefs.push(exercisesCollection.doc(group[i].id));
+        exercisesToDeleteRefs.push(doc(db, "ejercicios_futsal", group[i].id));
       }
     } else {
       exercisesToKeep.push(group[0]);
     }
   }
 
-
   let deletedCount = 0;
   if (exercisesToDeleteRefs.length > 0) {
     deletedCount = exercisesToDeleteRefs.length;
     const BATCH_SIZE = 499;
     for (let i = 0; i < exercisesToDeleteRefs.length; i += BATCH_SIZE) {
-        const batch = adminDb.batch();
+        const batch = writeBatch(db); // Use client-side writeBatch
         const chunk = exercisesToDeleteRefs.slice(i, i + BATCH_SIZE);
         chunk.forEach(ref => batch.delete(ref));
         await batch.commit();
@@ -230,27 +230,7 @@ export async function deleteAllExercises(): Promise<{ deletedCount: number }> {
         return { deletedCount: 0 };
     }
 
-    while (!snapshot.empty) {
-        const batch = adminDb.batch();
-        snapshot.docs.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-        const result = await batch.commit();
-        deletedCount += result.length;
-        
-        // Fetch the next batch
-        const nextSnapshot = await collectionRef.limit(500).get();
-        if (nextSnapshot.empty) {
-            break;
-        }
-        // This is a simplified approach. A more robust solution for very large collections
-        // would use cursors. For a few thousand documents, this is generally sufficient.
-        const anotherSnapshot = await collectionRef.limit(500).get();
-        if(anotherSnapshot.empty) break;
-    }
-    
-    // Repeat until the collection is empty
-    let lastSnapshot = await collectionRef.limit(500).get();
+    let lastSnapshot = snapshot;
     while(lastSnapshot.size > 0) {
       const batch = adminDb.batch();
       lastSnapshot.docs.forEach((doc) => {
