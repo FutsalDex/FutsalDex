@@ -108,24 +108,3 @@ export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<
   }
   return { success: true };
 }
-
-// --- Save Match ---
-const SaveMatchInputSchema = z.object({
-    matchData: z.any(),
-});
-type SaveMatchInput = z.infer<typeof SaveMatchInputSchema>;
-
-export async function saveMatch({ matchData }: SaveMatchInput): Promise<{ matchId: string }> {
-    try {
-      const clientDb = getFirebaseDb();
-      const collectionRef = collection(clientDb, "partidos_estadisticas");
-      const docRef = await addDoc(collectionRef, {
-        ...matchData,
-        createdAt: clientServerTimestamp(),
-      });
-      return { matchId: docRef.id };
-    } catch (error) {
-       console.error("Error saving match:", error);
-       throw new Error("Failed to save match.");
-    }
-}

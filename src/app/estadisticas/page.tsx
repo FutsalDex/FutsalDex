@@ -12,7 +12,7 @@ import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getFirebaseDb } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,7 +29,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { saveMatch } from "@/lib/actions/user-actions";
 
 
 // --- Helper Components ---
@@ -328,36 +327,38 @@ function EstadisticasPageContent() {
     }
 
     const myTeamWasHome = rosterSide === 'local';
-    const finalMyTeamName = myTeamWasHome ? localTeamName : visitorTeamName;
-    const finalOpponentTeamName = myTeamWasHome ? visitorTeamName : localTeamName;
 
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, id, ...rest}) => rest); // Remove position and ID for saving
-
+      .map(({posicion, id, ...rest}) => rest);
 
     setIsSaving(true);
     
-    // Create a clean data object to pass to the server action
     const matchData = {
         userId: user.uid,
-        myTeamName: finalMyTeamName,
-        opponentTeamName: finalOpponentTeamName,
-        myTeamWasHome: myTeamWasHome,
+        myTeamName: myTeamWasHome ? localTeamName : visitorTeamName,
+        opponentTeamName: myTeamWasHome ? visitorTeamName : localTeamName,
+        myTeamWasHome,
         fecha,
         hora: hora || null,
         campeonato,
         jornada,
         tipoPartido: tipoPartido || null,
-        myTeamStats: { ...myTeamStats }, // Create a plain copy
-        opponentTeamStats: { ...opponentTeamStats }, // Create a plain copy
+        myTeamStats: { ...myTeamStats },
+        opponentTeamStats: { ...opponentTeamStats },
         myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
         opponentPlayers: filterOpponentPlayers(opponentPlayers),
     };
 
     try {
-        await saveMatch({ matchData });
+        const clientDb = getFirebaseDb();
+        const collectionRef = collection(clientDb, "partidos_estadisticas");
+        await addDoc(collectionRef, {
+          ...matchData,
+          createdAt: serverTimestamp(),
+        });
+
         toast({ title: "Estadísticas Guardadas", description: "El partido se ha guardado en tu historial." });
         resetAllStats();
     } catch (error) {
