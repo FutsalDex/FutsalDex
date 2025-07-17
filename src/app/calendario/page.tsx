@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ import { es } from 'date-fns/locale';
 import type { DayContentProps } from 'react-day-picker';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
 
 interface CalendarEntry {
   id: string;
@@ -40,7 +39,6 @@ const createGuestCalendarEntries = (): EntriesByDate => {
         return format(date, 'yyyy-MM-dd');
     };
     
-    // Demo Match
     const matchDateKey = createDateKey(7);
     entries[matchDateKey] = [{
         id: 'demo_match_1',
@@ -51,7 +49,6 @@ const createGuestCalendarEntries = (): EntriesByDate => {
         rawCreatedAt: Timestamp.now()
     }];
 
-    // Demo Session
     const sessionDateKey = createDateKey(5);
     entries[sessionDateKey] = [{
         id: 'demo_session_1',
@@ -64,10 +61,8 @@ const createGuestCalendarEntries = (): EntriesByDate => {
     return entries;
 };
 
-
 function CalendarPageContent() {
   const { user, isRegisteredUser } = useAuth();
-  const router = useRouter();
   const [entriesByDate, setEntriesByDate] = useState<EntriesByDate>({});
   const [isLoading, setIsLoading] = useState(true);
   const [currentDisplayMonth, setCurrentDisplayMonth] = useState<Date>(new Date());
@@ -79,13 +74,12 @@ function CalendarPageContent() {
         setIsLoading(false);
         return;
     }
-    if (!user) { // Should be redundant due to isRegisteredUser check, but good practice
+    if (!user) {
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
-      // Fetch Sessions
       const sessionsQuery = query(
         collection(db, "mis_sesiones"),
         where("userId", "==", user.uid)
@@ -99,7 +93,6 @@ function CalendarPageContent() {
         rawCreatedAt: docSnap.data().createdAt,
       }));
 
-      // Fetch Matches
       const matchesQuery = query(
         collection(db, "partidos_estadisticas"),
         where("userId", "==", user.uid)
@@ -157,7 +150,8 @@ function CalendarPageContent() {
       <PopoverTrigger asChild disabled={!dayHasEntries}>
         <span
           className={cn(
-            "relative flex items-center justify-center h-full w-full"
+            "relative flex items-center justify-center h-full w-full",
+             dayHasEntries && !dayProps.isOutside && "cursor-pointer"
           )}
         >
           {format(dayProps.date, 'd')}
@@ -167,13 +161,11 @@ function CalendarPageContent() {
     );
   };
   
-
   const entriesForSelectedDay = useMemo(() => {
     if (!selectedDayForPopover) return [];
     const dateKey = format(selectedDayForPopover, 'yyyy-MM-dd');
     return (entriesByDate[dateKey] || []).sort((a,b) => a.rawCreatedAt.toMillis() - b.rawCreatedAt.toMillis());
   }, [selectedDayForPopover, entriesByDate]);
-
 
   if (isLoading) {
     return (
@@ -221,14 +213,25 @@ function CalendarPageContent() {
                 <Calendar
                     mode="single"
                     selected={selectedDayForPopover || undefined}
-                    onSelect={setSelectedDayForPopover}
+                    onSelect={(day) => {
+                      if (!day) {
+                        setSelectedDayForPopover(null);
+                        return;
+                      }
+                      const dateKey = format(day, 'yyyy-MM-dd');
+                      if (entriesByDate[dateKey]) {
+                        setSelectedDayForPopover(day);
+                      } else {
+                        setSelectedDayForPopover(null);
+                      }
+                    }}
                     month={currentDisplayMonth}
                     onMonthChange={setCurrentDisplayMonth}
                     locale={es}
                     className="w-full max-w-2xl"
-                    modifiers={{ hasSessions: datesWithEntriesForModifier }}
-                    modifierClassNames={{
-                        hasSessions: 'bg-orange-400 text-white hover:bg-orange-500', 
+                    modifiers={{ hasEvents: datesWithEntriesForModifier }}
+                    modifiersClassNames={{
+                        hasEvents: 'bg-orange-400/20 text-orange-900 font-bold',
                     }}
                     classNames={{
                         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 p-2",
@@ -303,8 +306,8 @@ function CalendarPageContent() {
                 </Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/estadisticas">
-                  Registrar Partido
+                <Link href="/estadisticas/historial">
+                  Ver Partidos
                 </Link>
               </Button>
             </div>
