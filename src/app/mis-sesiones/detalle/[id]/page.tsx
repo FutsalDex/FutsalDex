@@ -145,43 +145,6 @@ const getMainExercisesTotalDuration = (exercises: (string | EjercicioDetallado)[
   return totalMinutes > 0 ? `${totalMinutes} min` : '0 min';
 };
 
-
-const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): string[] => {
-    if (!sesion) return ["No especificados"];
-    
-    const objetivosUnicos = new Set<string>();
-
-    if (sesion.type === "AI") {
-        const goals = (sesion as SesionAI).trainingGoals;
-        if (goals && typeof goals === 'string') {
-            goals.split(/[.;,]+/)
-                 .map(g => g.trim())
-                 .filter(g => g.length > 0)
-                 .forEach(g => objetivosUnicos.add(g.endsWith('.') || g.endsWith(';') || g.endsWith(',') ? g : g + '.'));
-        }
-    } else { 
-        const manualSesion = sesion as SesionManual;
-        const ejerciciosConsiderados: (EjercicioDetallado | null)[] = [];
-        if (manualSesion.warmUp) ejerciciosConsiderados.push(manualSesion.warmUp);
-        if (manualSesion.mainExercises) ejerciciosConsiderados.push(...manualSesion.mainExercises);
-        if (manualSesion.coolDown) ejerciciosConsiderados.push(manualSesion.coolDown);
-        
-        ejerciciosConsiderados.forEach(ex => {
-            if (ex?.objetivos) {
-                const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
-                if (primerObjetivo && primerObjetivo.length > 0) {
-                    const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
-                                               ? primerObjetivo 
-                                               : primerObjetivo + '.';
-                    objetivosUnicos.add(formattedObjetivo);
-                }
-            }
-        });
-    }
-
-    return objetivosUnicos.size === 0 ? ["No especificados"] : Array.from(objetivosUnicos);
-};
-
 const getSessionMaterialsAndSpaceList = (sesion: SesionConDetallesEjercicio | null): string[] => {
     if (!sesion || sesion.type === "AI") {
         return ["Información no disponible para sesiones AI."];
@@ -420,7 +383,44 @@ function SesionDetallePageContent() {
     }
   };
 
-  const objetivosList = sessionData ? getSessionObjetivosList(sessionData) : [];
+  const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): string[] => {
+    if (!sesion) return ["No especificados"];
+    
+    const objetivosUnicos = new Set<string>();
+
+    if (sesion.type === "AI") {
+        const goals = (sesion as SesionAI).trainingGoals;
+        if (goals && typeof goals === 'string') {
+            goals.split(/[.;,]+/)
+                 .map(g => g.trim())
+                 .filter(g => g.length > 0)
+                 .forEach(g => objetivosUnicos.add(g.endsWith('.') || g.endsWith(';') || g.endsWith(',') ? g : g + '.'));
+        }
+    } else { 
+        const manualSesion = sesion as SesionManual;
+        const ejerciciosConsiderados: (EjercicioDetallado | null)[] = [];
+        if (manualSesion.warmUp) ejerciciosConsiderados.push(manualSesion.warmUp);
+        if (manualSesion.mainExercises) ejerciciosConsiderados.push(...manualSesion.mainExercises);
+        if (manualSesion.coolDown) ejerciciosConsiderados.push(manualSesion.coolDown);
+        
+        ejerciciosConsiderados.forEach(ex => {
+            if (ex?.objetivos) {
+                const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
+                if (primerObjetivo && primerObjetivo.length > 0) {
+                    const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
+                                               ? primerObjetivo 
+                                               : primerObjetivo + '.';
+                    objetivosUnicos.add(formattedObjetivo);
+                }
+            }
+        });
+    }
+
+    return objetivosUnicos.size === 0 ? ["No especificados"] : Array.from(objetivosUnicos);
+  };
+
+
+  const objetivosList = getSessionObjetivosList(sessionData);
   const col1Objetivos = objetivosList.slice(0, 3);
   const col2Objetivos = objetivosList.slice(3, 6);
 
@@ -610,5 +610,3 @@ export default function SesionDetallePage() {
         <SesionDetallePageContent />
     );
 }
-
-    
