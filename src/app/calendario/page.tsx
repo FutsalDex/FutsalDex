@@ -63,7 +63,7 @@ const createGuestCalendarEntries = (): EntriesByDate => {
     return entries;
 };
 
-export default function CalendarioPage() {
+function CalendarPageContent() {
   const { user, isRegisteredUser } = useAuth();
   const [entriesByDate, setEntriesByDate] = useState<EntriesByDate>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -294,5 +294,11 @@ export default function CalendarioPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+export default function CalendarioPage() {
+  return (
+    <CalendarPageContent />
   );
 }
