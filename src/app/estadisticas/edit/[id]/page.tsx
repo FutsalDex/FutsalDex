@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert } from "lucide-react";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -216,6 +216,11 @@ function EditMatchPageContent() {
     const seconds = time % 60;
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }, [time]);
+  
+  const handleResetTimer = () => {
+    setIsTimerActive(false);
+    setTime(timerDuration);
+  };
 
   useEffect(() => {
     const setupDemoMode = () => {
@@ -730,6 +735,10 @@ function EditMatchPageContent() {
                 <Button onClick={() => setIsTimerActive(!isTimerActive)} className="w-32" variant={isTimerActive ? 'destructive' : 'default'}>
                     {isTimerActive ? <Pause className="mr-2" /> : <Play className="mr-2" />}
                     {isTimerActive ? 'Pausar' : 'Iniciar'}
+                </Button>
+                <Button onClick={handleResetTimer} variant="outline">
+                    <RotateCcw className="mr-2"/>
+                    Reiniciar
                 </Button>
                 <div className="flex items-center gap-2">
                     <Button onClick={() => setActiveHalf('firstHalf')} variant={activeHalf === 'firstHalf' ? 'secondary' : 'outline'} size="sm">1ª Parte</Button>
