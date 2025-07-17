@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BarChart2, BookUser, CalendarDays, ArrowRight, LifeBuoy, ClipboardCheck, Activity } from "lucide-react";
+import { Users, BarChart2, BookUser, ArrowRight, LifeBuoy, ClipboardCheck, Activity } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -31,12 +31,6 @@ const featureCards = [
         description: "Encuentra y organiza todas las sesiones de entrenamiento que has creado manualmente.",
         href: "/mis-sesiones",
         icon: BookUser,
-    },
-    {
-        title: "Mi Calendario",
-        description: "Visualiza todas tus sesiones de entrenamiento programadas en un calendario interactivo.",
-        href: "/calendario",
-        icon: CalendarDays,
     },
     {
         title: "Mis Estadísticas",

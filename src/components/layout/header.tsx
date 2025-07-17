@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { LogIn, LogOut, UserPlus, Edit3, BookUser, Menu, Heart, ShieldCheck, FileText, CalendarDays, Star, Bot, BarChart2, LifeBuoy, Users, UserCircle } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Edit3, BookUser, Menu, Heart, ShieldCheck, FileText, Star, Bot, BarChart2, LifeBuoy, Users, UserCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
