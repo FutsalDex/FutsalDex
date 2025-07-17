@@ -9,9 +9,8 @@
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import { v4 as uuidv4 } from 'uuid';
 import { getFirebaseDb } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp as clientServerTimestamp, doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 
 // --- Favorite Exercise ---

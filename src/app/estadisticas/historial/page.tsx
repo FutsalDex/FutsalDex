@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp, doc, getDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -40,7 +40,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertTitle, AlertDescription as AlertDesc } from "@/components/ui/alert";
-import { deleteMatch, saveMatch } from "@/lib/actions/user-actions";
+import { deleteMatch } from "@/lib/actions/user-actions";
 
 
 // New Match Schema
@@ -273,14 +273,18 @@ function HistorialPageContent() {
           myTeamPlayers: [],
           opponentPlayers: [],
           timer: { duration: 25 * 60 },
+          createdAt: serverTimestamp(),
         };
 
         try {
-            const { matchId } = await saveMatch({ matchData: newMatchData as any });
+            const db = getFirebaseDb();
+            const collectionRef = collection(db, "partidos_estadisticas");
+            const docRef = await addDoc(collectionRef, newMatchData);
+
             toast({ title: "Partido Añadido", description: "El nuevo partido se ha guardado. Ahora puedes editarlo para añadir estadísticas." });
             setIsAddMatchDialogOpen(false);
             fetchMatches(); // Refresh the list
-            router.push(`/estadisticas/edit/${matchId}`);
+            router.push(`/estadisticas/edit/${docRef.id}`);
         } catch (error) {
             console.error("Error saving new match: ", error);
             toast({ title: "Error al Guardar", description: "No se pudo añadir el nuevo partido.", variant: "destructive" });
@@ -484,3 +488,4 @@ export default function HistorialEstadisticasPage() {
     
 
     
+
