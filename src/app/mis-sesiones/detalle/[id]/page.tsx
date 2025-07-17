@@ -1,4 +1,4 @@
-// src/app/mis-sesiones/detalle/[id]/page.tsx
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -186,6 +186,42 @@ const getSessionMaterialsAndSpaceList = (sesion: SesionConDetallesEjercicio | nu
       .map(material => material.charAt(0).toUpperCase() + material.slice(1));
 
     return uniqueMaterials;
+};
+
+const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): string[] => {
+    if (!sesion) return ["No especificados"];
+    
+    const objetivosUnicos = new Set<string>();
+
+    if (sesion.type === "AI") {
+        const goals = (sesion as SesionAI).trainingGoals;
+        if (goals && typeof goals === 'string') {
+            goals.split(/[.;,]+/)
+                 .map(g => g.trim())
+                 .filter(g => g.length > 0)
+                 .forEach(g => objetivosUnicos.add(g.endsWith('.') || g.endsWith(';') || g.endsWith(',') ? g : g + '.'));
+        }
+    } else { 
+        const manualSesion = sesion as SesionManual;
+        const ejerciciosConsiderados: (EjercicioDetallado | null)[] = [];
+        if (manualSesion.warmUp) ejerciciosConsiderados.push(manualSesion.warmUp);
+        if (manualSesion.mainExercises) ejerciciosConsiderados.push(...manualSesion.mainExercises);
+        if (manualSesion.coolDown) ejerciciosConsiderados.push(manualSesion.coolDown);
+        
+        ejerciciosConsiderados.forEach(ex => {
+            if (ex?.objetivos) {
+                const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
+                if (primerObjetivo && primerObjetivo.length > 0) {
+                    const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
+                                               ? primerObjetivo 
+                                               : primerObjetivo + '.';
+                    objetivosUnicos.add(formattedObjetivo);
+                }
+            }
+        });
+    }
+
+    return objetivosUnicos.size === 0 ? ["No especificados"] : Array.from(objetivosUnicos);
 };
 
 
@@ -381,42 +417,6 @@ function SesionDetallePageContent() {
        }
       setIsGeneratingPdf(false);
     }
-  };
-
-  const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): string[] => {
-    if (!sesion) return ["No especificados"];
-    
-    const objetivosUnicos = new Set<string>();
-
-    if (sesion.type === "AI") {
-        const goals = (sesion as SesionAI).trainingGoals;
-        if (goals && typeof goals === 'string') {
-            goals.split(/[.;,]+/)
-                 .map(g => g.trim())
-                 .filter(g => g.length > 0)
-                 .forEach(g => objetivosUnicos.add(g.endsWith('.') || g.endsWith(';') || g.endsWith(',') ? g : g + '.'));
-        }
-    } else { 
-        const manualSesion = sesion as SesionManual;
-        const ejerciciosConsiderados: (EjercicioDetallado | null)[] = [];
-        if (manualSesion.warmUp) ejerciciosConsiderados.push(manualSesion.warmUp);
-        if (manualSesion.mainExercises) ejerciciosConsiderados.push(...manualSesion.mainExercises);
-        if (manualSesion.coolDown) ejerciciosConsiderados.push(manualSesion.coolDown);
-        
-        ejerciciosConsiderados.forEach(ex => {
-            if (ex?.objetivos) {
-                const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
-                if (primerObjetivo && primerObjetivo.length > 0) {
-                    const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
-                                               ? primerObjetivo 
-                                               : primerObjetivo + '.';
-                    objetivosUnicos.add(formattedObjetivo);
-                }
-            }
-        });
-    }
-
-    return objetivosUnicos.size === 0 ? ["No especificados"] : Array.from(objetivosUnicos);
   };
 
 
