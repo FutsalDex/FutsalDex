@@ -3,41 +3,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Regla 1: Los ejercicios son de lectura pública para todos.
-    // La escritura está deshabilitada desde el cliente, ya que solo el administrador debe poder hacerlo a través de acciones del servidor.
+    // Regla 1: La colección de ejercicios es de lectura pública para todos.
+    // La escritura está deshabilitada desde el cliente; solo el administrador puede escribir a través de acciones del servidor.
     match /ejercicios_futsal/{exerciseId} {
       allow read: if true;
       allow write: if false; 
     }
 
-    // Regla 2: Los perfiles de usuario y sus subcolecciones.
+    // Regla 2: Los usuarios pueden gestionar su propio documento y subcolecciones.
     match /usuarios/{userId} {
       // Un usuario puede leer y actualizar su propio documento de perfil.
       allow read, update: if request.auth != null && request.auth.uid == userId;
-
       // Un administrador puede leer el perfil de cualquier usuario.
       allow get: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
       
-      // Regla para subcolecciones como 'user_favorites' y 'team'.
-      // Un usuario autenticado puede gestionar completamente los documentos dentro de sus propias subcolecciones.
+      // Un usuario autenticado puede gestionar completamente los documentos dentro de sus propias subcolecciones
+      // como 'user_favorites' y 'team'.
       match /{subcollection}/{docId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Regla 3: Colecciones de nivel raíz específicas del usuario (mis_sesiones, partidos_estadisticas, etc.)
-    // Esta regla unificada cubre 'mis_sesiones', 'partidos_estadisticas' y 'support_chats'.
-    match /{collection}/{docId} {
-      // Un usuario puede LEER, ACTUALIZAR y BORRAR un documento si su UID coincide con el campo 'userId' del documento.
-      // Esta regla cubre el acceso a documentos individuales (get, update, delete).
-      allow get, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      
-      // Un usuario puede CREAR un documento si el campo 'userId' del nuevo documento es su propio UID.
+    // Regla 3: Permite a los usuarios consultar colecciones si filtran por su propio `userId`.
+    // Esta es la regla clave que faltaba y que soluciona los errores de "permisos insuficientes"
+    // en páginas como Calendario, Mis Sesiones, etc.
+    match /mis_sesiones/{sessionId} {
+      allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-
-      // Un usuario puede LISTAR (consultar) una colección si la consulta filtra por su propio UID.
-      // Esta es la regla clave que soluciona el error de permisos en las páginas de listado.
-      allow list: if request.auth != null && request.query.resource.data.userId == request.auth.uid;
+    }
+    
+    match /partidos_estadisticas/{partidoId} {
+      allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    match /support_chats/{chatId} {
+       allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
