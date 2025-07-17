@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { LogIn, LogOut, UserPlus, Edit3, BookUser, Menu, Heart, ShieldCheck, FileText, Star, Bot, BarChart2, LifeBuoy, Users, UserCircle } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Edit3, BookUser, Menu, Heart, ShieldCheck, FileText, Star, Bot, BarChart2, LifeBuoy, Users, UserCircle, CalendarClock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -33,6 +33,7 @@ export default function Header() {
     { href: '/ejercicios', label: 'Ver ejercicios', icon: <FileText className="mr-2 h-4 w-4" /> },
     { href: '/crear-sesion', label: 'Crear Sesión', icon: <Edit3 className="mr-2 h-4 w-4" /> },
     { href: '/mi-equipo', label: 'Mi Equipo', icon: <Users className="mr-2 h-4 w-4" /> },
+    { href: '/eventos', label: 'Eventos', icon: <CalendarClock className="mr-2 h-4 w-4" /> },
     { href: '/favoritos', label: 'Favoritos', icon: <Heart className="mr-2 h-4 w-4" /> },
     { href: '/suscripcion', label: 'Suscripción', icon: <Star className="mr-2 h-4 w-4" /> },
   ];
