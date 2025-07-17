@@ -1,4 +1,3 @@
-
 // src/app/mis-sesiones/detalle/[id]/page.tsx
 "use client";
 
