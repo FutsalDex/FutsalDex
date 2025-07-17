@@ -1,5 +1,4 @@
 
-
 export const FASES_SESION = ["Inicial", "Principal", "Final"];
 
 export const CATEGORIAS_TEMATICAS_EJERCICIOS = [
@@ -49,7 +48,7 @@ export const DURACION_EJERCICIO_OPCIONES = [
 
 export const DURACION_EJERCICIO_OPCIONES_VALUES = DURACION_EJERCICIO_OPCIONES.map(opt => opt.value) as [string, ...string[]];
 
-export const POSICIONES_FUTSAL = ["Portero", "Cierre", "Ala", "Pívot", "Ala-Cierre", "Ala-Pívot", "Universal"];
+export const POSICIONES_FUTSAL = ["Portero", "Cierre", "Ala", "Pívot", "Ala-Cierre", "Ala-Pívot"];
 
 export const EXPECTED_HEADERS: { [key: string]: string } = {
   numero: "Número",
