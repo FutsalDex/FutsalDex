@@ -1,11 +1,11 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { db } from '@/lib/firebase';
+// CAMBIO IMPORTANTE AQUÍ: Importamos getFirebaseDb
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,10 +35,10 @@ interface SesionBase {
   id: string;
   userId: string;
   type: "AI" | "Manual";
-  sessionTitle?: string; 
+  sessionTitle?: string;
   coachNotes?: string;
   numero_sesion?: string;
-  fecha?: string; 
+  fecha?: string;
   temporada?: string;
   club?: string;
   equipo?: string;
@@ -79,7 +79,7 @@ const formatDate = (dateValue: string | Timestamp | undefined): string => {
     if (typeof dateValue === 'string') {
         if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
             const [year, month, day] = dateValue.split('-').map(Number);
-            date = new Date(year, month - 1, day, 12,0,0); 
+            date = new Date(year, month - 1, day, 12,0,0);
         } else {
             date = new Date(dateValue);
         }
@@ -168,7 +168,7 @@ const getSessionMaterialsAndSpaceList = (sesion: SesionConDetallesEjercicio | nu
                 .replace(/\s+(y|o)\s+/g, ', '); // Replace " y " or " o " with a comma
 
             // Split by comma and process each item
-            const items = normalizedString.split(',').map(item => 
+            const items = normalizedString.split(',').map(item =>
                 item.trim().replace(/[.,]$/, '').trim() // Trim whitespace and trailing punctuation
             ).filter(item => item); // Filter out empty strings
 
@@ -179,7 +179,7 @@ const getSessionMaterialsAndSpaceList = (sesion: SesionConDetallesEjercicio | nu
     if (individualMaterialsSet.size === 0) {
         return ["Materiales y espacio no especificados en los ejercicios."];
     }
-    
+
     // Sort and capitalize
     const uniqueMaterials = Array.from(individualMaterialsSet)
       .sort()
@@ -190,7 +190,7 @@ const getSessionMaterialsAndSpaceList = (sesion: SesionConDetallesEjercicio | nu
 
 const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): string[] => {
     if (!sesion) return ["No especificados"];
-    
+
     const objetivosUnicos = new Set<string>();
 
     if (sesion.type === "AI") {
@@ -201,20 +201,20 @@ const getSessionObjetivosList = (sesion: SesionConDetallesEjercicio | null): str
                  .filter(g => g.length > 0)
                  .forEach(g => objetivosUnicos.add(g.endsWith('.') || g.endsWith(';') || g.endsWith(',') ? g : g + '.'));
         }
-    } else { 
+    } else {
         const manualSesion = sesion as SesionManual;
         const ejerciciosConsiderados: (EjercicioDetallado | null)[] = [];
         if (manualSesion.warmUp) ejerciciosConsiderados.push(manualSesion.warmUp);
         if (manualSesion.mainExercises) ejerciciosConsiderados.push(...manualSesion.mainExercises);
         if (manualSesion.coolDown) ejerciciosConsiderados.push(manualSesion.coolDown);
-        
+
         ejerciciosConsiderados.forEach(ex => {
             if (ex?.objetivos) {
                 const primerObjetivo = ex.objetivos.split(/[.;,]+/)[0]?.trim();
                 if (primerObjetivo && primerObjetivo.length > 0) {
-                    const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',') 
-                                               ? primerObjetivo 
-                                               : primerObjetivo + '.';
+                    const formattedObjetivo = primerObjetivo.endsWith('.') || primerObjetivo.endsWith(';') || primerObjetivo.endsWith(',')
+                                                            ? primerObjetivo
+                                                            : primerObjetivo + '.';
                     objetivosUnicos.add(formattedObjetivo);
                 }
             }
@@ -249,7 +249,9 @@ function SesionDetallePageContent() {
     setNotFound(false);
 
     try {
-      const sessionDocRef = doc(db, "mis_sesiones", sessionId);
+      // OBTENEMOS LA INSTANCIA DE FIRESTORE LLAMANDO A LA FUNCIÓN
+      const dbInstance = getFirebaseDb();
+      const sessionDocRef = doc(dbInstance, "mis_sesiones", sessionId);
       const sessionDocSnap = await getDoc(sessionDocRef);
 
       if (!sessionDocSnap.exists() || sessionDocSnap.data()?.userId !== user.uid) {
@@ -266,11 +268,11 @@ function SesionDetallePageContent() {
       if (baseSessionData.type === "Manual") {
         const manualBase = baseSessionData as SesionManual; // Temporary cast to access original structure if needed
         const exerciseIdsToFetch: string[] = [];
-        
+
         if (manualBase.warmUp?.id) exerciseIdsToFetch.push(manualBase.warmUp.id);
         manualBase.mainExercises.forEach(ex => { if (ex?.id) exerciseIdsToFetch.push(ex.id); });
         if (manualBase.coolDown?.id) exerciseIdsToFetch.push(manualBase.coolDown.id);
-        
+
         const uniqueExerciseIds = Array.from(new Set(exerciseIdsToFetch));
         const exerciseDocs: Record<string, EjercicioDetallado> = {};
 
@@ -279,34 +281,36 @@ function SesionDetallePageContent() {
           for (let i = 0; i < uniqueExerciseIds.length; i += MAX_IN_VALUES) {
               const chunk = uniqueExerciseIds.slice(i, i + MAX_IN_VALUES);
               if (chunk.length > 0) {
-                  const exercisesQuery = query(collection(db, "ejercicios_futsal"), where("__name__", "in", chunk));
-                  const querySnapshot = await getDocs(exercisesQuery);
-                  querySnapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    exerciseDocs[docSnap.id] = { 
-                      id: docSnap.id, 
-                      ejercicio: data.ejercicio || "Ejercicio sin nombre",
-                      descripcion: data.descripcion || "Descripción no disponible.",
-                      objetivos: data.objetivos || "Objetivos no especificados.",
-                      categoria: data.categoria || "Categoría no especificada.",
-                      duracion: data.duracion, 
-                      imagen: data.imagen || `https://placehold.co/300x200.png?text=${encodeURIComponent(data.ejercicio || 'Ejercicio')}`,
-                      espacio_materiales: data.espacio_materiales || "No especificado.",
-                      ...data 
-                    } as EjercicioDetallado;
-                  });
+                // OBTENEMOS LA INSTANCIA DE FIRESTORE LLAMANDO A LA FUNCIÓN
+                const dbInstance = getFirebaseDb();
+                const exercisesQuery = query(collection(dbInstance, "ejercicios_futsal"), where("__name__", "in", chunk));
+                const querySnapshot = await getDocs(exercisesQuery);
+                querySnapshot.forEach(docSnap => {
+                  const data = docSnap.data();
+                  exerciseDocs[docSnap.id] = {
+                    id: docSnap.id,
+                    ejercicio: data.ejercicio || "Ejercicio sin nombre",
+                    descripcion: data.descripcion || "Descripción no disponible.",
+                    objetivos: data.objetivos || "Objetivos no especificados.",
+                    categoria: data.categoria || "Categoría no especificada.",
+                    duracion: data.duracion,
+                    imagen: data.imagen || `https://placehold.co/300x200.png?text=${encodeURIComponent(data.ejercicio || 'Ejercicio')}`,
+                    espacio_materiales: data.espacio_materiales || "No especificado.",
+                    ...data
+                  } as EjercicioDetallado;
+                });
               }
           }
         }
-         enrichedSessionData.warmUp = manualBase.warmUp?.id && exerciseDocs[manualBase.warmUp.id] ? exerciseDocs[manualBase.warmUp.id] : null;
-         enrichedSessionData.mainExercises = manualBase.mainExercises.map(ex => ex?.id && exerciseDocs[ex.id] ? exerciseDocs[ex.id] : ex) as EjercicioDetallado[];
-         enrichedSessionData.coolDown = manualBase.coolDown?.id && exerciseDocs[manualBase.coolDown.id] ? exerciseDocs[manualBase.coolDown.id] : null;
-      } else { 
+          enrichedSessionData.warmUp = manualBase.warmUp?.id && exerciseDocs[manualBase.warmUp.id] ? exerciseDocs[manualBase.warmUp.id] : null;
+          enrichedSessionData.mainExercises = manualBase.mainExercises.map(ex => ex?.id && exerciseDocs[ex.id] ? exerciseDocs[ex.id] : ex) as EjercicioDetallado[];
+          enrichedSessionData.coolDown = manualBase.coolDown?.id && exerciseDocs[manualBase.coolDown.id] ? exerciseDocs[manualBase.coolDown.id] : null;
+      } else {
         enrichedSessionData.warmUp = (baseSessionData as SesionAI).warmUp;
         enrichedSessionData.mainExercises = (baseSessionData as SesionAI).mainExercises;
         enrichedSessionData.coolDown = (baseSessionData as SesionAI).coolDown;
       }
-      
+
       setSessionData(enrichedSessionData);
 
     } catch (error) {
@@ -315,7 +319,7 @@ function SesionDetallePageContent() {
       setNotFound(true);
     }
     setIsLoading(false);
-  }, [sessionId, user, toast]);
+  }, [sessionId, user, toast]); // Eliminamos 'db' de las dependencias, ya que se obtiene dentro de la función
 
   useEffect(() => {
     fetchSessionAndExerciseDetails();
@@ -337,7 +341,7 @@ function SesionDetallePageContent() {
       return;
     }
     setIsGeneratingPdf(true);
-    
+
     const printButtonContainer = printArea.querySelector('.print-button-container') as HTMLElement | null;
     const originalDisplayBtn = printButtonContainer ? printButtonContainer.style.display : '';
     if (printButtonContainer) printButtonContainer.style.display = 'none';
@@ -345,8 +349,8 @@ function SesionDetallePageContent() {
     const headerHtmlElement = printArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
     if(headerHtmlElement) {
       const currentDisplay = headerHtmlElement.style.display;
-      setHeaderHtmlElementOriginalDisplay(currentDisplay); 
-      headerHtmlElement.style.display = 'none !important'; 
+      setHeaderHtmlElementOriginalDisplay(currentDisplay);
+      headerHtmlElement.style.display = 'none !important';
     }
 
 
@@ -358,26 +362,26 @@ function SesionDetallePageContent() {
           if (clonedPrintArea) {
             const textElements = clonedPrintArea.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, strong, span, div:not(img):not(svg):not(.print-button-container)');
             textElements.forEach(el => { (el as HTMLElement).style.color = '#000000 !important'; });
-            
+
             const headerToHide = clonedPrintArea.querySelector('.dialog-header-print-override') as HTMLElement | null;
             if (headerToHide) {
                 headerToHide.style.display = 'none !important';
             }
-            
+
             const badges = clonedPrintArea.querySelectorAll('[class*="bg-primary"], [class*="bg-secondary"], [class*="bg-accent"], .badge');
-            badges.forEach(el => { 
-              (el as HTMLElement).style.backgroundColor = '#dddddd !important'; 
+            badges.forEach(el => {
+              (el as HTMLElement).style.backgroundColor = '#dddddd !important';
               (el as HTMLElement).style.color = '#000000 !important';
               (el as HTMLElement).style.borderColor = '#aaaaaa !important';
             });
-            
+
             if (clonedPrintArea.classList.contains('bg-card') || clonedPrintArea.classList.contains('bg-gray-50') || clonedPrintArea.classList.contains('bg-white')) {
               clonedPrintArea.style.backgroundColor = '#ffffff !important';
             }
 
             const btnContainer = clonedPrintArea.querySelector('.print-button-container') as HTMLElement | null;
             if (btnContainer) btnContainer.style.display = 'none';
-            
+
             document.body.style.backgroundColor = '#ffffff !important';
           }
         }
@@ -386,19 +390,19 @@ function SesionDetallePageContent() {
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       const PT_PER_CM = 28.346; const MARGIN_CM = 1.5;
       const margin = MARGIN_CM * PT_PER_CM;
-      const pdfPageWidth = pdf.internal.pageSize.getWidth(); 
-      
+      const pdfPageWidth = pdf.internal.pageSize.getWidth();
+
       const contentStartY = margin;
       const contentPrintableWidth = pdfPageWidth - (margin * 2);
 
       const img = new window.Image();
       img.onload = () => {
         const originalImgWidth = img.width; const originalImgHeight = img.height;
-        
+
         const finalScaleFactor = contentPrintableWidth / originalImgWidth;
         const pdfImageWidth = contentPrintableWidth;
         const pdfImageHeight = originalImgHeight * finalScaleFactor;
-        
+
         const xOffset = margin;
 
         pdf.addImage(imgData, 'PNG', xOffset, contentStartY, pdfImageWidth, pdfImageHeight);
@@ -412,7 +416,7 @@ function SesionDetallePageContent() {
       console.error("Error PDF:", error); toast({ title: "Error al Generar PDF", description: error.message, variant: "destructive" });
     } finally {
       if (printButtonContainer) printButtonContainer.style.display = originalDisplayBtn;
-       if (headerHtmlElement) { 
+       if (headerHtmlElement) {
          headerHtmlElement.style.display = headerHtmlElementOriginalDisplay;
        }
       setIsGeneratingPdf(false);
@@ -479,7 +483,7 @@ function SesionDetallePageContent() {
                     </div>
                 </div>
             </div>
-            
+
             <div className="p-3 border-b border-gray-300">
                 <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-2 rounded">
                     <h3 className="font-semibold text-lg uppercase">OBJETIVOS</h3>
@@ -509,11 +513,11 @@ function SesionDetallePageContent() {
                 <h3 className="font-semibold text-lg">FASE INICIAL</h3>
                 <span className="text-sm">{getExerciseDuration(sessionData.warmUp)}</span>
               </div>
-              <div> 
+              <div>
                 <p className="text-md font-semibold mb-1">{formatExerciseName(sessionData.warmUp)}</p>
                 <p className="text-sm mt-1 whitespace-pre-wrap">
-                  {sessionData.type === "AI" 
-                    ? sessionData.warmUp 
+                  {sessionData.type === "AI"
+                    ? sessionData.warmUp
                     : formatExerciseDescription(sessionData.warmUp as EjercicioDetallado)}
                 </p>
               </div>
@@ -545,7 +549,7 @@ function SesionDetallePageContent() {
                 ))}
               </div>
             </div>
-            
+
             <div className="px-3 pt-3 pb-2 border-b border-gray-300">
               <div className="flex justify-between items-center bg-gray-700 text-white px-3 py-1.5 mb-2 rounded">
                 <h3 className="font-semibold text-lg">FASE FINAL - VUELTA A LA CALMA</h3>
@@ -554,13 +558,13 @@ function SesionDetallePageContent() {
                <div className="flex-1">
                     <p className="text-md font-semibold mb-1">{formatExerciseName(sessionData.coolDown)}</p>
                     <p className="text-sm mt-1 whitespace-pre-wrap">
-                        {sessionData.type === "AI" 
-                            ? sessionData.coolDown 
+                        {sessionData.type === "AI"
+                            ? sessionData.coolDown
                             : formatExerciseDescription(sessionData.coolDown as EjercicioDetallado)}
                     </p>
-                 </div>
+               </div>
             </div>
-            
+
             <div className="px-3 pt-2 pb-3 border-b border-gray-300">
               <div className="flex flex-col md:flex-row justify-between text-sm">
                 <div className="md:w-2/3 md:pr-4 mb-3 md:mb-0">

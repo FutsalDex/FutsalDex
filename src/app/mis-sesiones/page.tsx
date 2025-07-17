@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { db } from "@/lib/firebase";
+// CAMBIO IMPORTANTE AQUÍ: Ahora importamos la función getFirebaseDb
+import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp } from "firebase/firestore";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from 'next/navigation';
@@ -160,7 +160,9 @@ function MisSesionesContent() {
     q_constraints.push(firestoreOrderBy("createdAt", "asc"));
 
     try {
-      const finalQuery = query(collection(db, "mis_sesiones"), ...q_constraints);
+      // OBTENEMOS LA INSTANCIA DE FIRESTORE LLAMANDO A LA FUNCIÓN
+      const dbInstance = getFirebaseDb();
+      const finalQuery = query(collection(dbInstance, "mis_sesiones"), ...q_constraints);
       const querySnapshot = await getDocs(finalQuery);
       const fetchedSesiones = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Sesion));
       setSesiones(fetchedSesiones);
@@ -188,7 +190,7 @@ function MisSesionesContent() {
       }
     }
     setIsLoading(false);
-  }, [user, toast]);
+  }, [user, toast]); // Eliminamos 'db' de las dependencias, ya que se obtiene dentro de la función
 
   useEffect(() => {
     if (isRegisteredUser) {
@@ -220,10 +222,10 @@ function MisSesionesContent() {
 
     if (typeof dateValue === 'string') {
       if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-         const [year, month, day] = dateValue.split('-').map(Number);
-         date = new Date(year, month - 1, day, 12,0,0); 
+           const [year, month, day] = dateValue.split('-').map(Number);
+           date = new Date(year, month - 1, day, 12,0,0); 
       } else {
-         date = new Date(dateValue);
+           date = new Date(dateValue);
       }
     } else if (dateValue && typeof dateValue.toDate === 'function') {
       date = dateValue.toDate();
@@ -256,7 +258,7 @@ function MisSesionesContent() {
             }
         });
         if (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion) {
-            totalMinutes += parseDurationToMinutes(sesion.coolDown.duracion);
+            totalMinutes += parseDurationToMinutes(ex.duracion);
         }
         return totalMinutes > 0 ? `${totalMinutes} min` : 'N/A';
     }
@@ -361,7 +363,7 @@ function MisSesionesContent() {
         </CardContent>
       </Card>
       
-       {!isRegisteredUser && (
+        {!isRegisteredUser && (
             <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
                 <Info className="h-4 w-4 text-blue-700" />
                 <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
@@ -374,11 +376,11 @@ function MisSesionesContent() {
         )}
 
       {isLoading ? (
-         <div className="flex justify-center items-center py-10">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="ml-3 text-muted-foreground">Cargando sesiones...</p>
-         </div>
-      ) : sesiones.length === 0 ? (
+           <div className="flex justify-center items-center py-10">
+             <Loader2 className="h-10 w-10 animate-spin text-primary" />
+             <p className="ml-3 text-muted-foreground">Cargando sesiones...</p>
+           </div>
+       ) : sesiones.length === 0 ? (
         <Card className="text-center py-12 bg-card">
           <CardHeader>
             <CalendarDays className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
@@ -416,9 +418,9 @@ function MisSesionesContent() {
                   </div>
                   {sesion.type === "AI" && <Bot className="h-6 w-6 text-accent" title="Sesión generada por IA"/>}
                 </div>
-                 <p className="text-xs text-muted-foreground">
-                    Número sesión: {sesion.numero_sesion || "N/A"}
-                  </p>
+                   <p className="text-xs text-muted-foreground">
+                     Número sesión: {sesion.numero_sesion || "N/A"}
+                   </p>
               </CardHeader>
               <CardContent className="space-y-2 flex-grow pb-6"> 
                 <div>
@@ -446,12 +448,12 @@ function MisSesionesContent() {
                   <p className="text-xs font-semibold text-muted-foreground">Vuelta a la Calma:</p>
                   <p className="text-xs pl-2 line-clamp-1">- {formatExerciseName(sesion.coolDown)}</p>
                 </div>
-                 {sesion.coachNotes && sesion.type === "AI" && (
-                    <div>
-                        <p className="text-xs font-semibold text-muted-foreground">Notas (IA):</p>
-                        <p className="text-xs pl-2 line-clamp-2">{sesion.coachNotes}</p>
-                    </div>
-                )}
+                   {sesion.coachNotes && sesion.type === "AI" && (
+                       <div>
+                           <p className="text-xs font-semibold text-muted-foreground">Notas (IA):</p>
+                           <p className="text-xs pl-2 line-clamp-2">{sesion.coachNotes}</p>
+                       </div>
+                   )}
               </CardContent>
               <CardFooter className="flex flex-col items-center gap-2 px-4 py-4 border-t">
                 <Button asChild variant="outline" className="w-full text-sm bg-background shadow-md hover:shadow-lg" disabled={!isRegisteredUser}>
@@ -504,5 +506,3 @@ function MisSesionesContent() {
     </div>
   );
 }
-
-    

@@ -1,7 +1,27 @@
+import { db } from "@/db/firebase"; // Ajusta la ruta si tu archivo de inicialización de Firebase está en otro lugar
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { ArrowRight, Lock, BookOpen, Users, Bot } from "lucide-react";
+
+// --- MEJORA 1: Datos de las características definidos en un array ---
+const features = [
+  {
+    icon: <BookOpen className="h-6 w-6"/>,
+    title: "Planificación de Sesiones",
+    description: "Navega por una biblioteca con más de 500 ejercicios. Guarda, gestiona y exporta tus sesiones de entrenamiento en PDF."
+  },
+  {
+    icon: <Users className="h-6 w-6"/>,
+    title: "Gestión Integral del Equipo",
+    description: "Controla cada aspecto de tu plantilla. Registra jugadores, monitoriza la asistencia a los entrenamientos y lleva un seguimiento de las estadísticas de cada partido."
+  },
+  {
+    icon: <Bot className="h-6 w-6"/>,
+    title: "Análisis y Soporte Inteligente",
+    description: "Visualiza el progreso con un calendario y un panel de estadísticas. ¿Tienes dudas? Chatea con nuestro Entrenador IA para obtener respuestas al instante."
+  }
+];
 
 export default function HomePage() {
   return (
@@ -32,7 +52,8 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-background shadow-xl border-blue-200 border-2">
+            {/* --- MEJORA 2: Coherencia de estilos en el borde --- */}
+            <Card className="bg-background shadow-xl border-primary/20 border-2">
               <CardHeader>
                 <CardTitle className="text-primary font-headline text-2xl flex items-center gap-2">
                     <Lock className="text-primary/80"/>
@@ -59,21 +80,15 @@ export default function HomePage() {
         <div className="w-full max-w-6xl mx-auto border-t pt-16">
             <h2 className="mb-12 text-3xl font-bold text-center text-primary font-headline">Todo lo que necesitas en un solo lugar</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <FeatureCard
-                    title="Planificación de Sesiones"
-                    description="Navega por una biblioteca con más de 500 ejercicios. Guarda, gestiona y exporta tus sesiones de entrenamiento en PDF."
-                    icon={<BookOpen className="h-6 w-6"/>}
-                />
-                 <FeatureCard
-                    title="Gestión Integral del Equipo"
-                    description="Controla cada aspecto de tu plantilla. Registra jugadores, monitoriza la asistencia a los entrenamientos y lleva un seguimiento de las estadísticas de cada partido."
-                    icon={<Users className="h-6 w-6"/>}
-                />
-                 <FeatureCard
-                    title="Análisis y Soporte Inteligente"
-                    description="Visualiza el progreso con un calendario y un panel de estadísticas. ¿Tienes dudas? Chatea con nuestro Entrenador IA para obtener respuestas al instante."
-                    icon={<Bot className="h-6 w-6"/>}
-                />
+                {/* --- MEJORA 1: Renderizado de características usando .map() --- */}
+                {features.map((feature) => (
+                    <FeatureCard
+                        key={feature.title}
+                        title={feature.title}
+                        description={feature.description}
+                        icon={feature.icon}
+                    />
+                ))}
             </div>
         </div>
       </div>
