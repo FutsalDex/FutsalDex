@@ -13,10 +13,10 @@ import { getFirebaseDb } from '@/lib/firebase';
 import { doc, deleteDoc, setDoc } from 'firebase/firestore';
 
 
-// --- Favorite Exercise (DEPRECATED - Moved to client-side) ---
-// This function is kept for reference but should not be used.
-// The logic was moved to `src/app/ejercicios/page.tsx` to handle permissions correctly.
-
+// --- Favorite Exercise (DEPRECATED) ---
+// The logic has been moved to client-side components (`src/app/ejercicios/page.tsx` and `src/app/favoritos/page.tsx`)
+// to handle permissions correctly using the user's auth state.
+// This function is removed to avoid confusion and errors.
 
 
 // --- Save Session ---

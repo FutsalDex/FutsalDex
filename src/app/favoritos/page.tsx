@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Heart, ListChecks, Loader2, Eye, Trash2, XCircle, FileDown, ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { collection as firestoreCollection, getDocs as firestoreGetDocs, doc as firestoreDoc, query as firestoreQuery, where } from 'firebase/firestore';
+import { collection as firestoreCollection, getDocs as firestoreGetDocs, doc as firestoreDoc, query as firestoreQuery, where, deleteDoc } from 'firebase/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
 import Image from 'next/image';
 import {
@@ -22,7 +22,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { toggleFavorite } from '@/lib/actions/user-actions';
 
 
 interface Ejercicio {
@@ -116,7 +115,10 @@ function FavoritosPageContent() {
     setFavoriteExercises(prev => prev.filter(ex => ex.id !== exerciseId));
 
     try {
-      await toggleFavorite({ userId: user.uid, exerciseId, isFavorite: false });
+      const db = getFirebaseDb();
+      const favDocRef = firestoreDoc(db, "usuarios", user.uid, "user_favorites", exerciseId);
+      await deleteDoc(favDocRef);
+      
       toast({
         title: "Favorito Eliminado",
         description: "El ejercicio ha sido eliminado de tus favoritos.",
