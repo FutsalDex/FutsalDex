@@ -13,32 +13,10 @@ import { getFirebaseDb } from '@/lib/firebase';
 import { doc, deleteDoc, setDoc } from 'firebase/firestore';
 
 
-// --- Favorite Exercise ---
+// --- Favorite Exercise (DEPRECATED - Moved to client-side) ---
+// This function is kept for reference but should not be used.
+// The logic was moved to `src/app/ejercicios/page.tsx` to handle permissions correctly.
 
-const ToggleFavoriteInputSchema = z.object({
-  userId: z.string(),
-  exerciseId: z.string(),
-  isFavorite: z.boolean(),
-});
-type ToggleFavoriteInput = z.infer<typeof ToggleFavoriteInputSchema>;
-
-export async function toggleFavorite({ userId, exerciseId, isFavorite }: ToggleFavoriteInput): Promise<{ success: boolean }> {
-  try {
-    const clientDb = getFirebaseDb();
-    const favDocRef = doc(clientDb, "usuarios", userId, "user_favorites", exerciseId);
-    if (isFavorite) {
-      // Using client-side timestamp equivalent if needed, but often not necessary for this kind of action.
-      // For simplicity, let's just mark its existence.
-      await setDoc(favDocRef, { addedAt: new Date() });
-    } else {
-      await deleteDoc(favDocRef);
-    }
-    return { success: true };
-  } catch (error) {
-    console.error("Error toggling favorite:", error);
-    throw new Error("Failed to update favorite status.");
-  }
-}
 
 
 // --- Save Session ---

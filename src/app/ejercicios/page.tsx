@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
 import { getFirebaseDb } from '@/lib/firebase';
-import { collection as firestoreCollection, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection as firestoreCollection, getDocs, limit, query, where, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import Image from 'next/image';
 import { Filter, Search, Loader2, Lock, ListFilter, ChevronDown, Heart, Eye, FileDown, ArrowLeft } from 'lucide-react';
 import {
@@ -35,7 +34,6 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { toggleFavorite } from '@/lib/actions/user-actions';
 import Link from 'next/link';
 
 
@@ -412,15 +410,26 @@ export default function EjerciciosPage() {
       toast({ title: "Acción Requerida", description: "Inicia sesión para guardar tus ejercicios favoritos.", variant: "default", action: <Button asChild variant="outline"><Link href="/login">Iniciar Sesión</Link></Button> });
       return;
     }
+    
     const isCurrentlyFavorite = !!favorites[exerciseId];
-    const newFavoritesState = { ...favorites, [exerciseId]: !isCurrentlyFavorite };
-    setFavorites(newFavoritesState);
+    // Optimistic UI update
+    setFavorites(prev => ({ ...prev, [exerciseId]: !isCurrentlyFavorite }));
+
     try {
-      await toggleFavorite({ userId: user.uid, exerciseId, isFavorite: !isCurrentlyFavorite });
-      toast({ title: `Favorito ${!isCurrentlyFavorite ? 'Añadido' : 'Eliminado'}`, description: `El ejercicio se ha ${!isCurrentlyFavorite ? 'añadido a' : 'eliminado de'} tus favoritos.` });
+      const db = getFirebaseDb();
+      const favDocRef = doc(db, "usuarios", user.uid, "user_favorites", exerciseId);
+
+      if (!isCurrentlyFavorite) {
+        await setDoc(favDocRef, { addedAt: new Date() });
+        toast({ title: "Favorito Añadido", description: "El ejercicio se ha añadido a tus favoritos." });
+      } else {
+        await deleteDoc(favDocRef);
+        toast({ title: "Favorito Eliminado", description: "El ejercicio se ha eliminado de tus favoritos." });
+      }
     } catch (error) {
-      console.error("Error updating favorite status:", error);
-      setFavorites(favorites); 
+      console.error("Error toggling favorite:", error);
+      // Revert UI on error
+      setFavorites(prev => ({ ...prev, [exerciseId]: isCurrentlyFavorite }));
       toast({ title: "Error", description: "No se pudo actualizar el estado de favorito. Inténtalo de nuevo.", variant: "destructive" });
     }
   };
@@ -761,4 +770,3 @@ export default function EjerciciosPage() {
     </Dialog>
   );
 }
-
