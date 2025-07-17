@@ -33,7 +33,7 @@ const featureCards = [
         icon: BookUser,
     },
     {
-        title: "Eventos",
+        title: "Mis Eventos",
         description: "Visualiza la cronología de todos tus partidos y sesiones de entrenamiento guardados.",
         href: "/eventos",
         icon: CalendarClock,

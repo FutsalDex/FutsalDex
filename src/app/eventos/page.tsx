@@ -145,7 +145,7 @@ function EventosPageContent() {
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
           <CalendarClock className="mr-3 h-8 w-8"/>
-          Cronología de Eventos
+          Cronología de Mis Eventos
         </h1>
         <p className="text-lg text-foreground/80">
           Un listado de todos tus partidos y sesiones de entrenamiento, ordenados por fecha.
