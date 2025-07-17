@@ -12,7 +12,7 @@ import { addExerciseSchema } from '@/lib/schemas';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
-import { collection, query, getDocs, writeBatch as clientWriteBatch, doc, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 
 
 // --- Add Exercise ---
@@ -114,11 +114,9 @@ export type AdminExerciseListOutput = z.infer<typeof AdminExerciseListOutputSche
 
 
 export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutput> {
-    // This function will now use the client SDK to avoid local dev permission issues.
-    // The cleaning logic is removed to simplify permissions. Duplicates can be managed by the admin.
-    const clientDb = getFirebaseDb();
-    const q = query(collection(clientDb, "ejercicios_futsal"), orderBy('ejercicio', 'asc'));
-    const snapshot = await getDocs(q);
+    const adminDb = getAdminDb();
+    const q = adminDb.collection("ejercicios_futsal").orderBy('ejercicio', 'asc');
+    const snapshot = await q.get();
     
     const exercises = snapshot.docs.map(docSnap => {
         const data = docSnap.data();
