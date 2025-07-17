@@ -5,18 +5,19 @@ import { useAuth } from "@/contexts/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Calendar as CalendarIconLucide, Loader2, CheckCircle, ArrowLeft, Info } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Link from "next/link";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DayContentProps } from 'react-day-picker';
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Calendar as CalendarIconLucide, Loader2, CheckCircle, ArrowLeft, Info, Dot } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 interface CalendarEntry {
   id: string;
@@ -62,12 +63,12 @@ const createGuestCalendarEntries = (): EntriesByDate => {
     return entries;
 };
 
-function CalendarPageContent() {
+export default function CalendarioPage() {
   const { user, isRegisteredUser } = useAuth();
   const [entriesByDate, setEntriesByDate] = useState<EntriesByDate>({});
   const [isLoading, setIsLoading] = useState(true);
   const [currentDisplayMonth, setCurrentDisplayMonth] = useState<Date>(new Date());
-  const [selectedDayForPopover, setSelectedDayForPopover] = useState<Date | null>(null);
+  const [selectedDay, setSelectedDay] = useState<Date | undefined>();
 
   const fetchCalendarEntries = useCallback(async () => {
     if (!isRegisteredUser) {
@@ -136,37 +137,30 @@ function CalendarPageContent() {
   }, [fetchCalendarEntries]);
 
   const datesWithEntriesForModifier = useMemo(() => {
-    const dates = Object.keys(entriesByDate).map(dateKey => {
+    return Object.keys(entriesByDate).map(dateKey => {
       const [year, month, day] = dateKey.split('-').map(Number);
-      return new Date(year, month - 1, day, 12,0,0); 
+      return new Date(year, month - 1, day, 12, 0, 0); 
     });
-    return dates;
   }, [entriesByDate]);
 
-  const CustomDayContent = (dayProps: DayContentProps) => {
+  const CustomDay = (dayProps: DayContentProps) => {
     const dateKey = format(dayProps.date, 'yyyy-MM-dd');
-    const dayHasEntries = entriesByDate[dateKey] && entriesByDate[dateKey].length > 0;
-
+    const hasEvents = entriesByDate[dateKey] && entriesByDate[dateKey].length > 0;
     return (
-      <PopoverTrigger asChild disabled={!dayHasEntries}>
-        <span
-          className={cn(
-            "relative flex items-center justify-center h-full w-full",
-             dayHasEntries && !dayProps.isOutside && "cursor-pointer"
-          )}
-        >
-          {format(dayProps.date, 'd')}
-          {dayHasEntries && <span className="absolute bottom-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full" title="Tiene evento"></span>}
-        </span>
-      </PopoverTrigger>
+      <div className="relative h-full w-full flex items-center justify-center">
+        {dayProps.date.getDate()}
+        {hasEvents && (
+          <Dot className="absolute bottom-0 left-1/2 -translate-x-1/2 text-primary h-6 w-6" />
+        )}
+      </div>
     );
   };
   
   const entriesForSelectedDay = useMemo(() => {
-    if (!selectedDayForPopover) return [];
-    const dateKey = format(selectedDayForPopover, 'yyyy-MM-dd');
+    if (!selectedDay) return [];
+    const dateKey = format(selectedDay, 'yyyy-MM-dd');
     return (entriesByDate[dateKey] || []).sort((a,b) => a.rawCreatedAt.toMillis() - b.rawCreatedAt.toMillis());
-  }, [selectedDayForPopover, entriesByDate]);
+  }, [selectedDay, entriesByDate]);
 
   if (isLoading) {
     return (
@@ -208,85 +202,69 @@ function CalendarPageContent() {
         </Alert>
       )}
 
-      <Card className="shadow-xl">
-        <CardContent className="p-0 md:p-6 flex justify-center">
-            <Popover>
-                <Calendar
-                    mode="single"
-                    selected={selectedDayForPopover || undefined}
-                    onSelect={(day) => {
-                      if (!day) {
-                        setSelectedDayForPopover(null);
-                        return;
-                      }
-                      const dateKey = format(day, 'yyyy-MM-dd');
-                      if (entriesByDate[dateKey]) {
-                        setSelectedDayForPopover(day);
-                      } else {
-                        setSelectedDayForPopover(null);
-                      }
-                    }}
-                    month={currentDisplayMonth}
-                    onMonthChange={setCurrentDisplayMonth}
-                    locale={es}
-                    className="w-full max-w-2xl"
-                    modifiers={{ hasEvents: datesWithEntriesForModifier }}
-                    modifiersClassNames={{
-                        hasEvents: 'bg-orange-400/20 text-orange-900 font-bold',
-                    }}
-                    classNames={{
-                        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 p-2",
-                        month: "space-y-4 w-full",
-                        caption_label: "text-xl font-bold text-primary font-headline",
-                        head_row: "flex mt-4 w-full",
-                        head_cell: "text-muted-foreground w-[14.28%] text-sm font-medium",
-                        row: "flex w-full mt-2",
-                        cell: "h-20 md:h-28 w-[14.28%] text-center text-sm p-0 relative focus-within:relative focus-within:z-20 border",
-                        day: "h-full w-full p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-                        day_selected: "!bg-primary !text-primary-foreground", 
-                        day_today: "bg-primary/10 text-primary font-bold ring-1 ring-primary",
-                        day_outside: "text-muted-foreground opacity-50",
-                    }}
-                    components={{
-                        DayContent: CustomDayContent,
-                    }}
-                />
-                <PopoverContent className="w-80 p-0" align="start">
-                    {selectedDayForPopover && entriesForSelectedDay.length > 0 ? (
-                    <Card className="border-none shadow-none">
-                        <CardHeader className="bg-muted p-4">
-                        <CardTitle className="text-md font-headline">
-                            Eventos del {format(selectedDayForPopover, 'PPP', { locale: es })}
-                        </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 space-y-2 max-h-60 overflow-y-auto">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <Card className="shadow-xl md:col-span-2">
+            <Calendar
+                mode="single"
+                selected={selectedDay}
+                onSelect={setSelectedDay}
+                month={currentDisplayMonth}
+                onMonthChange={setCurrentDisplayMonth}
+                locale={es}
+                className="p-0"
+                modifiers={{ hasEvents: datesWithEntriesForModifier }}
+                modifiersClassNames={{
+                    hasEvents: 'font-bold',
+                }}
+                classNames={{
+                    root: "p-4",
+                    months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                    month: "space-y-4 w-full",
+                    caption_label: "text-xl font-bold text-primary font-headline",
+                    head_row: "flex mt-4 w-full",
+                    head_cell: "text-muted-foreground w-[14.28%] text-sm font-medium",
+                    row: "flex w-full mt-2",
+                    cell: "h-20 md:h-24 w-[14.28%] text-center text-sm p-0 relative focus-within:relative focus-within:z-20 border",
+                    day: "h-full w-full p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+                    day_selected: "bg-primary text-primary-foreground hover:bg-primary/90", 
+                    day_today: "bg-primary/10 text-primary font-bold ring-1 ring-primary",
+                    day_outside: "text-muted-foreground opacity-50",
+                }}
+                components={{
+                    Day: CustomDay,
+                }}
+            />
+        </Card>
+
+        <Card className="shadow-xl">
+            <CardHeader>
+                <CardTitle>
+                    Eventos de {selectedDay ? format(selectedDay, 'PPP', { locale: es }) : 'hoy'}
+                </CardTitle>
+                <CardDescription>Detalles de los eventos del día seleccionado.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {entriesForSelectedDay.length > 0 ? (
+                    <ul className="space-y-3">
                         {entriesForSelectedDay.map(entry => (
-                            <Button
-                            key={entry.id}
-                            variant="ghost"
-                            className="w-full justify-start h-auto py-2 px-3 text-left"
-                            asChild
-                            disabled={!isRegisteredUser}
-                            >
-                            <Link href={isRegisteredUser ? (entry.type === 'session' ? `/mis-sesiones/detalle/${entry.id}` : `/estadisticas/historial/${entry.id}`) : '#'}>
-                                <div className="flex flex-col">
-                                    <span className="font-semibold text-primary">
-                                       {entry.title}
-                                    </span>
-                                    {entry.time && <span className="text-xs text-muted-foreground">{entry.time}</span>}
-                                </div>
-                            </Link>
-                            </Button>
+                            <li key={entry.id} className="p-3 rounded-md border bg-card hover:bg-muted/50">
+                                <Link href={isRegisteredUser ? (entry.type === 'session' ? `/mis-sesiones/detalle/${entry.id}` : `/estadisticas/historial/${entry.id}`) : '#'} className="block">
+                                    <p className="font-semibold text-primary">{entry.title}</p>
+                                    <div className="flex items-center text-sm text-muted-foreground mt-1">
+                                        <div className={cn("w-2 h-2 rounded-full mr-2", entry.type === 'session' ? 'bg-blue-500' : 'bg-red-500')}></div>
+                                        <span>{entry.type === 'session' ? 'Sesión' : 'Partido'}</span>
+                                        {entry.time && <span className="ml-auto">{entry.time}</span>}
+                                    </div>
+                                </Link>
+                            </li>
                         ))}
-                        </CardContent>
-                    </Card>
-                    ) : (
-                         <div className="p-4 text-sm text-muted-foreground">No hay eventos para este día.</div>
-                    )}
-                </PopoverContent>
-            </Popover>
-        </CardContent>
-      </Card>
+                    </ul>
+                ) : (
+                    <p className="text-sm text-muted-foreground italic">No hay eventos para este día.</p>
+                )}
+            </CardContent>
+        </Card>
+      </div>
 
        {isRegisteredUser && Object.keys(entriesByDate).length === 0 && !isLoading && (
         <Card className="mt-8 text-center py-12 bg-card shadow-md">
@@ -316,11 +294,5 @@ function CalendarPageContent() {
         </Card>
       )}
     </div>
-  );
-}
-
-export default function CalendarioPage() {
-  return (
-    <CalendarPageContent />
   );
 }
