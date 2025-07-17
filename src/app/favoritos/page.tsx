@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Heart, ListChecks, Loader2, Eye, Trash2, XCircle, FileDown, ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { collection as firestoreCollection, getDocs as firestoreGetDocs, doc as firestoreDoc, query as firestoreQuery, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import Image from 'next/image';
 import {
   Dialog,
@@ -60,6 +60,7 @@ function FavoritosPageContent() {
     }
     setIsLoading(true);
     try {
+      const db = getFirebaseDb();
       const favsRef = firestoreCollection(db, "usuarios", user.uid, "user_favorites");
       const favsSnapshot = await firestoreGetDocs(favsRef);
       const favoriteExerciseIds = favsSnapshot.docs.map(docSnap => docSnap.id);
