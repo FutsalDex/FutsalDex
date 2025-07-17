@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, setDoc } from 'firebase/firestore';
 
 
 // --- Favorite Exercise ---
@@ -24,12 +24,14 @@ type ToggleFavoriteInput = z.infer<typeof ToggleFavoriteInputSchema>;
 
 export async function toggleFavorite({ userId, exerciseId, isFavorite }: ToggleFavoriteInput): Promise<{ success: boolean }> {
   try {
-    const adminDb = getAdminDb();
-    const favDocRef = adminDb.collection("usuarios").doc(userId).collection("user_favorites").doc(exerciseId);
+    const clientDb = getFirebaseDb();
+    const favDocRef = doc(clientDb, "usuarios", userId, "user_favorites", exerciseId);
     if (isFavorite) {
-      await favDocRef.set({ addedAt: FieldValue.serverTimestamp() });
+      // Using client-side timestamp equivalent if needed, but often not necessary for this kind of action.
+      // For simplicity, let's just mark its existence.
+      await setDoc(favDocRef, { addedAt: new Date() });
     } else {
-      await favDocRef.delete();
+      await deleteDoc(favDocRef);
     }
     return { success: true };
   } catch (error) {
@@ -82,8 +84,8 @@ type DeleteSessionInput = z.infer<typeof DeleteSessionInputSchema>;
 
 export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<{ success: boolean }> {
   try {
-    const clientDb = getFirebaseDb();
-    await deleteDoc(doc(clientDb, "mis_sesiones", sessionId));
+    const adminDb = getAdminDb();
+    await adminDb.collection("mis_sesiones").doc(sessionId).delete();
   } catch(error) {
      console.error("Error deleting session:", error);
      throw new Error("Failed to delete session.");
