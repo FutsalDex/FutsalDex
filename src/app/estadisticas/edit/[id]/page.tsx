@@ -497,116 +497,105 @@ function EditMatchPageContent() {
       );
   }
   
-    const renderPlayerTable = (team: 'myTeam' | 'opponentTeam') => {
-    const isMyRosterTeam = team === 'myTeam';
-    
-    let headerTeamName: string;
-    if (isMyRosterTeam) {
-        headerTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
-    } else {
-        headerTeamName = myTeamSide === 'local' ? visitorTeamName : localTeamName;
+    const renderPlayerTable = (isLocalTab: boolean) => {
+        const isMyTeamInThisTab = (isLocalTab && myTeamSide === 'local') || (!isLocalTab && myTeamSide === 'visitante');
+        const players = isMyTeamInThisTab ? myTeamPlayers : opponentPlayers;
+        const headerTeamName = isLocalTab ? localTeamName : visitorTeamName;
+        const cardTitleColor = isMyTeamInThisTab ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+        const teamType = isMyTeamInThisTab ? 'myTeam' : 'opponentTeam';
+
+        return (
+            <Card>
+                <CardHeader className="p-0">
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName || (isMyTeamInThisTab ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 overflow-x-auto">
+                    <div className="min-w-[800px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[3.25rem] text-xs px-1">Dorsal</TableHead>
+                                    <TableHead className="text-xs">Nombre</TableHead>
+                                    <TableHead className="text-center w-[110px] text-xs">Goles</TableHead>
+                                    <TableHead title="T.A." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
+                                    <TableHead title="T.R." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
+                                    <TableHead className="text-center w-[110px] text-xs">Faltas</TableHead>
+                                    <TableHead className="text-center w-[110px] text-xs">Paradas</TableHead>
+                                    <TableHead className="text-center w-[110px] text-xs">G.C.</TableHead>
+                                    <TableHead className="text-center w-[110px] text-xs">1vs1</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {players.map((player, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell className="px-1">
+                                          <Input 
+                                            className="h-8 text-xs w-full" 
+                                            placeholder="Nº" 
+                                            value={player.dorsal} 
+                                            onChange={(e) => teamType === 'opponentTeam' && handleOpponentDorsalChange(index, e.target.value)}
+                                            readOnly={teamType === 'myTeam'}
+                                            type="text" 
+                                            disabled={!isRegisteredUser}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="font-medium text-xs px-1">
+                                            {teamType === 'myTeam' ? 
+                                                (player as Player).nombre : 
+                                                <Input 
+                                                    className="h-8 text-xs w-full" 
+                                                    placeholder="Nombre" 
+                                                    value={(player as OpponentPlayer).nombre || ''}
+                                                    onChange={(e) => teamType === 'opponentTeam' && handleOpponentNameChange(index, e.target.value)}
+                                                    disabled={!isRegisteredUser}
+                                                />
+                                            }
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(teamType, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'goals', -1)} disabled={!isRegisteredUser}/>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.yellowCards} onIncrement={() => handlePlayerStatChange(teamType, index, 'yellowCards', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'yellowCards', -1)} disabled={!isRegisteredUser}/>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.redCards} onIncrement={() => handlePlayerStatChange(teamType, index, 'redCards', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'redCards', -1)} disabled={!isRegisteredUser}/>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.faltas} onIncrement={() => handlePlayerStatChange(teamType, index, 'faltas', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'faltas', -1)} disabled={!isRegisteredUser}/>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.paradas} onIncrement={() => handlePlayerStatChange(teamType, index, 'paradas', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'paradas', -1)} disabled={!isRegisteredUser || (teamType === 'myTeam' && (player as Player).posicion !== 'Portero')} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.golesRecibidos} onIncrement={() => handlePlayerStatChange(teamType, index, 'golesRecibidos', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'golesRecibidos', -1)} disabled={!isRegisteredUser || (teamType === 'myTeam' && (player as Player).posicion !== 'Portero')} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatCounter value={player.unoVsUno} onIncrement={() => handlePlayerStatChange(teamType, index, 'unoVsUno', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'unoVsUno', -1)} disabled={!isRegisteredUser || (teamType === 'myTeam' && (player as Player).posicion !== 'Portero')} />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+        );
     }
 
-    const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
-
-    const players = team === 'myTeam' ? myTeamPlayers : opponentPlayers;
-
-    return (
-        <Card>
-            <CardHeader className="p-0">
-                <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName || (isMyRosterTeam ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 overflow-x-auto">
-                <div className="min-w-[800px]">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[3.25rem] text-xs px-1">Dorsal</TableHead>
-                                <TableHead className="text-xs">Nombre</TableHead>
-                                <TableHead className="text-center w-[110px] text-xs">Goles</TableHead>
-                                <TableHead title="T.A." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
-                                <TableHead title="T.R." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
-                                <TableHead className="text-center w-[110px] text-xs">Faltas</TableHead>
-                                <TableHead className="text-center w-[110px] text-xs">Paradas</TableHead>
-                                <TableHead className="text-center w-[110px] text-xs">G.C.</TableHead>
-                                <TableHead className="text-center w-[110px] text-xs">1vs1</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {players.map((player, index) => (
-                                <TableRow key={index}>
-                                    <TableCell className="px-1">
-                                      <Input 
-                                        className="h-8 text-xs w-full" 
-                                        placeholder="Nº" 
-                                        value={player.dorsal} 
-                                        onChange={(e) => team === 'opponentTeam' && handleOpponentDorsalChange(index, e.target.value)}
-                                        readOnly={team === 'myTeam'}
-                                        type="text" 
-                                        disabled={!isRegisteredUser}
-                                      />
-                                    </TableCell>
-                                    <TableCell className="font-medium text-xs px-1">
-                                        {team === 'myTeam' ? 
-                                            (player as Player).nombre : 
-                                            <Input 
-                                                className="h-8 text-xs w-full" 
-                                                placeholder="Nombre" 
-                                                value={(player as OpponentPlayer).nombre || ''}
-                                                onChange={(e) => team === 'opponentTeam' && handleOpponentNameChange(index, e.target.value)}
-                                                disabled={!isRegisteredUser}
-                                            />
-                                        }
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} disabled={!isRegisteredUser}/>
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatCounter value={player.yellowCards} onIncrement={() => handlePlayerStatChange(team, index, 'yellowCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'yellowCards', -1)} disabled={!isRegisteredUser}/>
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatCounter value={player.redCards} onIncrement={() => handlePlayerStatChange(team, index, 'redCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'redCards', -1)} disabled={!isRegisteredUser}/>
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatCounter value={player.faltas} onIncrement={() => handlePlayerStatChange(team, index, 'faltas', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'faltas', -1)} disabled={!isRegisteredUser}/>
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatCounter value={player.paradas} onIncrement={() => handlePlayerStatChange(team, index, 'paradas', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'paradas', -1)} disabled={!isRegisteredUser || (team === 'myTeam' && (player as Player).posicion !== 'Portero')} />
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatCounter value={player.golesRecibidos} onIncrement={() => handlePlayerStatChange(team, index, 'golesRecibidos', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'golesRecibidos', -1)} disabled={!isRegisteredUser || (team === 'myTeam' && (player as Player).posicion !== 'Portero')} />
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatCounter value={player.unoVsUno} onIncrement={() => handlePlayerStatChange(team, index, 'unoVsUno', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'unoVsUno', -1)} disabled={!isRegisteredUser || (team === 'myTeam' && (player as Player).posicion !== 'Portero')} />
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
-    );
-  }
-
-  const renderTeamStats = (team: 'myTeam' | 'opponentTeam') => {
-    const isMyRosterTeam = team === 'myTeam';
-    const stats = isMyRosterTeam ? myTeamStats : opponentTeamStats;
+  const renderTeamStats = (isLocalTab: boolean) => {
+    const isMyTeamInThisTab = (isLocalTab && myTeamSide === 'local') || (!isLocalTab && myTeamSide === 'visitante');
+    const stats = isMyTeamInThisTab ? myTeamStats : opponentTeamStats;
     if (!stats) return null;
 
-    let headerTeamName: string;
-    if (isMyRosterTeam) {
-        headerTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
-    } else {
-        headerTeamName = myTeamSide === 'local' ? visitorTeamName : localTeamName;
-    }
-    const cardTitleColor = isMyRosterTeam ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+    const headerTeamName = isLocalTab ? localTeamName : visitorTeamName;
+    const cardTitleColor = isMyTeamInThisTab ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground";
+    const teamType = isMyTeamInThisTab ? 'myTeam' : 'opponentTeam';
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {headerTeamName || (isMyRosterTeam ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>TIROS A PUERTA - {headerTeamName || (isMyTeamInThisTab ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 overflow-x-auto">
                     <Table>
@@ -620,18 +609,18 @@ function EditMatchPageContent() {
                         <TableBody>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Portería</TableHead>
-                                <TableCell><StatCounter value={stats.shots.onTarget.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'onTarget', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'onTarget', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
-                                <TableCell><StatCounter value={stats.shots.onTarget.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'onTarget', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'onTarget', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.onTarget.firstHalf} onIncrement={() => handleStatChange(teamType, ['shots', 'onTarget', 'firstHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['shots', 'onTarget', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.onTarget.secondHalf} onIncrement={() => handleStatChange(teamType, ['shots', 'onTarget', 'secondHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['shots', 'onTarget', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Fuera</TableHead>
-                                <TableCell><StatCounter value={stats.shots.offTarget.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'offTarget', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'offTarget', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
-                                <TableCell><StatCounter value={stats.shots.offTarget.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'offTarget', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'offTarget', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.offTarget.firstHalf} onIncrement={() => handleStatChange(teamType, ['shots', 'offTarget', 'firstHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['shots', 'offTarget', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.offTarget.secondHalf} onIncrement={() => handleStatChange(teamType, ['shots', 'offTarget', 'secondHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['shots', 'offTarget', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Bloqueados</TableHead>
-                                <TableCell><StatCounter value={stats.shots.blocked.firstHalf} onIncrement={() => handleStatChange(team, ['shots', 'blocked', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'blocked', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
-                                <TableCell><StatCounter value={stats.shots.blocked.secondHalf} onIncrement={() => handleStatChange(team, ['shots', 'blocked', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['shots', 'blocked', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.blocked.firstHalf} onIncrement={() => handleStatChange(teamType, ['shots', 'blocked', 'firstHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['shots', 'blocked', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.shots.blocked.secondHalf} onIncrement={() => handleStatChange(teamType, ['shots', 'blocked', 'secondHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['shots', 'blocked', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -639,7 +628,7 @@ function EditMatchPageContent() {
             </Card>
             <Card>
                 <CardHeader className="p-0">
-                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {headerTeamName || (isMyRosterTeam ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
+                    <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>EVENTOS DEL PARTIDO - {headerTeamName || (isMyTeamInThisTab ? "Mi Equipo" : "Equipo Contrario")}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 overflow-x-auto">
                     <Table>
@@ -653,18 +642,18 @@ function EditMatchPageContent() {
                         <TableBody>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Tiempos Muertos</TableHead>
-                                <TableCell><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
-                                <TableCell><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['timeouts', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(teamType, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['timeouts', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(teamType, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['timeouts', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                              <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Pérdidas</TableHead>
-                                <TableCell><StatCounter value={stats.turnovers.firstHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
-                                <TableCell><StatCounter value={stats.turnovers.secondHalf} onIncrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['turnovers', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.turnovers.firstHalf} onIncrement={() => handleStatChange(teamType, ['turnovers', 'firstHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['turnovers', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.turnovers.secondHalf} onIncrement={() => handleStatChange(teamType, ['turnovers', 'secondHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['turnovers', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Robos</TableHead>
-                                <TableCell><StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(team, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
-                                <TableCell><StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(team, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(team, ['steals', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.steals.firstHalf} onIncrement={() => handleStatChange(teamType, ['steals', 'firstHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['steals', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.steals.secondHalf} onIncrement={() => handleStatChange(teamType, ['steals', 'secondHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['steals', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -756,14 +745,14 @@ function EditMatchPageContent() {
         </TabsList>
         <TabsContent value="local">
             <div className="space-y-6 pt-6">
-                {renderPlayerTable(myTeamSide === 'local' ? 'myTeam' : 'opponentTeam')}
-                {renderTeamStats(myTeamSide === 'local' ? 'myTeam' : 'opponentTeam')}
+                {renderPlayerTable(true)}
+                {renderTeamStats(true)}
             </div>
         </TabsContent>
         <TabsContent value="visitante">
              <div className="space-y-6 pt-6">
-                {renderPlayerTable(myTeamSide === 'visitante' ? 'myTeam' : 'opponentTeam')}
-                {renderTeamStats(myTeamSide === 'visitante' ? 'myTeam' : 'opponentTeam')}
+                {renderPlayerTable(false)}
+                {renderTeamStats(false)}
             </div>
         </TabsContent>
       </Tabs>
