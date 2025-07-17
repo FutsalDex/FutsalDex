@@ -73,23 +73,6 @@ export async function saveSession({ userId, sessionData }: SaveSessionInput): Pr
 }
 
 
-// --- Delete Match ---
-
-const DeleteMatchInputSchema = z.object({
-    matchId: z.string(),
-});
-type DeleteMatchInput = z.infer<typeof DeleteMatchInputSchema>;
-
-export async function deleteMatch({ matchId }: DeleteMatchInput): Promise<{ success: boolean }> {
-  try {
-    const clientDb = getFirebaseDb();
-    await deleteDoc(doc(clientDb, "partidos_estadisticas", matchId));
-  } catch (error) {
-    console.error("Error deleting match:", error);
-    throw new Error("Failed to delete match.");
-  }
-  return { success: true };
-}
 
 // --- Delete Session ---
 const DeleteSessionInputSchema = z.object({

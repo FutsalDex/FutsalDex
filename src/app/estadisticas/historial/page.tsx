@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, Timestamp, doc, getDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp, doc, addDoc, getDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -40,7 +40,6 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertTitle, AlertDescription as AlertDesc } from "@/components/ui/alert";
-import { deleteMatch } from "@/lib/actions/user-actions";
 
 
 // New Match Schema
@@ -226,7 +225,8 @@ function HistorialPageContent() {
         if (!matchToDeleteId) return;
         setIsDeleting(true);
         try {
-            await deleteMatch({ matchId: matchToDeleteId });
+            const db = getFirebaseDb();
+            await deleteDoc(doc(db, "partidos_estadisticas", matchToDeleteId));
             toast({ title: "Partido Eliminado", description: "El partido ha sido eliminado correctamente." });
             setMatches(prevMatches => prevMatches.filter(match => match.id !== matchToDeleteId));
         } catch (error) {
@@ -280,10 +280,9 @@ function HistorialPageContent() {
             const db = getFirebaseDb();
             const collectionRef = collection(db, "partidos_estadisticas");
             const docRef = await addDoc(collectionRef, newMatchData);
-
             toast({ title: "Partido Añadido", description: "El nuevo partido se ha guardado. Ahora puedes editarlo para añadir estadísticas." });
             setIsAddMatchDialogOpen(false);
-            fetchMatches(); // Refresh the list
+            fetchMatches();
             router.push(`/estadisticas/edit/${docRef.id}`);
         } catch (error) {
             console.error("Error saving new match: ", error);
