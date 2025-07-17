@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, TrendingUp, BookOpen, Repeat, Trophy, Goal, Shield, Square, TrendingDown, ClipboardList, AlertTriangle, ShieldAlert, Info } from 'lucide-react';
 import Link from 'next/link';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -74,6 +74,7 @@ function EstadisticasGeneralesContent() {
         setIsLoading(true);
 
         try {
+            const db = getFirebaseDb();
             const sesionesQuery = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
             const partidosQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
             
