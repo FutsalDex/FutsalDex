@@ -14,7 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas';
 import { DURACION_EJERCICIO_OPCIONES_VALUES } from "@/lib/constants";
-import { addManyExercises, getExistingExerciseNames } from "@/lib/actions/admin-exercise-actions";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, getDocs, query, writeBatch, doc, serverTimestamp } from "firebase/firestore";
+
 
 const EXPECTED_HEADERS: { [key in keyof Required<Omit<AddExerciseFormValues, 'isVisible'>>]: string } & { [key: string]: string } = {
   numero: "Número",
@@ -31,6 +33,40 @@ const EXPECTED_HEADERS: { [key in keyof Required<Omit<AddExerciseFormValues, 'is
   consejos_entrenador: "Consejos para el entrenador",
   imagen: "Imagen",
 };
+
+async function getExistingExerciseNamesClient(): Promise<string[]> {
+  const db = getFirebaseDb();
+  const exercisesCollection = collection(db, "ejercicios_futsal");
+  const q = query(exercisesCollection);
+  const snapshot = await getDocs(q);
+  
+  if (snapshot.empty) {
+    return [];
+  }
+
+  const names = snapshot.docs.map(doc => doc.data().ejercicio as string).filter(Boolean);
+  return names;
+}
+
+async function addManyExercisesClient(exercises: AddExerciseFormValues[]): Promise<void> {
+    const db = getFirebaseDb();
+    const batch = writeBatch(db);
+    const collectionRef = collection(db, 'ejercicios_futsal');
+
+    exercises.forEach(exData => {
+        const newDocRef = doc(collectionRef);
+        batch.set(newDocRef, {
+            ...exData,
+            createdAt: serverTimestamp(),
+            numero: exData.numero || null,
+            variantes: exData.variantes || null,
+            consejos_entrenador: exData.consejos_entrenador || null,
+            isVisible: exData.isVisible === undefined ? true : exData.isVisible,
+        });
+    });
+
+    await batch.commit();
+}
 
 
 function BatchAddExercisesPageContent() {
@@ -111,7 +147,7 @@ function BatchAddExercisesPageContent() {
     let totalRows = 0;
 
     try {
-      const existingExerciseNames = await getExistingExerciseNames();
+      const existingExerciseNames = await getExistingExerciseNamesClient();
       const existingNamesSet = new Set(existingExerciseNames.map(name => name.toLowerCase()));
       
       const reader = new FileReader();
@@ -228,7 +264,7 @@ function BatchAddExercisesPageContent() {
           }
 
           if (exercisesToSave.length > 0) {
-             await addManyExercises(exercisesToSave);
+             await addManyExercisesClient(exercisesToSave);
              successCount = exercisesToSave.length;
           }
 

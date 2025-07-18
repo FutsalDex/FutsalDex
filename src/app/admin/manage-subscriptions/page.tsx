@@ -21,7 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { getAllUsers, updateUserSubscription } from '@/lib/actions/admin-users-actions';
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, orderBy, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 
 interface UserSubscription {
@@ -66,10 +67,24 @@ function ManageSubscriptionsPageContent() {
       }
       setIsLoading(true);
       try {
-          const usersFromFlow = await getAllUsers();
-          setAllUsers(usersFromFlow as UserSubscription[]);
+          const db = getFirebaseDb();
+          const usersCollection = collection(db, "usuarios");
+          const q = query(usersCollection, orderBy('email', 'asc'));
+          const querySnapshot = await q.get();
+
+          const usersFromDb = querySnapshot.docs.map(docSnap => {
+            const data = docSnap.data();
+            return {
+              id: docSnap.id,
+              email: data.email || '',
+              role: data.role || 'user',
+              subscriptionStatus: data.subscriptionStatus || 'inactive',
+              updatedAt: (data.updatedAt as Timestamp)?.toMillis(),
+            };
+          });
+          setAllUsers(usersFromDb as UserSubscription[]);
       } catch (error: any) {
-          console.error("Error fetching users from flow:", error);
+          console.error("Error fetching users:", error);
           toast({ title: "Error al cargar usuarios", description: error.message || "No se pudieron obtener los datos de los usuarios.", variant: "destructive" });
       }
       setIsLoading(false);
@@ -124,7 +139,12 @@ function ManageSubscriptionsPageContent() {
   const handleSubscriptionChange = async (userId: string, newStatus: 'active' | 'inactive') => {
     setIsUpdating(userId);
     try {
-      await updateUserSubscription({ userId, newStatus });
+      const db = getFirebaseDb();
+      const userDocRef = doc(db, "usuarios", userId);
+      await updateDoc(userDocRef, {
+        subscriptionStatus: newStatus,
+        updatedAt: serverTimestamp(),
+      });
       toast({
         title: "Suscripción Actualizada",
         description: `El estado del usuario se ha cambiado a ${newStatus === 'active' ? 'activo' : 'inactivo'}.`,
