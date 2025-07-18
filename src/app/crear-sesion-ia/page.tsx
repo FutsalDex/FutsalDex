@@ -19,7 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { generateSession, type GeneratedSessionOutput, type GenerateSessionInput } from "@/ai/flows/generate-session-flow";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
-import { saveSession } from "@/lib/actions/user-actions";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 
 
 type AiSessionFormValues = Zod.infer<typeof aiSessionSchema>;
@@ -102,16 +103,39 @@ function AiSessionGeneratorPageContent() {
   const handleSaveSession = async () => {
     if (!generatedSession || !user) return;
     setIsSaving(true);
+    const db = getFirebaseDb();
+    
+    if (sessionDetails?.numero_sesion) {
+        try {
+            const q = query(collection(db, "mis_sesiones"), 
+                            where("userId", "==", user.uid), 
+                            where("numero_sesion", "==", sessionDetails.numero_sesion));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
+                toast({ title: "Error", description: "Ya tienes una sesión guardada con ese número.", variant: "destructive" });
+                setIsSaving(false);
+                return;
+            }
+        } catch (error) {
+            console.error("Error checking duplicate session number:", error);
+            toast({ title: "Error de Validación", description: "No se pudo verificar el número de sesión. Inténtalo de nuevo.", variant: "destructive" });
+            setIsSaving(false);
+            return;
+        }
+    }
     
     const sessionDataToSave = {
+        userId: user.uid,
         type: "AI" as "AI",
         sessionTitle: `Sesión IA - ${sessionDetails?.fecha || new Date().toLocaleDateString('es-ES')}`,
         ...generatedSession,
         ...sessionDetails,
+        createdAt: serverTimestamp(),
     };
 
     try {
-      await saveSession({ userId: user.uid, sessionData: sessionDataToSave });
+      await addDoc(collection(db, "mis_sesiones"), sessionDataToSave);
       toast({
         title: "¡Sesión Guardada!",
         description: "Tu sesión generada por IA se ha guardado en 'Mis Sesiones'.",
@@ -210,7 +234,7 @@ function AiSessionGeneratorPageContent() {
                         <CardTitle className="font-headline text-lg">Detalles Adicionales (Opcional)</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 pt-4">
-                        <FormField control={form.control} name="numero_sesion" render={({ field }) => (<FormItem><FormLabel>Nº Sesión</FormLabel><FormControl><Input placeholder="Ej: 25" {...field} /></FormControl></FormItem>)} />
+                        <FormField control={form.control} name="numero_sesion" render={({ field }) => (<FormItem><FormLabel>Nº Sesión</FormLabel><FormControl><Input placeholder="Ej: 25" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="fecha" render={({ field }) => (<FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>)} />
                         <FormField control={form.control} name="temporada" render={({ field }) => (<FormItem><FormLabel>Temporada</FormLabel><FormControl><Input placeholder="Ej: 2024-2025" {...field} /></FormControl></FormItem>)} />
                         <FormField control={form.control} name="club" render={({ field }) => (<FormItem><FormLabel>Club</FormLabel><FormControl><Input placeholder="Ej: Mi Club FS" {...field} /></FormControl></FormItem>)} />

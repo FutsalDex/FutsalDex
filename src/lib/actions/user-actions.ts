@@ -4,6 +4,8 @@
  * @fileOverview A collection of server-side actions for user data mutations.
  * These actions use the Firebase Admin SDK to ensure they are executed with
  * server-side permissions where needed, or the client SDK for user-specific queries.
+ * Note: Saving sessions has been moved to the client-side components to handle
+ * complex queries and permission checks more effectively in the browser.
  */
 
 import { z } from 'zod';
@@ -11,42 +13,10 @@ import { getFirebaseDb } from '@/lib/firebase';
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 
 
-// --- Save Session ---
-
-const SaveSessionInputSchema = z.object({
-    userId: z.string(),
-    sessionData: z.any(),
-});
-type SaveSessionInput = z.infer<typeof SaveSessionInputSchema>;
-
-export async function saveSession({ userId, sessionData }: SaveSessionInput): Promise<{ sessionId: string }> {
-  try {
-    const db = getFirebaseDb();
-    if (sessionData.numero_sesion) {
-      const q = query(
-        collection(db, "mis_sesiones"),
-        where("userId", "==", userId),
-        where("numero_sesion", "==", sessionData.numero_sesion)
-      );
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        throw new Error("Ya hay una sesión con este número.");
-      }
-    }
-    
-    const docRef = await addDoc(collection(db, "mis_sesiones"), {
-      ...sessionData,
-      userId,
-      createdAt: serverTimestamp(),
-    });
-
-    return { sessionId: docRef.id };
-  } catch (error: any) {
-    console.error("Error saving session:", error.message);
-    throw error;
-  }
-}
-
+// --- Save Session (DEPRECATED - LOGIC MOVED TO CLIENT) ---
+// The logic for saving sessions is now handled directly within
+// /src/app/crear-sesion/page.tsx and /src/app/crear-sesion-ia/page.tsx
+// to correctly manage Firestore query permissions from the client.
 
 
 // --- Delete Session ---

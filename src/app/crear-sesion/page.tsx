@@ -19,7 +19,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { manualSessionSchema } from "@/lib/schemas";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getFirebaseDb } from '@/lib/firebase';
-import { collection, getDocs, query, where, limit, orderBy as firestoreOrderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, limit, orderBy as firestoreOrderBy, serverTimestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, Info, Filter } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,7 +31,6 @@ import { CATEGORIAS_TEMATICAS_EJERCICIOS } from "@/lib/constants";
 import { parseDurationToMinutes } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
-import { saveSession } from "@/lib/actions/user-actions";
 
 
 interface Ejercicio {
@@ -226,6 +225,26 @@ function CrearSesionContent() {
     if (!user) return; // Should not happen if other checks pass, but for type safety
 
     setIsSaving(true);
+    const db = getFirebaseDb();
+    
+    if (values.numero_sesion) {
+        try {
+            const q = query(collection(db, "mis_sesiones"), 
+                            where("userId", "==", user.uid), 
+                            where("numero_sesion", "==", values.numero_sesion));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
+                setIsSaving(false);
+                return;
+            }
+        } catch (error) {
+            console.error("Error checking duplicate session number:", error);
+            toast({ title: "Error de Validación", description: "No se pudo verificar el número de sesión. Inténtalo de nuevo.", variant: "destructive" });
+            setIsSaving(false);
+            return;
+        }
+    }
     
     const warmUpDoc = calentamientoEjercicios.find(e => e.id === values.warmUpExerciseId);
     const mainDocs = principalEjercicios.filter(e => values.mainExerciseIds.includes(e.id));
@@ -252,6 +271,7 @@ function CrearSesionContent() {
     const titleToSave = `Sesión - ${formattedDate}`;
 
     const sessionDataToSave = {
+      userId: user.uid,
       type: "Manual" as "Manual" | "AI",
       sessionTitle: titleToSave,
       warmUp: warmUpDoc ? { id: warmUpDoc.id, ejercicio: warmUpDoc.ejercicio, duracion: warmUpDoc.duracion } : null,
@@ -264,10 +284,11 @@ function CrearSesionContent() {
       club: values.club || null,
       equipo: values.equipo || null,
       duracionTotalManualEstimada: totalDuration,
+      createdAt: serverTimestamp(),
     };
 
     try {
-      await saveSession({ userId: user.uid, sessionData: sessionDataToSave });
+      await addDoc(collection(db, "mis_sesiones"), sessionDataToSave);
       toast({
         title: "¡Sesión Guardada!",
         description: "Tu sesión ha sido guardada en 'Mis Sesiones'.",
@@ -288,7 +309,6 @@ function CrearSesionContent() {
             const fetchNextSessionNumber = async () => {
                 setIsFetchingNextSessionNumber(true);
                 try {
-                    const db = getFirebaseDb();
                     const qSessions = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
                     const snapshot = await getDocs(qSessions);
                     const existingNumbers = snapshot.docs.map(doc => doc.data().numero_sesion as string | undefined);
@@ -307,9 +327,6 @@ function CrearSesionContent() {
         description: error.message || "No se pudo guardar la sesión. Inténtalo de nuevo.",
         variant: "destructive",
       });
-      if (error.message.includes("Ya hay una sesión con este número.")) {
-        form.setError("numero_sesion", { type: "manual", message: "Ya hay una sesión con este número." });
-      }
     }
     setIsSaving(false);
   }
@@ -395,7 +412,7 @@ function CrearSesionContent() {
                   <SelectContent>
                     {exercises.map((ej) => (
                       <SelectItem key={ej.id} value={ej.id}>
-                        {ej.ejercicio} ({ej.duracion ? `${ej.ejercicio} min` : 'N/A'})
+                        {ej.ejercicio} ({ej.duracion ? `${ej.duracion} min` : 'N/A'})
                       </SelectItem>
                     ))}
                   </SelectContent>
