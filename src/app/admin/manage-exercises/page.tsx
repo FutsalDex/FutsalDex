@@ -122,6 +122,34 @@ function EditExerciseForm({ exercise, onFormSubmit, closeDialog }: { exercise: A
                                 <FormMessage />
                             </FormItem>
                         )} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormField control={form.control} name="jugadores" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Número de Jugadores</FormLabel>
+                                    <FormControl><Input placeholder="Ej: 8-12 jugadores" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="duracion" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Duración (minutos)</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona una duración" /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {DURACION_EJERCICIO_OPCIONES.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </div>
+                         <FormField control={form.control} name="variantes" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Variantes (Opcional)</FormLabel>
+                                <FormControl><Textarea placeholder="Posibles modificaciones o progresiones del ejercicio..." {...field} rows={3} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
                         <FormField control={form.control} name="consejos_entrenador" render={({ field }) => ( <FormItem><FormLabel>Consejos para el Entrenador (Opcional)</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="imagen" render={({ field }) => ( <FormItem><FormLabel>URL Imagen</FormLabel><FormControl><Input type="url" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="isVisible" render={({ field }) => (

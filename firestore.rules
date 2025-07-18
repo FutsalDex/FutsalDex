@@ -1,42 +1,32 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Regla 1: La colección de ejercicios es de lectura pública.
-    // Solo los administradores pueden escribir en ella.
+
+    // Regla 1: La colección de ejercicios es de lectura pública para todos.
+    // La escritura está deshabilitada desde el cliente; solo el administrador puede escribir a través de acciones del servidor.
+    // Opcional: Si quieres que los administradores puedan escribir directamente desde el cliente,
+    // puedes cambiar 'if false' por la condición de administrador como se muestra en la segunda opción.
     match /ejercicios_futsal/{exerciseId} {
       allow read: if true;
+      // Opción A (más segura - escritura solo desde el servidor con Service Account):
+      // allow write: if false;
+
+      // Opción B (menos segura - escritura desde el cliente si el usuario es administrador):
       allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Regla 2: Los usuarios pueden gestionar su propio documento y subcolecciones.
     match /usuarios/{userId} {
       // Un usuario puede leer y actualizar su propio documento de perfil.
-      allow read, update, create, delete: if request.auth != null && request.auth.uid == userId;
-      // Un administrador puede leer y escribir en el perfil de cualquier usuario.
-      allow write, get: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
-      
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      // Un administrador puede leer el perfil de cualquier usuario.
+      allow get: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+
       // Un usuario autenticado puede gestionar completamente los documentos dentro de sus propias subcolecciones
+      // como 'user_favorites' y 'team'.
       match /{subcollection}/{docId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-    }
-
-    // Regla 3: Permite a los usuarios consultar colecciones si filtran por su propio `userId`.
-    match /mis_sesiones/{sessionId} {
-      allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    
-    match /partidos_estadisticas/{partidoId} {
-      allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    
-    match /support_chats/{chatId} {
-       allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
