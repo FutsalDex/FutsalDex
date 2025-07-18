@@ -3,63 +3,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Función para verificar si un usuario es administrador
-    function isAdmin(userId) {
-      return get(/databases/$(database)/documents/usuarios/$(userId)).data.role == 'admin';
-    }
-
-    // --- REGLAS PARA LA COLECCIÓN DE EJERCICIOS ---
-    // Cualquier usuario, incluso no autenticado, puede leer los ejercicios.
-    // Solo los administradores pueden escribir (crear, actualizar, eliminar).
+    // --- Colecciones Públicas con Escritura Restringida ---
+    
+    // La colección de ejercicios es de lectura para usuarios autenticados.
+    // La escritura está limitada a los administradores.
     match /ejercicios_futsal/{exerciseId} {
-      allow read: if true;
-      allow write: if request.auth != null && isAdmin(request.auth.uid);
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // --- REGLAS PARA LA COLECCIÓN DE USUARIOS Y SUS SUBCOLECCIONES ---
+    // --- Datos de Usuario ---
+
     match /usuarios/{userId} {
-      // Un usuario puede leer y actualizar su propio documento.
-      // Un administrador puede leer y actualizar el documento de cualquier usuario (para gestionar suscripciones).
-      allow read, update: if request.auth != null && (request.auth.uid == userId || isAdmin(request.auth.uid));
-
-      // Un administrador puede listar todos los usuarios (para el panel de gestión).
-      allow list: if request.auth != null && isAdmin(request.auth.uid);
-
-      // Un usuario solo puede crear su propio documento (en el registro). No puede crear documentos para otros.
-      allow create: if request.auth != null && request.auth.uid == userId;
+      // Un usuario puede leer y escribir en su propio documento.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Reglas para subcolecciones del usuario como 'team' y 'user_favorites'.
-      // Un usuario solo puede acceder y modificar sus propias subcolecciones.
+      // Un administrador puede leer y listar los perfiles de cualquier usuario para gestionarlos.
+      allow get, list: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+
+      // Un usuario solo puede acceder a sus propias subcolecciones.
       match /{subcollection}/{docId} {
-        allow read, write, create, delete: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
-
-    // --- REGLAS PARA COLECCIONES LIGADAS AL USUARIO ---
-    // El usuario debe estar autenticado y su UID debe coincidir con el campo 'userId' en el documento.
     
-    // Reglas para las sesiones guardadas.
-    match /mis_sesiones/{sessionId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // Permite que un usuario consulte la lista de sus propias sesiones.
-      allow list: if request.auth != null && request.query.resource.data.userId == request.auth.uid;
-    }
+    // --- Colecciones Específicas del Usuario (Sesiones, Partidos, etc.) ---
     
-    // Reglas para las estadísticas de los partidos.
-    match /partidos_estadisticas/{partidoId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    // Un usuario solo puede crear, leer, actualizar o borrar los documentos que le pertenecen.
+    match /{collectionId}/{docId} {
+      allow read, write, update, delete, list: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // Permite que un usuario consulte la lista de sus propios partidos.
-      allow list: if request.auth != null && request.query.resource.data.userId == request.auth.uid;
-    }
-    
-    // Reglas para los chats de soporte.
-    match /support_chats/{chatId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-       // Permite que un usuario consulte la lista de sus propios chats.
-      allow list: if request.auth != null && request.query.resource.data.userId == request.auth.uid;
     }
   }
 }
