@@ -1,10 +1,9 @@
 
 'use server';
 
-// This file is being deprecated in favor of client-side firebase calls from admin components
-// to respect Firestore security rules while working in an environment without server credentials.
-// The functions are being moved to the respective components:
-// - addExercise -> src/app/admin/add-exercise/page.tsx
-// - addManyExercises -> src/app/admin/batch-add-exercises/page.tsx
-// - update/delete/clean -> src/app/admin/manage-exercises/page.tsx
-// This file can be removed in a future cleanup.
+// THIS FILE IS DEPRECATED.
+// All admin actions have been moved to their respective client components
+// in the `/src/app/admin/` directory. This was done to correctly handle
+// Firestore permissions within the development environment, which lacks
+// server-side admin credentials.
+// This file is kept for reference but should not be used. It can be removed in a future cleanup.

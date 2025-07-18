@@ -7,16 +7,8 @@
  */
 
 import { z } from 'zod';
-import { getAdminDb } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
-import { doc, deleteDoc, setDoc } from 'firebase/firestore';
-
-
-// --- Favorite Exercise (DEPRECATED) ---
-// The logic has been moved to client-side components (`src/app/ejercicios/page.tsx` and `src/app/favoritos/page.tsx`)
-// to handle permissions correctly using the user's auth state.
-// This function is removed to avoid confusion and errors.
+import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 
 
 // --- Save Session ---
@@ -29,22 +21,25 @@ type SaveSessionInput = z.infer<typeof SaveSessionInputSchema>;
 
 export async function saveSession({ userId, sessionData }: SaveSessionInput): Promise<{ sessionId: string }> {
   try {
-    const adminDb = getAdminDb();
+    const db = getFirebaseDb();
     if (sessionData.numero_sesion) {
-      const q = adminDb.collection("mis_sesiones")
-        .where("userId", "==", userId)
-        .where("numero_sesion", "==", sessionData.numero_sesion);
-      const querySnapshot = await q.get();
+      const q = query(
+        collection(db, "mis_sesiones"),
+        where("userId", "==", userId),
+        where("numero_sesion", "==", sessionData.numero_sesion)
+      );
+      const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
         throw new Error("Ya hay una sesión con este número.");
       }
     }
     
-    const docRef = await adminDb.collection("mis_sesiones").add({
+    const docRef = await addDoc(collection(db, "mis_sesiones"), {
       ...sessionData,
       userId,
-      createdAt: FieldValue.serverTimestamp(),
+      createdAt: serverTimestamp(),
     });
+
     return { sessionId: docRef.id };
   } catch (error: any) {
     console.error("Error saving session:", error.message);
@@ -62,8 +57,9 @@ type DeleteSessionInput = z.infer<typeof DeleteSessionInputSchema>;
 
 export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<{ success: boolean }> {
   try {
-    const adminDb = getAdminDb();
-    await adminDb.collection("mis_sesiones").doc(sessionId).delete();
+    const db = getFirebaseDb();
+    const { doc, deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, "mis_sesiones", sessionId));
   } catch(error) {
      console.error("Error deleting session:", error);
      throw new Error("Failed to delete session.");
