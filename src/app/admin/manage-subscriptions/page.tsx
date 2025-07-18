@@ -70,7 +70,7 @@ function ManageSubscriptionsPageContent() {
           const db = getFirebaseDb();
           const usersCollection = collection(db, "usuarios");
           const q = query(usersCollection, orderBy('email', 'asc'));
-          const querySnapshot = await q.get();
+          const querySnapshot = await getDocs(q);
 
           const usersFromDb = querySnapshot.docs.map(docSnap => {
             const data = docSnap.data();
