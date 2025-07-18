@@ -3,42 +3,63 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Regla 1: La colección de ejercicios es de lectura pública.
-    // La escritura solo está permitida para administradores.
-    match /ejercicios_futsal/{exerciseId} {
-      allow read: if true;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    // Función para verificar si un usuario es administrador
+    function isAdmin(userId) {
+      return get(/databases/$(database)/documents/usuarios/$(userId)).data.role == 'admin';
     }
 
-    // Regla 2: Los usuarios pueden gestionar su propio documento y subcolecciones.
-    // Los administradores tienen acceso extendido.
+    // --- REGLAS PARA LA COLECCIÓN DE EJERCICIOS ---
+    // Cualquier usuario, incluso no autenticado, puede leer los ejercicios.
+    // Solo los administradores pueden escribir (crear, actualizar, eliminar).
+    match /ejercicios_futsal/{exerciseId} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin(request.auth.uid);
+    }
+
+    // --- REGLAS PARA LA COLECCIÓN DE USUARIOS Y SUS SUBCOLECCIONES ---
     match /usuarios/{userId} {
-      // Un usuario puede leer y actualizar su propio documento de perfil.
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      // Un administrador puede leer y listar todos los perfiles de usuario.
-      allow get, list: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      // Un usuario puede leer y actualizar su propio documento.
+      // Un administrador puede leer y actualizar el documento de cualquier usuario (para gestionar suscripciones).
+      allow read, update: if request.auth != null && (request.auth.uid == userId || isAdmin(request.auth.uid));
+
+      // Un administrador puede listar todos los usuarios (para el panel de gestión).
+      allow list: if request.auth != null && isAdmin(request.auth.uid);
+
+      // Un usuario solo puede crear su propio documento (en el registro). No puede crear documentos para otros.
+      allow create: if request.auth != null && request.auth.uid == userId;
       
-      // Un usuario autenticado puede gestionar completamente los documentos dentro de sus propias subcolecciones
-      // como 'user_favorites' y 'team'.
+      // Reglas para subcolecciones del usuario como 'team' y 'user_favorites'.
+      // Un usuario solo puede acceder y modificar sus propias subcolecciones.
       match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write, create, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Regla 3: Permite a los usuarios operar sobre colecciones si filtran por su propio `userId`.
+    // --- REGLAS PARA COLECCIONES LIGADAS AL USUARIO ---
+    // El usuario debe estar autenticado y su UID debe coincidir con el campo 'userId' en el documento.
+    
+    // Reglas para las sesiones guardadas.
     match /mis_sesiones/{sessionId} {
-      allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Permite que un usuario consulte la lista de sus propias sesiones.
+      allow list: if request.auth != null && request.query.resource.data.userId == request.auth.uid;
     }
     
+    // Reglas para las estadísticas de los partidos.
     match /partidos_estadisticas/{partidoId} {
-      allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Permite que un usuario consulte la lista de sus propios partidos.
+      allow list: if request.auth != null && request.query.resource.data.userId == request.auth.uid;
     }
     
+    // Reglas para los chats de soporte.
     match /support_chats/{chatId} {
-       allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+       // Permite que un usuario consulte la lista de sus propios chats.
+      allow list: if request.auth != null && request.query.resource.data.userId == request.auth.uid;
     }
   }
 }
