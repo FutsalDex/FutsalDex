@@ -3,20 +3,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Regla 1: La colección de ejercicios es de lectura pública.
+    // La escritura solo está permitida para administradores.
     match /ejercicios_futsal/{exerciseId} {
       allow read: if true;
       allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Regla 2: Los usuarios pueden gestionar su propio documento y subcolecciones.
+    // Los administradores tienen acceso extendido.
     match /usuarios/{userId} {
+      // Un usuario puede leer y actualizar su propio documento de perfil.
       allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow get: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      // Un administrador puede leer y listar todos los perfiles de usuario.
+      allow get, list: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
       
+      // Un usuario autenticado puede gestionar completamente los documentos dentro de sus propias subcolecciones
+      // como 'user_favorites' y 'team'.
       match /{subcollection}/{docId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
+    // Regla 3: Permite a los usuarios operar sobre colecciones si filtran por su propio `userId`.
     match /mis_sesiones/{sessionId} {
       allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
