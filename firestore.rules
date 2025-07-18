@@ -1,47 +1,42 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Regla 1: La colección de ejercicios es de lectura pública para todos.
-    // La escritura está deshabilitada desde el cliente; solo el administrador puede escribir a través de acciones del servidor.
+    // Regla 1: La colección de ejercicios es de lectura pública.
+    // Solo los administradores pueden escribir en ella.
     match /ejercicios_futsal/{exerciseId} {
       allow read: if true;
-      allow write: if false; 
+      allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Regla 2: Los usuarios pueden gestionar su propio documento y subcolecciones.
     match /usuarios/{userId} {
       // Un usuario puede leer y actualizar su propio documento de perfil.
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      // Un administrador puede leer el perfil de cualquier usuario.
-      allow get: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      allow read, update, create, delete: if request.auth != null && request.auth.uid == userId;
+      // Un administrador puede leer y escribir en el perfil de cualquier usuario.
+      allow write, get: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
       
       // Un usuario autenticado puede gestionar completamente los documentos dentro de sus propias subcolecciones
-      // como 'user_favorites' y 'team'.
       match /{subcollection}/{docId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Regla 3: Permite a los usuarios consultar y modificar sus propias sesiones, partidos y chats.
+    // Regla 3: Permite a los usuarios consultar colecciones si filtran por su propio `userId`.
     match /mis_sesiones/{sessionId} {
-      allow list, get, read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+      allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
     }
     
     match /partidos_estadisticas/{partidoId} {
-      allow list, get, read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+      allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
     }
     
     match /support_chats/{chatId} {
-       allow list, get, read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+       allow list, read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-       allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
     }
   }
 }

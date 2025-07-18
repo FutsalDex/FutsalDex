@@ -5,10 +5,8 @@
  */
 import { z } from 'zod';
 import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas';
-import { getAdminDb } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, where, addDoc, serverTimestamp, writeBatch, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 
 // --- Get Existing Exercise Names ---
@@ -44,31 +42,31 @@ export async function getAllExercisesForExport(): Promise<any[]> {
 }
 
 
-// --- ADD Exercise (uses Admin SDK) ---
+// --- ADD Exercise ---
 export async function addExercise(data: AddExerciseFormValues): Promise<void> {
-    const adminDb = getAdminDb();
-    await adminDb.collection('ejercicios_futsal').add({
+    const db = getFirebaseDb();
+    await addDoc(collection(db, 'ejercicios_futsal'), {
         ...data,
         numero: data.numero || null,
         variantes: data.variantes || null,
         consejos_entrenador: data.consejos_entrenador || null,
         imagen: data.imagen || `https://placehold.co/400x300.png?text=${encodeURIComponent(data.ejercicio)}`,
         isVisible: data.isVisible === undefined ? true : data.isVisible,
-        createdAt: FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
     });
 }
 
-// --- ADD Many Exercises (uses Admin SDK) ---
+// --- ADD Many Exercises ---
 export async function addManyExercises(exercises: AddExerciseFormValues[]): Promise<void> {
-    const adminDb = getAdminDb();
-    const batch = adminDb.batch();
-    const collectionRef = adminDb.collection('ejercicios_futsal');
+    const db = getFirebaseDb();
+    const batch = writeBatch(db);
+    const collectionRef = collection(db, 'ejercicios_futsal');
 
     exercises.forEach(exData => {
-        const newDocRef = collectionRef.doc();
+        const newDocRef = doc(collectionRef);
         batch.set(newDocRef, {
             ...exData,
-            createdAt: FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
             numero: exData.numero || null,
             variantes: exData.variantes || null,
             consejos_entrenador: exData.consejos_entrenador || null,
@@ -80,23 +78,23 @@ export async function addManyExercises(exercises: AddExerciseFormValues[]): Prom
 }
 
 
-// --- UPDATE Exercise (uses Admin SDK) ---
+// --- UPDATE Exercise ---
 export async function updateExercise(id: string, data: AddExerciseFormValues): Promise<void> {
-    const adminDb = getAdminDb();
-    const docRef = adminDb.collection("ejercicios_futsal").doc(id);
-    await docRef.update({ ...data, updatedAt: FieldValue.serverTimestamp() });
+    const db = getFirebaseDb();
+    const docRef = doc(db, "ejercicios_futsal", id);
+    await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
 }
 
-// --- DELETE Exercise (uses Admin SDK) ---
+// --- DELETE Exercise ---
 export async function deleteExercise(id: string): Promise<void> {
-    const adminDb = getAdminDb();
-    await adminDb.collection("ejercicios_futsal").doc(id).delete();
+    const db = getFirebaseDb();
+    await deleteDoc(doc(db, "ejercicios_futsal", id));
 }
 
-// --- Clean Duplicate Exercises (uses Admin SDK) ---
+// --- Clean Duplicate Exercises ---
 export async function cleanDuplicateExercises(): Promise<number> {
-    const adminDb = getAdminDb();
-    const snapshot = await adminDb.collection("ejercicios_futsal").orderBy('ejercicio').get();
+    const db = getFirebaseDb();
+    const snapshot = await getDocs(query(collection(db, "ejercicios_futsal"), orderBy('ejercicio')));
     
     if (snapshot.empty) return 0;
 
@@ -116,7 +114,6 @@ export async function cleanDuplicateExercises(): Promise<number> {
         const duplicates = exercisesByName[nameKey];
         if (duplicates.length > 1) {
             duplicates.sort((a, b) => (a.id > b.id ? 1 : -1));
-            // Keep the first one, delete the rest
             for (let i = 1; i < duplicates.length; i++) {
                 idsToDelete.push(duplicates[i].id);
             }
@@ -124,9 +121,9 @@ export async function cleanDuplicateExercises(): Promise<number> {
     }
 
     if (idsToDelete.length > 0) {
-        const batch = adminDb.batch();
+        const batch = writeBatch(db);
         idsToDelete.forEach(id => {
-            batch.delete(adminDb.collection("ejercicios_futsal").doc(id));
+            batch.delete(doc(db, "ejercicios_futsal", id));
         });
         await batch.commit();
         return idsToDelete.length;
