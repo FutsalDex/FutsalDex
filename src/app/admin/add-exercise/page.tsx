@@ -19,8 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { FASES_SESION, CATEGORIAS_TEMATICAS_EJERCICIOS, CATEGORIAS_EDAD_EJERCICIOS, DURACION_EJERCICIO_OPCIONES } from "@/lib/constants";
-import { getFirebaseDb } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { addExercise } from "@/lib/actions/admin-exercise-actions";
 
 
 function AddExercisePageContent() {
@@ -54,26 +53,17 @@ function AddExercisePageContent() {
   async function onSubmit(data: AddExerciseFormValues) {
     setIsLoading(true);
     try {
-      const db = getFirebaseDb();
-      await addDoc(collection(db, "ejercicios_futsal"), {
-        ...data,
-        numero: data.numero || null,
-        variantes: data.variantes || null,
-        consejos_entrenador: data.consejos_entrenador || null,
-        imagen: data.imagen || `https://placehold.co/400x300.png?text=${encodeURIComponent(data.ejercicio)}`,
-        isVisible: data.isVisible === undefined ? true : data.isVisible,
-        createdAt: serverTimestamp(),
-      });
+      await addExercise(data);
       toast({
         title: "Ejercicio Añadido",
         description: `El ejercicio "${data.ejercicio}" ha sido añadido a la biblioteca.`,
       });
       form.reset();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding exercise:", error);
       toast({
         title: "Error al Añadir Ejercicio",
-        description: "Hubo un problema al guardar el ejercicio. Revisa las reglas de seguridad de Firestore si el error persiste.",
+        description: error.message || "Hubo un problema al guardar el ejercicio. Revisa las reglas de seguridad de Firestore si el error persiste.",
         variant: "destructive",
       });
     }

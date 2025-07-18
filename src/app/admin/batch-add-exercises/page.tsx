@@ -14,9 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { addExerciseSchema, type AddExerciseFormValues } from '@/lib/schemas';
 import { DURACION_EJERCICIO_OPCIONES_VALUES } from "@/lib/constants";
-import { getFirebaseDb } from "@/lib/firebase";
-import { collection, writeBatch, serverTimestamp, doc } from 'firebase/firestore';
-import { getExistingExerciseNames } from "@/lib/actions/admin-exercise-actions";
+import { addManyExercises, getExistingExerciseNames } from "@/lib/actions/admin-exercise-actions";
 
 const EXPECTED_HEADERS: { [key in keyof Required<Omit<AddExerciseFormValues, 'isVisible'>>]: string } & { [key: string]: string } = {
   numero: "Número",
@@ -230,25 +228,8 @@ function BatchAddExercisesPageContent() {
           }
 
           if (exercisesToSave.length > 0) {
-            const db = getFirebaseDb();
-            const MAX_BATCH_SIZE = 499; // Firestore write batch limit is 500 operations
-            for (let i = 0; i < exercisesToSave.length; i += MAX_BATCH_SIZE) {
-                const chunk = exercisesToSave.slice(i, i + MAX_BATCH_SIZE);
-                const batch = writeBatch(db);
-                chunk.forEach(exData => {
-                    const newExerciseRef = doc(collection(db, "ejercicios_futsal"));
-                    batch.set(newExerciseRef, {
-                        ...exData,
-                        createdAt: serverTimestamp(),
-                        numero: exData.numero || null,
-                        variantes: exData.variantes || null,
-                        consejos_entrenador: exData.consejos_entrenador || null,
-                        isVisible: exData.isVisible === undefined ? true : exData.isVisible,
-                    });
-                });
-                await batch.commit();
-            }
-            successCount = exercisesToSave.length;
+             await addManyExercises(exercisesToSave);
+             successCount = exercisesToSave.length;
           }
 
           setProcessedStats({ success: successCount, failed: failureCount, skipped: skippedCount, total: totalRows });

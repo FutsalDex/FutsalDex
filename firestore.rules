@@ -1,53 +1,47 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Helper Functions ---
-    // Checks if the requesting user is an admin.
-    function isAdmin() {
-      // Check if the user document exists and if the role field is 'admin'.
-      return exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Checks if the requesting user is the owner of the document.
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-
-    // --- Collection Rules ---
-
-    // Ejercicios: Publicly readable, admin-only writable.
-    match /ejercicios_futsal/{ejercicioId} {
+    
+    // Regla 1: La colección de ejercicios es de lectura pública para todos.
+    // La escritura está deshabilitada desde el cliente; solo el administrador puede escribir a través de acciones del servidor.
+    match /ejercicios_futsal/{exerciseId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if false; 
     }
 
-    // Usuarios: Users can manage their own data. Admins can manage any user.
+    // Regla 2: Los usuarios pueden gestionar su propio documento y subcolecciones.
     match /usuarios/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
-
-      // Subcollections: users can manage their own subcollections.
+      // Un usuario puede leer y actualizar su propio documento de perfil.
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      // Un administrador puede leer el perfil de cualquier usuario.
+      allow get: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      
+      // Un usuario autenticado puede gestionar completamente los documentos dentro de sus propias subcolecciones
+      // como 'user_favorites' y 'team'.
       match /{subcollection}/{docId} {
-         allow read, write: if isOwner(userId) || isAdmin();
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
-    
-    // Mis Sesiones: Users can manage their own sessions. Admins have full access.
-    match /mis_sesiones/{sesionId} {
-      allow read, create, update, delete: if isOwner(get(/databases/$(database)/documents/mis_sesiones/$(sesionId)).data.userId) || isAdmin();
-    }
-    
-    // Partidos y Estadísticas: Users can manage their own matches. Admins have full access.
-    match /partidos_estadisticas/{partidoId} {
-       allow read, create, update, delete: if isOwner(get(/databases/$(database)/documents/partidos_estadisticas/$(partidoId)).data.userId) || isAdmin();
-    }
 
-    // Support Chats: Users can manage their own chats. Admins have full access.
+    // Regla 3: Permite a los usuarios consultar y modificar sus propias sesiones, partidos y chats.
+    match /mis_sesiones/{sessionId} {
+      allow list, get, read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    match /partidos_estadisticas/{partidoId} {
+      allow list, get, read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+    }
+    
     match /support_chats/{chatId} {
-       allow read, create, update, delete: if isOwner(get(/databases/$(database)/documents/support_chats/$(chatId)).data.userId) || isAdmin();
+       allow list, get, read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+       allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
     }
   }
 }
