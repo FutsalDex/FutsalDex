@@ -6,8 +6,9 @@
 
 import { z } from 'zod';
 import { addExerciseSchema } from '@/lib/schemas';
-import { getFirebaseDb } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, writeBatch, where } from 'firebase/firestore';
+import { getAdminDb } from '@/lib/firebase-admin';
+import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, writeBatch, where, limit } from 'firebase-admin/firestore';
+
 
 // --- Add Exercise ---
 
@@ -21,8 +22,8 @@ const AddExerciseOutputSchema = z.object({
 export type AddExerciseOutput = z.infer<typeof AddExerciseOutputSchema>;
 
 export async function addExercise(data: AddExerciseInput): Promise<AddExerciseOutput> {
-  const db = getFirebaseDb();
-  const docRef = await addDoc(collection(db, "ejercicios_futsal"), {
+  const db = getAdminDb();
+  const docRef = await db.collection("ejercicios_futsal").add({
     ...data,
     numero: data.numero || null,
     variantes: data.variantes || null,
@@ -50,15 +51,15 @@ const BatchAddExercisesOutputSchema = z.object({
 export type BatchAddExercisesOutput = z.infer<typeof BatchAddExercisesOutputSchema>;
 
 export async function batchAddExercises(input: BatchAddExercisesInput): Promise<BatchAddExercisesOutput> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const MAX_BATCH_SIZE = 499;
   let successCount = 0;
   
   for (let i = 0; i < input.length; i += MAX_BATCH_SIZE) {
-    const batch = writeBatch(db);
+    const batch = db.batch();
     const chunk = input.slice(i, i + MAX_BATCH_SIZE);
     chunk.forEach(exData => {
-      const newExerciseRef = doc(collection(db, "ejercicios_futsal"));
+      const newExerciseRef = db.collection("ejercicios_futsal").doc();
       batch.set(newExerciseRef, {
         ...exData,
         createdAt: new Date(),
@@ -80,10 +81,10 @@ export async function batchAddExercises(input: BatchAddExercisesInput): Promise<
 
 // --- Get Existing Exercise Names ---
 export async function getExistingExerciseNames(): Promise<string[]> {
-  const db = getFirebaseDb();
-  const exercisesCollection = collection(db, "ejercicios_futsal");
-  const q = query(exercisesCollection);
-  const snapshot = await getDocs(q);
+  const db = getAdminDb();
+  const exercisesCollection = db.collection("ejercicios_futsal");
+  const q = exercisesCollection;
+  const snapshot = await q.get();
   
   if (snapshot.empty) {
     return [];
@@ -106,9 +107,9 @@ const AdminExerciseListOutputSchema = z.object({
 export type AdminExerciseListOutput = z.infer<typeof AdminExerciseListOutputSchema>;
 
 export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutput> {
-    const db = getFirebaseDb();
-    const q = query(collection(db, "ejercicios_futsal"), orderBy('ejercicio', 'asc'));
-    const snapshot = await getDocs(q);
+    const db = getAdminDb();
+    const q = db.collection("ejercicios_futsal").orderBy('ejercicio', 'asc');
+    const snapshot = await q.get();
     
     const exercisesByName: { [name: string]: AdminExercise[] } = {};
     const exercisesToKeep: AdminExercise[] = [];
@@ -156,10 +157,10 @@ export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutp
     if (idsToDelete.length > 0) {
         const MAX_BATCH_SIZE = 499;
         for (let i = 0; i < idsToDelete.length; i += MAX_BATCH_SIZE) {
-            const batch = writeBatch(db);
+            const batch = db.batch();
             const chunk = idsToDelete.slice(i, i + MAX_BATCH_SIZE);
             chunk.forEach(id => {
-                batch.delete(doc(db, "ejercicios_futsal", id));
+                batch.delete(db.collection("ejercicios_futsal").doc(id));
             });
             await batch.commit();
         }
@@ -173,10 +174,10 @@ const UpdateExerciseInputSchema = addExerciseSchema.extend({ id: z.string() });
 export type UpdateExerciseInput = z.infer<typeof UpdateExerciseInputSchema>;
 
 export async function updateExercise(data: UpdateExerciseInput): Promise<{ success: boolean }> {
-  const db = getFirebaseDb();
+  const db = getAdminDb();
   const { id, ...exerciseData } = data;
-  const docRef = doc(db, "ejercicios_futsal", id);
-  await updateDoc(docRef, { ...exerciseData, updatedAt: new Date() });
+  const docRef = db.collection("ejercicios_futsal").doc(id);
+  await docRef.update({ ...exerciseData, updatedAt: new Date() });
   return { success: true };
 }
 
@@ -185,16 +186,16 @@ const DeleteExerciseInputSchema = z.object({ exerciseId: z.string() });
 export type DeleteExerciseInput = z.infer<typeof DeleteExerciseInputSchema>;
 
 export async function deleteExercise({ exerciseId }: DeleteExerciseInput): Promise<{ success: boolean }> {
-  const db = getFirebaseDb();
-  await deleteDoc(doc(db, "ejercicios_futsal", exerciseId));
+  const db = getAdminDb();
+  await db.collection("ejercicios_futsal").doc(exerciseId).delete();
   return { success: true };
 }
 
 // --- Delete All Exercises ---
 export async function deleteAllExercises(): Promise<{ deletedCount: number }> {
-    const db = getFirebaseDb();
-    const collectionRef = collection(db, "ejercicios_futsal");
-    const snapshot = await getDocs(query(collectionRef, limit(500)));
+    const db = getAdminDb();
+    const collectionRef = db.collection("ejercicios_futsal");
+    const snapshot = await collectionRef.limit(500).get();
     let deletedCount = 0;
 
     if (snapshot.empty) {
@@ -203,15 +204,15 @@ export async function deleteAllExercises(): Promise<{ deletedCount: number }> {
 
     let lastSnapshot = snapshot;
     while(lastSnapshot.size > 0) {
-      const batch = writeBatch(db);
+      const batch = db.batch();
       lastSnapshot.docs.forEach((docSnap) => {
         batch.delete(docSnap.ref);
       });
       await batch.commit();
       deletedCount += lastSnapshot.size;
       
-      if (lastSnapshot.size < 500) break; // Exit loop if we've processed the last page
-      lastSnapshot = await getDocs(query(collectionRef, limit(500)));
+      if (lastSnapshot.size < 500) break;
+      lastSnapshot = await collectionRef.limit(500).get();
     }
 
     return { deletedCount };
@@ -219,9 +220,9 @@ export async function deleteAllExercises(): Promise<{ deletedCount: number }> {
 
 // --- Get All Exercises for Export ---
 export async function getAllExercisesForExport(): Promise<AdminExercise[]> {
-    const db = getFirebaseDb();
-    const exercisesCollection = collection(db, "ejercicios_futsal");
-    const snapshot = await getDocs(query(exercisesCollection, orderBy('ejercicio', 'asc')));
+    const db = getAdminDb();
+    const exercisesCollection = db.collection("ejercicios_futsal");
+    const snapshot = await exercisesCollection.orderBy('ejercicio', 'asc').get();
 
     if (snapshot.empty) {
         return [];
