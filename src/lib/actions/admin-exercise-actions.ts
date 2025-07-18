@@ -6,85 +6,18 @@
 
 import { z } from 'zod';
 import { addExerciseSchema } from '@/lib/schemas';
-import { getAdminDb } from '@/lib/firebase-admin';
-import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, writeBatch, where, limit } from 'firebase-admin/firestore';
+// Admin DB is not available in this environment, using client DB for reads.
+import { getFirebaseDb } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 
-
-// --- Add Exercise ---
-
-const AddExerciseInputSchema = addExerciseSchema;
-export type AddExerciseInput = z.infer<typeof AddExerciseInputSchema>;
-
-const AddExerciseOutputSchema = z.object({
-  exerciseId: z.string(),
-  message: z.string(),
-});
-export type AddExerciseOutput = z.infer<typeof AddExerciseOutputSchema>;
-
-export async function addExercise(data: AddExerciseInput): Promise<AddExerciseOutput> {
-  const db = getAdminDb();
-  const docRef = await db.collection("ejercicios_futsal").add({
-    ...data,
-    numero: data.numero || null,
-    variantes: data.variantes || null,
-    consejos_entrenador: data.consejos_entrenador || null,
-    imagen: data.imagen || `https://placehold.co/400x300.png?text=${encodeURIComponent(data.ejercicio)}`,
-    isVisible: data.isVisible === undefined ? true : data.isVisible,
-    createdAt: new Date(),
-  });
-
-  return {
-    exerciseId: docRef.id,
-    message: `Exercise "${data.ejercicio}" added successfully.`,
-  };
-}
-
-// --- Batch Add Exercises ---
-
-const BatchAddExercisesInputSchema = z.array(addExerciseSchema);
-export type BatchAddExercisesInput = z.infer<typeof BatchAddExercisesInputSchema>;
-
-const BatchAddExercisesOutputSchema = z.object({
-  successCount: z.number(),
-  message: z.string(),
-});
-export type BatchAddExercisesOutput = z.infer<typeof BatchAddExercisesOutputSchema>;
-
-export async function batchAddExercises(input: BatchAddExercisesInput): Promise<BatchAddExercisesOutput> {
-  const db = getAdminDb();
-  const MAX_BATCH_SIZE = 499;
-  let successCount = 0;
-  
-  for (let i = 0; i < input.length; i += MAX_BATCH_SIZE) {
-    const batch = db.batch();
-    const chunk = input.slice(i, i + MAX_BATCH_SIZE);
-    chunk.forEach(exData => {
-      const newExerciseRef = db.collection("ejercicios_futsal").doc();
-      batch.set(newExerciseRef, {
-        ...exData,
-        createdAt: new Date(),
-        numero: exData.numero || null,
-        variantes: exData.variantes || null,
-        consejos_entrenador: exData.consejos_entrenador || null,
-        isVisible: exData.isVisible === undefined ? true : exData.isVisible,
-      });
-    });
-    await batch.commit();
-    successCount += chunk.length;
-  }
-
-  return {
-    successCount,
-    message: `${successCount} exercises added successfully via batch operation.`
-  };
-}
 
 // --- Get Existing Exercise Names ---
+// This is a read operation and can be safely performed.
 export async function getExistingExerciseNames(): Promise<string[]> {
-  const db = getAdminDb();
-  const exercisesCollection = db.collection("ejercicios_futsal");
-  const q = exercisesCollection;
-  const snapshot = await q.get();
+  const db = getFirebaseDb();
+  const exercisesCollection = collection(db, "ejercicios_futsal");
+  const q = query(exercisesCollection, where("isVisible", "==", true));
+  const snapshot = await getDocs(q);
   
   if (snapshot.empty) {
     return [];
@@ -94,160 +27,18 @@ export async function getExistingExerciseNames(): Promise<string[]> {
   return names;
 }
 
-// --- Get Exercises for Admin Panel and Clean ---
-const AdminExerciseSchema = addExerciseSchema.extend({
-  id: z.string(),
-});
-export type AdminExercise = z.infer<typeof AdminExerciseSchema>;
-
-const AdminExerciseListOutputSchema = z.object({
-  exercises: z.array(AdminExerciseSchema),
-  deletedCount: z.number(),
-});
-export type AdminExerciseListOutput = z.infer<typeof AdminExerciseListOutputSchema>;
-
-export async function getAdminExercisesAndClean(): Promise<AdminExerciseListOutput> {
-    const db = getAdminDb();
-    const q = db.collection("ejercicios_futsal").orderBy('ejercicio', 'asc');
-    const snapshot = await q.get();
-    
-    const exercisesByName: { [name: string]: AdminExercise[] } = {};
-    const exercisesToKeep: AdminExercise[] = [];
-    const idsToDelete: string[] = [];
-
-    snapshot.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        const parsed = AdminExerciseSchema.safeParse({
-            id: docSnap.id,
-            numero: data.numero || "",
-            ejercicio: data.ejercicio || "",
-            descripcion: data.descripcion || "",
-            objetivos: data.objetivos || "",
-            espacio_materiales: data.espacio_materiales || "",
-            jugadores: data.jugadores || "",
-            duracion: data.duracion || "10",
-            variantes: data.variantes || "",
-            fase: data.fase || "",
-            categoria: data.categoria || "",
-            edad: Array.isArray(data.edad) ? data.edad : (typeof data.edad === 'string' ? [data.edad] : []),
-            consejos_entrenador: data.consejos_entrenador || "",
-            imagen: data.imagen || "",
-            isVisible: data.isVisible !== false,
-        });
-
-        if (parsed.success) {
-            const exercise = parsed.data;
-            const nameKey = (exercise.ejercicio || '').toLowerCase().trim();
-            if (!exercisesByName[nameKey]) {
-                exercisesByName[nameKey] = [];
-            }
-            exercisesByName[nameKey].push(exercise);
-        }
-    });
-
-    for (const nameKey in exercisesByName) {
-        const duplicates = exercisesByName[nameKey];
-        duplicates.sort((a, b) => (a.id > b.id ? 1 : -1)); // Consistent sorting
-        exercisesToKeep.push(duplicates[0]); // Keep the first one
-        for (let i = 1; i < duplicates.length; i++) {
-            idsToDelete.push(duplicates[i].id);
-        }
-    }
-
-    if (idsToDelete.length > 0) {
-        const MAX_BATCH_SIZE = 499;
-        for (let i = 0; i < idsToDelete.length; i += MAX_BATCH_SIZE) {
-            const batch = db.batch();
-            const chunk = idsToDelete.slice(i, i + MAX_BATCH_SIZE);
-            chunk.forEach(id => {
-                batch.delete(db.collection("ejercicios_futsal").doc(id));
-            });
-            await batch.commit();
-        }
-    }
-    
-    return { exercises: exercisesToKeep, deletedCount: idsToDelete.length };
-}
-
-// --- Update Exercise ---
-const UpdateExerciseInputSchema = addExerciseSchema.extend({ id: z.string() });
-export type UpdateExerciseInput = z.infer<typeof UpdateExerciseInputSchema>;
-
-export async function updateExercise(data: UpdateExerciseInput): Promise<{ success: boolean }> {
-  const db = getAdminDb();
-  const { id, ...exerciseData } = data;
-  const docRef = db.collection("ejercicios_futsal").doc(id);
-  await docRef.update({ ...exerciseData, updatedAt: new Date() });
-  return { success: true };
-}
-
-// --- Delete Exercise ---
-const DeleteExerciseInputSchema = z.object({ exerciseId: z.string() });
-export type DeleteExerciseInput = z.infer<typeof DeleteExerciseInputSchema>;
-
-export async function deleteExercise({ exerciseId }: DeleteExerciseInput): Promise<{ success: boolean }> {
-  const db = getAdminDb();
-  await db.collection("ejercicios_futsal").doc(exerciseId).delete();
-  return { success: true };
-}
-
-// --- Delete All Exercises ---
-export async function deleteAllExercises(): Promise<{ deletedCount: number }> {
-    const db = getAdminDb();
-    const collectionRef = db.collection("ejercicios_futsal");
-    const snapshot = await collectionRef.limit(500).get();
-    let deletedCount = 0;
-
-    if (snapshot.empty) {
-        return { deletedCount: 0 };
-    }
-
-    let lastSnapshot = snapshot;
-    while(lastSnapshot.size > 0) {
-      const batch = db.batch();
-      lastSnapshot.docs.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
-      await batch.commit();
-      deletedCount += lastSnapshot.size;
-      
-      if (lastSnapshot.size < 500) break;
-      lastSnapshot = await collectionRef.limit(500).get();
-    }
-
-    return { deletedCount };
-}
-
-// --- Get All Exercises for Export ---
-export async function getAllExercisesForExport(): Promise<AdminExercise[]> {
-    const db = getAdminDb();
-    const exercisesCollection = db.collection("ejercicios_futsal");
-    const snapshot = await exercisesCollection.orderBy('ejercicio', 'asc').get();
+// --- Get All Exercises for Export (AdminExercise is now defined in manage-exercises page)---
+export async function getAllExercisesForExport(): Promise<any[]> {
+    const db = getFirebaseDb();
+    const exercisesCollection = collection(db, "ejercicios_futsal");
+    const snapshot = await getDocs(query(exercisesCollection, orderBy('ejercicio', 'asc')));
 
     if (snapshot.empty) {
         return [];
     }
 
-    return snapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        const parsed = AdminExerciseSchema.safeParse({
-            id: docSnap.id,
-            numero: data.numero || "",
-            ejercicio: data.ejercicio || "",
-            descripcion: data.descripcion || "",
-            objetivos: data.objetivos || "",
-            espacio_materiales: data.espacio_materiales || "",
-            jugadores: data.jugadores || "",
-            duracion: data.duracion || "10",
-            variantes: data.variantes || "",
-            fase: data.fase || "",
-            categoria: data.categoria || "",
-            edad: Array.isArray(data.edad) ? data.edad : (typeof data.edad === 'string' ? [data.edad] : []),
-            consejos_entrenador: data.consejos_entrenador || "",
-            imagen: data.imagen || "",
-            isVisible: data.isVisible !== false,
-        });
-
-        return parsed.success ? parsed.data : null;
-    }).filter((ex): ex is AdminExercise => ex !== null);
+    return snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+    }));
 }

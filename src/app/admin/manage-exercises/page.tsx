@@ -14,7 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addExerciseSchema, type AddExerciseFormValues } from "@/lib/schemas";
-import { AdminExercise, getAdminExercisesAndClean, updateExercise, deleteExercise, getAllExercisesForExport, deleteAllExercises } from "@/lib/actions/admin-exercise-actions";
+import { getAllExercisesForExport } from "@/lib/actions/admin-exercise-actions";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 import {
   Table,
@@ -41,6 +43,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 const ITEMS_PER_PAGE = 10;
 const ALL_FILTER_VALUE = "ALL";
 
+interface AdminExercise extends AddExerciseFormValues {
+  id: string;
+}
+
 function EditExerciseForm({ exercise, onFormSubmit, closeDialog }: { exercise: AdminExercise, onFormSubmit: () => void, closeDialog: () => void }) {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
@@ -60,7 +66,11 @@ function EditExerciseForm({ exercise, onFormSubmit, closeDialog }: { exercise: A
     async function onSubmit(data: AddExerciseFormValues) {
         setIsSaving(true);
         try {
-            await updateExercise({ id: exercise.id, ...data });
+            const db = getFirebaseDb();
+            const { id, ...exerciseData } = {id: exercise.id, ...data};
+            const docRef = doc(db, "ejercicios_futsal", id);
+            await updateDoc(docRef, { ...exerciseData, updatedAt: serverTimestamp() });
+
             toast({
                 title: "Ejercicio Actualizado",
                 description: `El ejercicio "${data.ejercicio}" ha sido actualizado.`,
@@ -162,15 +172,69 @@ function ManageExercisesPageContent() {
   const fetchExercises = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { exercises, deletedCount } = await getAdminExercisesAndClean();
-      setAllExercises(exercises);
-      if (deletedCount > 0) {
-        toast({
-          title: "Limpieza Completada",
-          description: `Se eliminaron ${deletedCount} ejercicios duplicados.`,
-          duration: 7000
+        const db = getFirebaseDb();
+        const q = query(collection(db, "ejercicios_futsal"), orderBy('ejercicio', 'asc'));
+        const snapshot = await getDocs(q);
+
+        const exercises: AdminExercise[] = [];
+        const exercisesByName: { [name: string]: AdminExercise[] } = {};
+        const idsToDelete: string[] = [];
+
+        snapshot.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            const exercise: AdminExercise = {
+                id: docSnap.id,
+                numero: data.numero || "",
+                ejercicio: data.ejercicio || "",
+                descripcion: data.descripcion || "",
+                objetivos: data.objetivos || "",
+                espacio_materiales: data.espacio_materiales || "",
+                jugadores: data.jugadores || "",
+                duracion: data.duracion || "10",
+                variantes: data.variantes || "",
+                fase: data.fase || "",
+                categoria: data.categoria || "",
+                edad: Array.isArray(data.edad) ? data.edad : (typeof data.edad === 'string' ? [data.edad] : []),
+                consejos_entrenador: data.consejos_entrenador || "",
+                imagen: data.imagen || "",
+                isVisible: data.isVisible !== false,
+            };
+            
+            const nameKey = (exercise.ejercicio || '').toLowerCase().trim();
+            if (!exercisesByName[nameKey]) {
+                exercisesByName[nameKey] = [];
+            }
+            exercisesByName[nameKey].push(exercise);
         });
-      }
+        
+        for (const nameKey in exercisesByName) {
+            const duplicates = exercisesByName[nameKey];
+            duplicates.sort((a, b) => (a.id > b.id ? 1 : -1));
+            exercises.push(duplicates[0]);
+            for (let i = 1; i < duplicates.length; i++) {
+                idsToDelete.push(duplicates[i].id);
+            }
+        }
+
+        if (idsToDelete.length > 0) {
+            const MAX_BATCH_SIZE = 499;
+            for (let i = 0; i < idsToDelete.length; i += MAX_BATCH_SIZE) {
+                const batch = writeBatch(db);
+                const chunk = idsToDelete.slice(i, i + MAX_BATCH_SIZE);
+                chunk.forEach(id => {
+                    batch.delete(doc(db, "ejercicios_futsal", id));
+                });
+                await batch.commit();
+            }
+            toast({
+              title: "Limpieza Completada",
+              description: `Se eliminaron ${idsToDelete.length} ejercicios duplicados.`,
+              duration: 7000
+            });
+        }
+        
+        setAllExercises(exercises);
+
     } catch (error) {
       console.error("Error fetching or cleaning exercises:", error);
       toast({ title: "Error", description: "No se pudieron cargar los ejercicios.", variant: "destructive" });
@@ -249,7 +313,8 @@ function ManageExercisesPageContent() {
     if (!exerciseToDelete) return;
     setIsDeleting(exerciseToDelete.id);
     try {
-        await deleteExercise({ exerciseId: exerciseToDelete.id });
+        const db = getFirebaseDb();
+        await deleteDoc(doc(db, "ejercicios_futsal", exerciseToDelete.id));
         toast({ title: "Ejercicio Eliminado", description: `"${exerciseToDelete.ejercicio}" ha sido eliminado.` });
         setAllExercises(prev => prev.filter(e => e.id !== exerciseToDelete.id));
         setExerciseToDelete(null);
@@ -263,13 +328,35 @@ function ManageExercisesPageContent() {
   const handleDeleteAll = async () => {
     setIsDeletingAll(true);
     try {
-      const result = await deleteAllExercises();
-      toast({
-        title: "Eliminación Completada",
-        description: `Se han eliminado ${result.deletedCount} ejercicios.`,
-      });
-      setAllExercises([]); // Clear UI immediately
-      setCurrentPage(1);
+        const db = getFirebaseDb();
+        const collectionRef = collection(db, "ejercicios_futsal");
+        const snapshot = await getDocs(collectionRef);
+        
+        if (snapshot.empty) {
+            toast({ title: "No hay ejercicios", description: "La base de datos ya está vacía." });
+            return;
+        }
+
+        const MAX_BATCH_SIZE = 499;
+        let deletedCount = 0;
+        const allDocIds = snapshot.docs.map(d => d.id);
+
+        for (let i = 0; i < allDocIds.length; i += MAX_BATCH_SIZE) {
+            const chunk = allDocIds.slice(i, i + MAX_BATCH_SIZE);
+            const batch = writeBatch(db);
+            chunk.forEach(id => {
+                batch.delete(doc(db, "ejercicios_futsal", id));
+            });
+            await batch.commit();
+            deletedCount += chunk.length;
+        }
+      
+        toast({
+            title: "Eliminación Completada",
+            description: `Se han eliminado ${deletedCount} ejercicios.`,
+        });
+        setAllExercises([]); // Clear UI immediately
+        setCurrentPage(1);
     } catch (error) {
       console.error("Error deleting all exercises:", error);
       toast({ title: "Error", description: "No se pudieron eliminar todos los ejercicios.", variant: "destructive" });
