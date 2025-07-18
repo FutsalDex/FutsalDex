@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
@@ -258,7 +259,7 @@ function MisSesionesContent() {
             }
         });
         if (typeof sesion.coolDown === 'object' && sesion.coolDown?.duracion) {
-            totalMinutes += parseDurationToMinutes(ex.duracion);
+            totalMinutes += parseDurationToMinutes(sesion.coolDown.duracion);
         }
         return totalMinutes > 0 ? `${totalMinutes} min` : 'N/A';
     }
