@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info, Trophy, ShieldAlert, RectangleVertical, ThumbsUp } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info, Goal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
@@ -21,6 +21,8 @@ import { useRouter } from 'next/navigation';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+
 
 // Player data structure for the roster (what is saved to DB)
 interface RosterPlayer {
@@ -63,22 +65,6 @@ const createNewPlayer = (): RosterPlayer => ({
   posicion: '',
   isActive: true,
 });
-
-const StatHighlightCard = ({ title, playerName, value, icon }: { title: string, playerName: string, value: number, icon: React.ReactNode }) => (
-    <Card className="shadow-md text-center">
-        <CardHeader className="pb-2">
-            <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full mb-2">
-                {icon}
-            </div>
-            <CardTitle className="text-sm font-headline">{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-            <p className="text-xl font-bold truncate" title={playerName}>{playerName}</p>
-            <p className="text-lg font-semibold text-muted-foreground">{value}</p>
-        </CardContent>
-    </Card>
-);
-
 
 function MiPlantillaPageContent() {
   const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
@@ -268,36 +254,14 @@ function MiPlantillaPageContent() {
     }
   };
 
-    const getStatLeaders = () => {
-        const initialLeaders = {
-            goles: { name: 'N/A', value: 0 },
-            amarillas: { name: 'N/A', value: 0 },
-            rojas: { name: 'N/A', value: 0 },
-            faltas: { name: 'N/A', value: 0 },
-        };
+  const goalscorerData = players
+    .filter(p => p.totalGoles > 0)
+    .map(p => ({
+      name: p.nombre || `Dorsal ${p.dorsal}`,
+      goles: p.totalGoles,
+    }))
+    .sort((a, b) => a.goles - b.goles);
 
-        if (players.length === 0) {
-            return initialLeaders;
-        }
-
-        const getLeader = (statKey: keyof Omit<DisplayPlayer, 'id' | 'dorsal' | 'nombre' | 'posicion' | 'isActive' | 'partidosJugados'>) => {
-            const leader = players.reduce((prev, current) => 
-                ((prev[statKey] || 0) > (current[statKey] || 0)) ? prev : current
-            );
-            const value = leader[statKey] || 0;
-            const name = value > 0 ? (leader.nombre || 'Sin nombre') : 'N/A';
-            return { name, value };
-        };
-
-        return {
-            goles: getLeader('totalGoles'),
-            amarillas: getLeader('totalAmarillas'),
-            rojas: getLeader('totalRojas'),
-            faltas: getLeader('totalFaltas'),
-        };
-    };
-
-    const statLeaders = getStatLeaders();
 
   if (isLoading) {
     return (
@@ -440,14 +404,41 @@ function MiPlantillaPageContent() {
 
       <Card className="mt-8">
         <CardHeader>
-            <CardTitle>Jugadores Destacados</CardTitle>
-            <CardDescription>Resumen de los líderes estadísticos de la temporada.</CardDescription>
+            <CardTitle className="font-headline text-xl flex items-center">
+              <Goal className="mr-2 h-5 w-5 text-primary" />
+              Goleadores de la Temporada
+            </CardTitle>
+            <CardDescription>Visualización de los goles marcados por cada jugador.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatHighlightCard title="Máximo Goleador" playerName={statLeaders.goles.name} value={statLeaders.goles.value} icon={<Trophy className="h-6 w-6"/>} />
-            <StatHighlightCard title="Más Tarjetas Amarillas" playerName={statLeaders.amarillas.name} value={statLeaders.amarillas.value} icon={<RectangleVertical className="h-6 w-6 text-yellow-500 fill-yellow-400"/>} />
-            <StatHighlightCard title="Más Tarjetas Rojas" playerName={statLeaders.rojas.name} value={statLeaders.rojas.value} icon={<RectangleVertical className="h-6 w-6 text-red-600 fill-red-500"/>} />
-            <StatHighlightCard title="Más Faltas Cometidas" playerName={statLeaders.faltas.name} value={statLeaders.faltas.value} icon={<ShieldAlert className="h-6 w-6"/>} />
+        <CardContent>
+          {goalscorerData.length > 0 ? (
+            <div style={{ height: `${goalscorerData.length * 40 + 60}px`, minHeight: '200px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={goalscorerData}
+                  margin={{
+                    top: 5,
+                    right: 30,
+                    left: 20,
+                    bottom: 5,
+                  }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                  <Bar dataKey="goles" fill="hsl(var(--primary))">
+                    <LabelList dataKey="goles" position="right" style={{ fill: 'hsl(var(--foreground))' }}/>
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-10">
+              Aún no se han registrado goles esta temporada.
+            </p>
+          )}
         </CardContent>
       </Card>
 
