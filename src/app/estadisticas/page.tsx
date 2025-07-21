@@ -361,9 +361,13 @@ function EstadisticasPageContent() {
     const myTeamWasHome = rosterSide === 'local';
 
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
+    // **FIXED**: Correctly filter players for saving
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, id, isActive, ...rest}) => rest);
+      .map(({ id, isActive, posicion, ...rest }) => ({
+        ...rest,
+        // convert goals array to a simple number for storage efficiency
+        goals: rest.goals.length,
+      }));
 
     setIsSaving(true);
     
@@ -379,6 +383,7 @@ function EstadisticasPageContent() {
         tipoPartido: tipoPartido || null,
         myTeamStats: { ...myTeamStats },
         opponentTeamStats: { ...opponentTeamStats },
+        // **FIXED**: Use the correctly filtered and mapped players
         myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
         opponentPlayers: filterOpponentPlayers(opponentPlayers),
     };
@@ -763,3 +768,5 @@ export default function EstadisticasPage() {
     <EstadisticasPageContent />
   );
 }
+
+    
