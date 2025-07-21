@@ -1,5 +1,18 @@
-
 {
+  "hosting": {
+    "public": "out",  // <--- Esta es la carpeta donde `next export` guarda los archivos estáticos
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
   "firestore": {
     "rules": "firestore.rules"
   }
