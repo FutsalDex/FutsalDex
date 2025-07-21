@@ -11,6 +11,8 @@ import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+
 
 interface RosterPlayer {
   id: string;
@@ -18,33 +20,22 @@ interface RosterPlayer {
   nombre: string;
 }
 
+interface GoalEvent {
+  minute: number;
+  second: number;
+  half: 'firstHalf' | 'secondHalf';
+  id: string;
+}
+
 interface MatchDataPlayer {
     dorsal: string;
-    goals?: number;
+    goals: GoalEvent[];
     yellowCards?: number;
     redCards?: number;
     faltas?: number;
 }
 
-interface FullStats {
-  generalStats: {
-    numPartidos: number;
-    partidosGanados: number;
-    partidosPerdidos: number;
-    partidosEmpatados: number;
-    golesFavor: number;
-    golesContra: number;
-    faltasCometidas: number;
-  };
-  leaderStats: {
-    goles: { name: string; value: number };
-    amarillas: { name: string; value: number };
-    rojas: { name: string; value: number };
-    faltas: { name: string; value: number };
-  };
-}
-
-const guestDemoStats: FullStats = {
+const guestDemoStats = {
     generalStats: {
         numPartidos: 4,
         partidosGanados: 2,
@@ -97,11 +88,11 @@ const LeaderStatCard = ({ title, playerName, value, icon }: { title: string, pla
 
 function EstadisticasGeneralesContent() {
     const { user, isRegisteredUser } = useAuth();
-    const [stats, setStats] = useState<FullStats | null>(null);
+    const [stats, setStats] = useState<typeof guestDemoStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const calculateStats = useCallback(async () => {
-        if (!user) {
+        if (!isRegisteredUser || !user) {
             setStats(guestDemoStats);
             setIsLoading(false);
             return;
@@ -110,7 +101,6 @@ function EstadisticasGeneralesContent() {
 
         try {
             const db = getFirebaseDb();
-            // --- Parallel fetching ---
             const partidosQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
 
@@ -119,8 +109,7 @@ function EstadisticasGeneralesContent() {
                 getDoc(rosterDocRef)
             ]);
             
-            // --- Initialize Stats Object ---
-            const calculatedStats: FullStats = {
+            const calculatedStats = {
                 generalStats: {
                     numPartidos: partidosSnapshot.size,
                     partidosGanados: 0,
@@ -138,7 +127,6 @@ function EstadisticasGeneralesContent() {
                 }
             };
 
-            // --- Calculate General Match Stats ---
             const roster: RosterPlayer[] = rosterSnap.exists() ? (rosterSnap.data().players || []) : [];
             const playerStats: { [dorsal: string]: { goles: number, amarillas: number, rojas: number, faltas: number } } = {};
             roster.forEach(p => {
@@ -147,8 +135,8 @@ function EstadisticasGeneralesContent() {
 
             partidosSnapshot.forEach(doc => {
                 const data = doc.data();
-                const myGoals = data.myTeamPlayers?.reduce((sum: number, p: any) => sum + (p.goals || 0), 0) || 0;
-                const opponentGoals = data.opponentPlayers?.reduce((sum: number, p: any) => sum + (p.goals || 0), 0) || 0;
+                const myGoals = data.myTeamPlayers?.reduce((sum: number, p: any) => sum + (p.goals?.length || 0), 0) || 0;
+                const opponentGoals = data.opponentPlayers?.reduce((sum: number, p: any) => sum + (p.goals?.length || 0), 0) || 0;
 
                 calculatedStats.generalStats.golesFavor += myGoals;
                 calculatedStats.generalStats.golesContra += opponentGoals;
@@ -159,7 +147,7 @@ function EstadisticasGeneralesContent() {
                 
                 data.myTeamPlayers?.forEach((p: MatchDataPlayer) => {
                     if (playerStats[p.dorsal]) {
-                        playerStats[p.dorsal].goles += p.goals || 0;
+                        playerStats[p.dorsal].goles += p.goals?.length || 0;
                         playerStats[p.dorsal].amarillas += p.yellowCards || 0;
                         playerStats[p.dorsal].rojas += p.redCards || 0;
                         playerStats[p.dorsal].faltas += p.faltas || 0;
@@ -168,7 +156,6 @@ function EstadisticasGeneralesContent() {
                 });
             });
 
-            // --- Calculate Leader Stats ---
             const findLeader = (stat: keyof typeof playerStats['dorsal']) => {
                 let maxVal = 0;
                 let leaderDorsal = '';
@@ -193,7 +180,7 @@ function EstadisticasGeneralesContent() {
         } finally {
             setIsLoading(false);
         }
-    }, [user]);
+    }, [user, isRegisteredUser]);
 
     useEffect(() => {
         calculateStats();
