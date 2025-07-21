@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, TrendingUp, BookOpen, Repeat, Trophy, Goal, Shield, Square, TrendingDown, ClipboardList, AlertTriangle, ShieldAlert, Info, Handshake } from 'lucide-react';
+import { Loader2, ArrowLeft, TrendingUp, Trophy, Goal, Shield, ShieldAlert, Handshake, TrendingDown, Info } from 'lucide-react';
 import Link from 'next/link';
 import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -28,15 +28,13 @@ interface MatchDataPlayer {
 
 interface FullStats {
   generalStats: {
-    numEjerciciosUtilizados: number;
-    ejercicioMasUtilizado: string;
-    numSesiones: number;
     numPartidos: number;
     partidosGanados: number;
     partidosPerdidos: number;
     partidosEmpatados: number;
     golesFavor: number;
     golesContra: number;
+    faltasCometidas: number;
   };
   leaderStats: {
     goles: { name: string; value: number };
@@ -46,18 +44,15 @@ interface FullStats {
   };
 }
 
-
 const guestDemoStats: FullStats = {
     generalStats: {
-        numEjerciciosUtilizados: 23,
-        ejercicioMasUtilizado: "Rondo 4 vs 2",
-        numSesiones: 5,
         numPartidos: 4,
         partidosGanados: 2,
         partidosPerdidos: 1,
         partidosEmpatados: 1,
         golesFavor: 14,
         golesContra: 9,
+        faltasCometidas: 28,
     },
     leaderStats: {
         goles: { name: 'C. Ruiz', value: 15 },
@@ -116,12 +111,10 @@ function EstadisticasGeneralesContent() {
         try {
             const db = getFirebaseDb();
             // --- Parallel fetching ---
-            const sesionesQuery = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
             const partidosQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
 
-            const [sesionesSnapshot, partidosSnapshot, rosterSnap] = await Promise.all([
-                getDocs(sesionesQuery),
+            const [partidosSnapshot, rosterSnap] = await Promise.all([
                 getDocs(partidosQuery),
                 getDoc(rosterDocRef)
             ]);
@@ -129,15 +122,13 @@ function EstadisticasGeneralesContent() {
             // --- Initialize Stats Object ---
             const calculatedStats: FullStats = {
                 generalStats: {
-                    numEjerciciosUtilizados: 0,
-                    ejercicioMasUtilizado: "N/A",
-                    numSesiones: sesionesSnapshot.size,
                     numPartidos: partidosSnapshot.size,
                     partidosGanados: 0,
                     partidosPerdidos: 0,
                     partidosEmpatados: 0,
                     golesFavor: 0,
                     golesContra: 0,
+                    faltasCometidas: 0,
                 },
                 leaderStats: {
                     goles: { name: 'N/A', value: 0 },
@@ -146,35 +137,6 @@ function EstadisticasGeneralesContent() {
                     faltas: { name: 'N/A', value: 0 },
                 }
             };
-            
-            // --- Calculate General Session Stats ---
-            const ejercicioCounts: { [key: string]: number } = {};
-            let totalEjerciciosIds: string[] = [];
-
-            sesionesSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.type === "Manual") {
-                    if (data.warmUp?.id) totalEjerciciosIds.push(data.warmUp.id);
-                    if (data.coolDown?.id) totalEjerciciosIds.push(data.coolDown.id);
-                    if (Array.isArray(data.mainExercises)) {
-                        data.mainExercises.forEach((ex: any) => {
-                            if (ex?.id) totalEjerciciosIds.push(ex.id);
-                        });
-                    }
-                }
-            });
-            
-            calculatedStats.generalStats.numEjerciciosUtilizados = new Set(totalEjerciciosIds).size;
-            totalEjerciciosIds.forEach(id => {
-                ejercicioCounts[id] = (ejercicioCounts[id] || 0) + 1;
-            });
-            if (Object.keys(ejercicioCounts).length > 0) {
-                const masUtilizadoId = Object.keys(ejercicioCounts).reduce((a, b) => ejercicioCounts[a] > ejercicioCounts[b] ? a : b);
-                const ejercicioDoc = await getDoc(doc(db, "ejercicios_futsal", masUtilizadoId));
-                if (ejercicioDoc.exists()) {
-                    calculatedStats.generalStats.ejercicioMasUtilizado = ejercicioDoc.data().ejercicio || "N/A";
-                }
-            }
 
             // --- Calculate General Match Stats ---
             const roster: RosterPlayer[] = rosterSnap.exists() ? (rosterSnap.data().players || []) : [];
@@ -202,6 +164,7 @@ function EstadisticasGeneralesContent() {
                         playerStats[p.dorsal].rojas += p.redCards || 0;
                         playerStats[p.dorsal].faltas += p.faltas || 0;
                     }
+                    calculatedStats.generalStats.faltasCometidas += p.faltas || 0;
                 });
             });
 
@@ -286,18 +249,16 @@ function EstadisticasGeneralesContent() {
 
             <Card className="mb-8">
                 <CardHeader>
-                    <CardTitle className="text-xl font-headline">Resumen General</CardTitle>
+                    <CardTitle className="text-xl font-headline">Resumen General de Partidos</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    <StatCard title="Ejercicios Utilizados" value={stats.generalStats.numEjerciciosUtilizados} icon={<BookOpen className="h-6 w-6"/>} />
-                    <StatCard title="Ejercicio Más Utilizado" value={stats.generalStats.ejercicioMasUtilizado} icon={<Repeat className="h-6 w-6"/>} isText />
-                    <StatCard title="Sesiones Creadas" value={stats.generalStats.numSesiones} icon={<ClipboardList className="h-6 w-6"/>} />
                     <StatCard title="Partidos Jugados" value={stats.generalStats.numPartidos} icon={<Trophy className="h-6 w-6"/>} />
                     <StatCard title="Partidos Ganados" value={stats.generalStats.partidosGanados} icon={<TrendingUp className="h-6 w-6"/>} />
                     <StatCard title="Partidos Empatados" value={stats.generalStats.partidosEmpatados} icon={<Handshake className="h-6 w-6"/>} />
                     <StatCard title="Partidos Perdidos" value={stats.generalStats.partidosPerdidos} icon={<TrendingDown className="h-6 w-6"/>} />
                     <StatCard title="Goles a Favor" value={stats.generalStats.golesFavor} icon={<Goal className="h-6 w-6"/>} />
                     <StatCard title="Goles en Contra" value={stats.generalStats.golesContra} icon={<Shield className="h-6 w-6"/>} />
+                    <StatCard title="Faltas Cometidas" value={stats.generalStats.faltasCometidas} icon={<ShieldAlert className="h-6 w-6"/>} />
                 </CardContent>
             </Card>
 
@@ -308,8 +269,8 @@ function EstadisticasGeneralesContent() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <LeaderStatCard title="Máximo Goleador" playerName={stats.leaderStats.goles.name} value={stats.leaderStats.goles.value} icon={<Trophy className="h-6 w-6"/>} />
-                    <LeaderStatCard title="Más Tarjetas Amarillas" playerName={stats.leaderStats.amarillas.name} value={stats.leaderStats.amarillas.value} icon={<Square className="h-6 w-6 text-yellow-500 fill-yellow-400"/>} />
-                    <LeaderStatCard title="Más Tarjetas Rojas" playerName={stats.leaderStats.rojas.name} value={stats.leaderStats.rojas.value} icon={<Square className="h-6 w-6 text-red-600 fill-red-500"/>} />
+                    <LeaderStatCard title="Más Tarjetas Amarillas" playerName={stats.leaderStats.amarillas.name} value={stats.leaderStats.amarillas.value} icon={<div className="h-6 w-6 bg-yellow-400 border-2 border-yellow-600 rounded-sm" />} />
+                    <LeaderStatCard title="Más Tarjetas Rojas" playerName={stats.leaderStats.rojas.name} value={stats.leaderStats.rojas.value} icon={<div className="h-6 w-6 bg-red-500 border-2 border-red-700 rounded-sm" />} />
                     <LeaderStatCard title="Más Faltas Cometidas" playerName={stats.leaderStats.faltas.name} value={stats.leaderStats.faltas.value} icon={<ShieldAlert className="h-6 w-6"/>} />
                 </CardContent>
             </Card>
