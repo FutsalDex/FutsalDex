@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert, CheckCircle } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert, CheckCircle, Trash2 } from "lucide-react";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -52,12 +52,19 @@ const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecreme
 );
 
 // --- State and Types ---
+interface GoalEvent {
+    minute: number;
+    second: number;
+    half: 'firstHalf' | 'secondHalf';
+    id: string; // To uniquely identify each goal for deletion
+}
+
 interface Player {
   dorsal: string;
   nombre: string;
   posicion: string;
   isActive: boolean;
-  goals: number;
+  goals: GoalEvent[];
   yellowCards: number;
   redCards: number;
   faltas: number;
@@ -69,7 +76,7 @@ interface Player {
 interface OpponentPlayer {
     dorsal: string;
     nombre?: string;
-    goals: number;
+    goals: GoalEvent[];
     yellowCards: number;
     redCards: number;
     faltas: number;
@@ -111,19 +118,19 @@ const createInitialTeamStats = (): TeamStats => ({
 
 // Demo data creators
 const createGuestPlayerRosterWithStats = (): Player[] => [
-    { dorsal: '1', nombre: 'A. García', posicion: 'Portero', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 1, paradas: 8, golesRecibidos: 2, unoVsUno: 3 },
-    { dorsal: '4', nombre: 'J. López', posicion: 'Cierre', isActive: true, goals: 1, yellowCards: 1, redCards: 0, faltas: 3, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', isActive: true, goals: 2, yellowCards: 0, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', isActive: true, goals: 1, yellowCards: 0, redCards: 0, faltas: 1, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '8', nombre: 'S. Torres', posicion: 'Ala-Cierre', isActive: false, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '1', nombre: 'A. García', posicion: 'Portero', isActive: true, goals: [], yellowCards: 0, redCards: 0, faltas: 1, paradas: 8, golesRecibidos: 2, unoVsUno: 3 },
+    { dorsal: '4', nombre: 'J. López', posicion: 'Cierre', isActive: true, goals: [{ id: 'g1', minute: 12, second: 30, half: 'firstHalf' }], yellowCards: 1, redCards: 0, faltas: 3, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', isActive: true, goals: [{ id: 'g2', minute: 28, second: 15, half: 'secondHalf' }, { id: 'g3', minute: 35, second: 0, half: 'secondHalf' }], yellowCards: 0, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', isActive: true, goals: [{ id: 'g4', minute: 18, second: 45, half: 'firstHalf' }], yellowCards: 0, redCards: 0, faltas: 1, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '8', nombre: 'S. Torres', posicion: 'Ala-Cierre', isActive: false, goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
 ];
 
 const createGuestOpponentPlayersWithStats = (): OpponentPlayer[] => {
     const players = [
-        { dorsal: '9', nombre: 'Delantero Estrella', goals: 1, yellowCards: 0, redCards: 0, faltas: 4, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-        { dorsal: '6', nombre: 'Medio Creativo', goals: 1, yellowCards: 1, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+        { dorsal: '9', nombre: 'Delantero Estrella', goals: [{ id: 'g5', minute: 8, second: 0, half: 'firstHalf' }], yellowCards: 0, redCards: 0, faltas: 4, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+        { dorsal: '6', nombre: 'Medio Creativo', goals: [{ id: 'g6', minute: 31, second: 22, half: 'secondHalf' }], yellowCards: 1, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
     ];
-    const emptyOpponents = Array.from({ length: Math.max(0, 12 - players.length) }, () => ({ dorsal: '', nombre: '', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
+    const emptyOpponents = Array.from({ length: Math.max(0, 12 - players.length) }, () => ({ dorsal: '', nombre: '', goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
     return [...players, ...emptyOpponents];
 };
 
@@ -211,9 +218,9 @@ function EditMatchPageContent() {
     if (!isAutoSave) setIsSaving(true);
     setAutoSaveStatus("saving");
 
-    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
+    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
+      .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
       .map(({posicion, isActive, ...rest}) => rest);
 
     const myTeamWasHome = myTeamSide === 'local';
@@ -411,7 +418,7 @@ function EditMatchPageContent() {
             const matchPlayer = matchData.myTeamPlayers?.find((p: Player) => p.dorsal === rosterPlayer.dorsal);
             return {
                 ...rosterPlayer,
-                goals: matchPlayer?.goals || 0,
+                goals: matchPlayer?.goals || [],
                 yellowCards: matchPlayer?.yellowCards || 0,
                 redCards: matchPlayer?.redCards || 0,
                 faltas: matchPlayer?.faltas || 0,
@@ -423,7 +430,7 @@ function EditMatchPageContent() {
         setMyTeamPlayers(enrichedMyTeamPlayers);
         
         const savedOpponents = matchData.opponentPlayers || [];
-        const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
+        const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
         setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
 
       } catch (error) {
@@ -481,7 +488,7 @@ function EditMatchPageContent() {
   const handlePlayerStatChange = (
     team: 'myTeam' | 'opponentTeam',
     index: number,
-    field: 'goals' | 'yellowCards' | 'redCards' | 'faltas' | 'paradas' | 'golesRecibidos' | 'unoVsUno',
+    field: 'yellowCards' | 'redCards' | 'faltas' | 'paradas' | 'golesRecibidos' | 'unoVsUno',
     delta: number
   ) => {
       const setter = team === 'myTeam' ? setMyTeamPlayers : setOpponentPlayers;
@@ -497,6 +504,31 @@ function EditMatchPageContent() {
             }
         }));
       }
+  }
+
+  const handleGoalChange = (
+    team: 'myTeam' | 'opponentTeam',
+    index: number,
+    action: 'add' | 'remove'
+  ) => {
+      if (!isRegisteredUser) return;
+      const setter = team === 'myTeam' ? setMyTeamPlayers : setOpponentPlayers;
+      
+      setter(produce(draft => {
+          const player = draft[index] as Player | OpponentPlayer;
+          if (action === 'add') {
+              const totalSeconds = timerDuration - time;
+              const newGoal: GoalEvent = {
+                  minute: Math.floor(totalSeconds / 60),
+                  second: totalSeconds % 60,
+                  half: activeHalf,
+                  id: new Date().toISOString() // Simple unique ID
+              };
+              player.goals.push(newGoal);
+          } else {
+              player.goals.pop(); // Remove the last goal
+          }
+      }));
   }
 
   const handleSetMyTeam = (side: 'local' | 'visitor') => {
@@ -587,7 +619,15 @@ function EditMatchPageContent() {
                                             }
                                         </TableCell>
                                         <TableCell>
-                                            <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(teamType, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'goals', -1)} disabled={!isRegisteredUser}/>
+                                           <div className="flex items-center justify-center gap-1">
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoalChange(teamType, index, 'remove')} disabled={!isRegisteredUser || player.goals.length <= 0}>
+                                                    <Minus className="h-4 w-4" />
+                                                </Button>
+                                                <span className="w-6 text-center font-mono text-base">{player.goals.length}</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoalChange(teamType, index, 'add')} disabled={!isRegisteredUser}>
+                                                    <Plus className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <StatCounter value={player.yellowCards} onIncrement={() => handlePlayerStatChange(teamType, index, 'yellowCards', 1)} onDecrement={() => handlePlayerStatChange(teamType, index, 'yellowCards', -1)} disabled={!isRegisteredUser}/>
@@ -716,6 +756,9 @@ function EditMatchPageContent() {
     return <div className="flex items-center gap-2 text-sm text-muted-foreground">{content}</div>;
   }
 
+  const myTeamScore = (myTeamSide === 'local' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals.length, 0);
+  const opponentTeamScore = (myTeamSide === 'visitante' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals.length, 0);
+
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
       <header className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -763,7 +806,7 @@ function EditMatchPageContent() {
                      {myTeamSide === 'local' && myTeamTotalFouls >= 5 && <ShieldAlert className="mx-auto mt-1 h-5 w-5 text-destructive" />}
                 </div>
                 <div className="flex-1 text-4xl font-bold text-primary">
-                    {(myTeamSide === 'local' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals, 0)} - {(myTeamSide === 'visitante' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals, 0)}
+                   {myTeamSide === 'local' ? myTeamScore : opponentTeamScore} - {myTeamSide === 'visitante' ? myTeamScore : opponentTeamScore}
                 </div>
                 <div className="flex-1">
                     <p className="font-bold truncate text-lg">{visitorTeamName}</p>
@@ -775,17 +818,17 @@ function EditMatchPageContent() {
                 <h1 className="text-5xl font-bold tracking-widest font-mono">{formatTime}</h1>
             </div>
             <div className="flex justify-center items-center gap-4">
-                <Button onClick={() => setIsTimerActive(!isTimerActive)} className="w-32" variant={isTimerActive ? 'destructive' : 'default'}>
+                <Button onClick={() => setIsTimerActive(!isTimerActive)} className="w-32" variant={isTimerActive ? 'destructive' : 'default'} disabled={!isRegisteredUser}>
                     {isTimerActive ? <Pause className="mr-2" /> : <Play className="mr-2" />}
                     {isTimerActive ? 'Pausar' : 'Iniciar'}
                 </Button>
-                <Button onClick={handleResetTimer} variant="outline">
+                <Button onClick={handleResetTimer} variant="outline" disabled={!isRegisteredUser}>
                     <RotateCcw className="mr-2"/>
                     Reiniciar
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button onClick={() => setActiveHalf('firstHalf')} variant={activeHalf === 'firstHalf' ? 'secondary' : 'outline'} size="sm">1ª Parte</Button>
-                    <Button onClick={() => setActiveHalf('secondHalf')} variant={activeHalf === 'secondHalf' ? 'secondary' : 'outline'} size="sm">2ª Parte</Button>
+                    <Button onClick={() => setActiveHalf('firstHalf')} variant={activeHalf === 'firstHalf' ? 'secondary' : 'outline'} size="sm" disabled={!isRegisteredUser}>1ª Parte</Button>
+                    <Button onClick={() => setActiveHalf('secondHalf')} variant={activeHalf === 'secondHalf' ? 'secondary' : 'outline'} size="sm" disabled={!isRegisteredUser}>2ª Parte</Button>
                 </div>
             </div>
         </CardContent>

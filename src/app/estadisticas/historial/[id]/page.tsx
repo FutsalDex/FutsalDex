@@ -10,16 +10,22 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ArrowLeft, RectangleVertical, History, Edit } from "lucide-react";
+import { Loader2, ArrowLeft, RectangleVertical, History, Edit, Goal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 // --- Type Definitions ---
+interface GoalEvent {
+    minute: number;
+    second: number;
+    half: 'firstHalf' | 'secondHalf';
+    id: string;
+}
 interface Player {
   dorsal: string;
   nombre?: string;
   yellowCards: number;
   redCards: number;
-  goals: number;
+  goals: GoalEvent[];
   faltas?: number;
   paradas?: number;
   golesRecibidos?: number;
@@ -99,8 +105,37 @@ const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | Te
     );
 };
 
-const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
-    if (!players || players.length === 0) return <p className="text-sm text-muted-foreground p-4">No se registraron estadísticas de jugadores para este partido.</p>;
+const PlayerStatTable: React.FC<{ players: Player[], goalsOnly?: boolean }> = ({ players, goalsOnly = false }) => {
+    const relevantPlayers = goalsOnly ? players.filter(p => p.goals.length > 0) : players;
+    if (!relevantPlayers || relevantPlayers.length === 0) return <p className="text-sm text-muted-foreground p-4">No se registraron estadísticas de jugadores para este partido.</p>;
+    
+    if (goalsOnly) {
+         const allGoals = relevantPlayers
+            .flatMap(p => p.goals.map(g => ({ ...g, playerName: p.nombre || `Dorsal ${p.dorsal}` })))
+            .sort((a, b) => {
+                if (a.half === 'firstHalf' && b.half === 'secondHalf') return -1;
+                if (a.half === 'secondHalf' && b.half === 'firstHalf') return 1;
+                return a.minute - b.minute || a.second - b.second;
+            });
+        if (allGoals.length === 0) return <p className="text-sm text-muted-foreground p-4">No se marcaron goles.</p>;
+
+        return (
+            <Card>
+                <CardHeader><CardTitle className="text-base flex items-center"><Goal className="mr-2 h-5 w-5"/> Cronología de Goles</CardTitle></CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        {allGoals.map(goal => (
+                            <div key={goal.id} className="flex justify-between items-center text-sm p-2 bg-muted/50 rounded-md">
+                                <span>{goal.playerName}</span>
+                                <span className="font-mono font-semibold">{`${String(goal.minute).padStart(2, '0')}'${String(goal.second).padStart(2, '0')}"`}</span>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+
     return (
         <Card>
             <CardHeader><CardTitle className="text-base">Estadísticas de Jugadores</CardTitle></CardHeader>
@@ -124,7 +159,7 @@ const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
                             <TableRow key={index} className="text-sm">
                                 <TableCell className="font-semibold">{player.dorsal}</TableCell>
                                 <TableCell>{player.nombre || "-"}</TableCell>
-                                <TableCell className="text-center font-bold">{player.goals || 0}</TableCell>
+                                <TableCell className="text-center font-bold">{player.goals?.length || 0}</TableCell>
                                 <TableCell className="text-center">{player.yellowCards || 0}</TableCell>
                                 <TableCell className="text-center">{player.redCards || 0}</TableCell>
                                 <TableCell className="text-center">{player.faltas || 0}</TableCell>
@@ -218,8 +253,8 @@ function HistorialDetallePageContent() {
     const localTeamPlayers = match.myTeamWasHome ? match.myTeamPlayers : match.opponentPlayers;
     const visitorTeamPlayers = match.myTeamWasHome ? match.opponentPlayers : match.myTeamPlayers;
     
-    const localScore = localTeamPlayers?.reduce((acc, p) => acc + (p.goals || 0), 0) ?? 0;
-    const visitorScore = visitorTeamPlayers?.reduce((acc, p) => acc + (p.goals || 0), 0) ?? 0;
+    const localScore = localTeamPlayers?.reduce((acc, p) => acc + (p.goals?.length || 0), 0) ?? 0;
+    const visitorScore = visitorTeamPlayers?.reduce((acc, p) => acc + (p.goals?.length || 0), 0) ?? 0;
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
@@ -265,6 +300,7 @@ function HistorialDetallePageContent() {
                 {/* Local Team Column */}
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold font-headline text-center text-primary">{localTeamName}</h2>
+                    <PlayerStatTable players={localTeamPlayers} goalsOnly />
                     <PlayerStatTable players={localTeamPlayers} />
                     <StatDisplayTable title="Tiros a Puerta" stats={localTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={localTeamStats.turnovers} type="events" />
@@ -274,6 +310,7 @@ function HistorialDetallePageContent() {
                 {/* Visitor Team Column */}
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold font-headline text-center text-accent">{visitorTeamName}</h2>
+                    <PlayerStatTable players={visitorTeamPlayers} goalsOnly />
                     <PlayerStatTable players={visitorTeamPlayers} />
                     <StatDisplayTable title="Tiros a Puerta" stats={visitorTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={visitorTeamStats.turnovers} type="events" />

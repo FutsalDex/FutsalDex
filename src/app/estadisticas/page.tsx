@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Info } from "lucide-react";
-import React, { useState, useEffect, useCallback } from "react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, Users, ArrowLeft, Info, Play, Pause } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,12 @@ const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecreme
 );
 
 // --- State and Types ---
+interface GoalEvent {
+    minute: number;
+    second: number;
+    half: 'firstHalf' | 'secondHalf';
+    id: string; // To uniquely identify each goal for deletion
+}
 
 interface Player {
   id: string;
@@ -60,7 +66,7 @@ interface Player {
   nombre: string;
   posicion: string;
   isActive: boolean;
-  goals: number;
+  goals: GoalEvent[];
   yellowCards: number;
   redCards: number;
   faltas: number;
@@ -72,7 +78,7 @@ interface Player {
 interface OpponentPlayer {
     dorsal: string;
     nombre?: string;
-    goals: number;
+    goals: GoalEvent[];
     yellowCards: number;
     redCards: number;
     faltas: number;
@@ -115,7 +121,7 @@ const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
   Array.from({ length: count }, () => ({
     dorsal: '',
     nombre: '',
-    goals: 0,
+    goals: [],
     yellowCards: 0,
     redCards: 0,
     faltas: 0,
@@ -125,11 +131,11 @@ const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
   }));
 
 const createGuestPlayerRoster = (): Player[] => [
-    { id: 'guest1', dorsal: '1', nombre: 'A. García', posicion: 'Portero', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { id: 'guest2', dorsal: '4', nombre: 'J. López', posicion: 'Cierre', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { id: 'guest3', dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { id: 'guest4', dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { id: 'guest5', dorsal: '8', nombre: 'S. Torres', posicion: 'Universal', isActive: false, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest1', dorsal: '1', nombre: 'A. García', posicion: 'Portero', isActive: true, goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest2', dorsal: '4', nombre: 'J. López', posicion: 'Cierre', isActive: true, goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest3', dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', isActive: true, goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest4', dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', isActive: true, goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest5', dorsal: '8', nombre: 'S. Torres', posicion: 'Universal', isActive: false, goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
 ];
 
 
@@ -200,7 +206,7 @@ function EstadisticasPageContent() {
                   nombre: p.nombre || 'Sin nombre',
                   posicion: p.posicion || '',
                   isActive: p.isActive !== false,
-                  goals: 0,
+                  goals: [],
                   yellowCards: 0,
                   redCards: 0,
                   faltas: 0,
@@ -259,12 +265,36 @@ function EstadisticasPageContent() {
   const handlePlayerStatChange = (
     team: 'myTeam' | 'opponentTeam',
     index: number,
-    field: 'goals' | 'yellowCards' | 'redCards' | 'faltas' | 'paradas' | 'golesRecibidos' | 'unoVsUno',
+    field: 'yellowCards' | 'redCards' | 'faltas' | 'paradas' | 'golesRecibidos' | 'unoVsUno',
     delta: number
   ) => {
       const setter = team === 'myTeam' ? setMyTeamPlayers : setOpponentPlayers;
       setter(produce(draft => {
           (draft[index] as any)[field] = Math.max(0, (draft[index] as any)[field] + delta);
+      }));
+  }
+
+  const handleGoalChange = (
+    team: 'myTeam' | 'opponentTeam',
+    index: number,
+    action: 'add' | 'remove'
+  ) => {
+      if (!isRegisteredUser) return;
+      const setter = team === 'myTeam' ? setMyTeamPlayers : setOpponentPlayers;
+      
+      setter(produce(draft => {
+          const player = draft[index] as Player | OpponentPlayer;
+          if (action === 'add') {
+              const newGoal: GoalEvent = {
+                  minute: 0, // No timer on this page, so default to 0
+                  second: 0,
+                  half: 'firstHalf',
+                  id: new Date().toISOString() // Simple unique ID
+              };
+              player.goals.push(newGoal);
+          } else {
+              player.goals.pop(); // Remove the last goal
+          }
       }));
   }
 
@@ -289,7 +319,7 @@ function EstadisticasPageContent() {
       // Reset myTeamPlayers stats to 0 but keep roster info
       setMyTeamPlayers(produce(draft => {
         draft.forEach(p => {
-            p.goals = 0;
+            p.goals = [];
             p.yellowCards = 0;
             p.redCards = 0;
             p.faltas = 0;
@@ -330,9 +360,9 @@ function EstadisticasPageContent() {
 
     const myTeamWasHome = rosterSide === 'local';
 
-    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
+    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
+      .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
       .map(({posicion, id, isActive, ...rest}) => rest);
 
     setIsSaving(true);
@@ -461,7 +491,15 @@ function EstadisticasPageContent() {
                                         }
                                     </TableCell>
                                     <TableCell>
-                                        <StatCounter disabled={!isRegisteredUser} value={player.goals} onIncrement={() => handlePlayerStatChange(team, index, 'goals', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'goals', -1)} />
+                                        <div className="flex items-center justify-center gap-1">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoalChange(team, index, 'remove')} disabled={!isRegisteredUser || player.goals.length <= 0}>
+                                                <Minus className="h-4 w-4" />
+                                            </Button>
+                                            <span className="w-6 text-center font-mono text-base">{player.goals.length}</span>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoalChange(team, index, 'add')} disabled={!isRegisteredUser}>
+                                                <Plus className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         <StatCounter disabled={!isRegisteredUser} value={player.yellowCards} onIncrement={() => handlePlayerStatChange(team, index, 'yellowCards', 1)} onDecrement={() => handlePlayerStatChange(team, index, 'yellowCards', -1)} />

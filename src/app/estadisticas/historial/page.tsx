@@ -63,8 +63,8 @@ interface SavedMatch {
     fecha: string;
     hora?: string;
     tipoPartido?: string;
-    myTeamPlayers?: { goals: number; }[];
-    opponentPlayers: { goals: number; }[];
+    myTeamPlayers?: { goals: { length: number }; }[];
+    opponentPlayers: { goals: { length: number }; }[];
     createdAt: string; // Changed to string for serialization
 }
 
@@ -88,9 +88,9 @@ const createGuestMatches = (): SavedMatch[] => {
         return date.toISOString().split('T')[0];
     };
     return [
-        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: 5 }], opponentPlayers: [{ goals: 3 }], createdAt: new Date().toISOString() },
-        { id: 'demo2', myTeamName: 'Furia Roja', opponentTeamName: 'FutsalDex Demo', fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: 2 }], opponentPlayers: [{ goals: 2 }], createdAt: new Date().toISOString() },
-        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: 7 }], opponentPlayers: [{ goals: 4 }], createdAt: new Date().toISOString() },
+        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: { length: 5 } }], opponentPlayers: [{ goals: { length: 3 } }], createdAt: new Date().toISOString() },
+        { id: 'demo2', myTeamName: 'Furia Roja', opponentTeamName: 'FutsalDex Demo', fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: { length: 2 } }], opponentPlayers: [{ goals: { length: 2 } }], createdAt: new Date().toISOString() },
+        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: { length: 7 } }], opponentPlayers: [{ goals: { length: 4 } }], createdAt: new Date().toISOString() },
     ];
 };
 
@@ -299,8 +299,8 @@ function HistorialPageContent() {
 
 
     const calculateScore = (match: SavedMatch) => {
-        const myGoals = match.myTeamPlayers?.reduce((total, player) => total + (player.goals || 0), 0) || 0;
-        const opponentGoals = match.opponentPlayers?.reduce((total, player) => total + (player.goals || 0), 0) || 0;
+        const myGoals = match.myTeamPlayers?.reduce((total, player) => total + (player.goals?.length || 0), 0) || 0;
+        const opponentGoals = match.opponentPlayers?.reduce((total, player) => total + (player.goals?.length || 0), 0) || 0;
         return `${myGoals} - ${opponentGoals}`;
     };
 
@@ -487,4 +487,5 @@ export default function HistorialEstadisticasPage() {
     
 
     
+
 
