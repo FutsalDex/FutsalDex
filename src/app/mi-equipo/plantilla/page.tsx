@@ -45,18 +45,20 @@ interface DisplayPlayer extends RosterPlayer {
   totalUnoVsUno: number;
 }
 
-interface MatchData {
-    myTeamPlayers: {
-        dorsal: string;
-        goals?: number;
-        yellowCards?: number;
-        redCards?: number;
-        faltas?: number;
-        paradas?: number;
-        golesRecibidos?: number;
-        unoVsUno?: number;
-    }[];
+interface MatchDataPlayer {
+    dorsal: string;
+    goals: { length: number }; // In Firestore, it's just a count.
+    yellowCards?: number;
+    redCards?: number;
+    faltas?: number;
+    paradas?: number;
+    golesRecibidos?: number;
+    unoVsUno?: number;
 }
+interface MatchData {
+    myTeamPlayers?: MatchDataPlayer[];
+}
+
 
 const createNewPlayer = (): RosterPlayer => ({
   id: uuidv4(),
@@ -93,7 +95,14 @@ function MiPlantillaPageContent() {
         const docRef = getTeamDocRef();
         if (!docRef) throw new Error("User not found");
 
-        const docSnap = await getDoc(docRef);
+        const db = getFirebaseDb();
+        const matchesQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
+        
+        const [docSnap, matchesSnapshot] = await Promise.all([
+          getDoc(docRef),
+          getDocs(matchesQuery)
+        ]);
+
         let roster: RosterPlayer[] = [];
         if (docSnap.exists()) {
             const data = docSnap.data();
@@ -105,9 +114,6 @@ function MiPlantillaPageContent() {
             roster = Array.from({ length: 5 }, createNewPlayer);
         }
 
-        const db = getFirebaseDb();
-        const matchesQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
-        const matchesSnapshot = await getDocs(matchesQuery);
         const matches: MatchData[] = matchesSnapshot.docs.map(d => d.data() as MatchData);
 
         const aggregatedPlayers: DisplayPlayer[] = roster.map(player => {
@@ -127,7 +133,7 @@ function MiPlantillaPageContent() {
                     const matchPlayer = match.myTeamPlayers?.find(p => p.dorsal === player.dorsal);
                     if (matchPlayer) {
                         stats.partidosJugados++;
-                        stats.totalGoles += matchPlayer.goals || 0;
+                        stats.totalGoles += matchPlayer.goals?.length || 0;
                         stats.totalAmarillas += matchPlayer.yellowCards || 0;
                         stats.totalRojas += matchPlayer.redCards || 0;
                         stats.totalFaltas += matchPlayer.faltas || 0;

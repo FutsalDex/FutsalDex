@@ -221,13 +221,13 @@ function EditMatchPageContent() {
 
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     
-    // Convert goals array to a simple count before saving
+    // Create a clean representation of my team's players for saving.
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, isActive, id, goals, ...rest}) => ({
-          ...rest,
-          goals: goals.length, // Convert array to count
+      .map(({posicion, isActive, id, ...rest}) => ({
+          ...rest
       }));
+
 
     const myTeamWasHome = myTeamSide === 'local';
     const finalMyTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
@@ -425,10 +425,11 @@ function EditMatchPageContent() {
         setTimerDuration(matchData.timer?.duration || 25 * 60);
 
         const roster: Player[] = (rosterData.players || []).filter((p: any) => p.isActive);
+        const savedMyTeamPlayers: Player[] = matchData.myTeamPlayers || [];
+
         const enrichedMyTeamPlayers = roster.map(rosterPlayer => {
-            const matchPlayer = matchData.myTeamPlayers?.find((p: any) => p.dorsal === rosterPlayer.dorsal);
-            // THIS IS THE FIX: Ensure `goals` is always an array.
-            const goals = typeof matchPlayer?.goals === 'number' ? Array.from({length: matchPlayer.goals}, (_, i) => ({id: `imported-goal-${i}`, minute: 0, second: 0, half: 'firstHalf'} as GoalEvent)) : [];
+            const matchPlayer = savedMyTeamPlayers.find((p: any) => p.dorsal === rosterPlayer.dorsal);
+            const goals = matchPlayer?.goals ? (Array.isArray(matchPlayer.goals) ? matchPlayer.goals : []) : [];
             
             return {
                 ...rosterPlayer,
@@ -918,5 +919,3 @@ export default function EditMatchPage() {
     <EditMatchPageContent />
   );
 }
-
-    

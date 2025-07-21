@@ -361,13 +361,15 @@ function EstadisticasPageContent() {
     const myTeamWasHome = rosterSide === 'local';
 
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
-    // **FIXED**: Correctly filter players for saving
+    
+    // Create a clean representation of my team's players for saving.
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .map(({ id, isActive, posicion, ...rest }) => ({
-        ...rest,
-        // convert goals array to a simple number for storage efficiency
-        goals: rest.goals.length,
+      .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
+      .map(({posicion, isActive, id, ...rest}) => ({
+          ...rest,
+          goals: rest.goals.length, // Convert array to count
       }));
+
 
     setIsSaving(true);
     
@@ -383,7 +385,6 @@ function EstadisticasPageContent() {
         tipoPartido: tipoPartido || null,
         myTeamStats: { ...myTeamStats },
         opponentTeamStats: { ...opponentTeamStats },
-        // **FIXED**: Use the correctly filtered and mapped players
         myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
         opponentPlayers: filterOpponentPlayers(opponentPlayers),
     };
@@ -391,13 +392,13 @@ function EstadisticasPageContent() {
     try {
         const clientDb = getFirebaseDb();
         const collectionRef = collection(clientDb, "partidos_estadisticas");
-        await addDoc(collectionRef, {
+        const docRef = await addDoc(collectionRef, {
           ...matchData,
           createdAt: serverTimestamp(),
         });
 
         toast({ title: "Estadísticas Guardadas", description: "El partido se ha guardado en tu historial." });
-        resetAllStats();
+        router.push(`/estadisticas/edit/${docRef.id}`); // Redirect to edit page
     } catch (error) {
         console.error("Error saving stats: ", error);
         toast({ title: "Error al guardar", description: "No se pudieron guardar las estadísticas.", variant: "destructive" });
@@ -768,5 +769,3 @@ export default function EstadisticasPage() {
     <EstadisticasPageContent />
   );
 }
-
-    
