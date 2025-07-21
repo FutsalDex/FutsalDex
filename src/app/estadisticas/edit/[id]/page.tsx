@@ -415,10 +415,12 @@ function EditMatchPageContent() {
 
         const roster: Player[] = rosterData.players?.filter((p: any) => p.isActive) || [];
         const enrichedMyTeamPlayers = roster.map(rosterPlayer => {
-            const matchPlayer = matchData.myTeamPlayers?.find((p: Player) => p.dorsal === rosterPlayer.dorsal);
+            const matchPlayer = matchData.myTeamPlayers?.find((p: any) => p.dorsal === rosterPlayer.dorsal);
+            // Ensure goals is always an array
+            const goals = (matchPlayer?.goals && Array.isArray(matchPlayer.goals)) ? matchPlayer.goals : [];
             return {
                 ...rosterPlayer,
-                goals: matchPlayer?.goals || [],
+                goals: goals,
                 yellowCards: matchPlayer?.yellowCards || 0,
                 redCards: matchPlayer?.redCards || 0,
                 faltas: matchPlayer?.faltas || 0,
@@ -429,7 +431,10 @@ function EditMatchPageContent() {
         });
         setMyTeamPlayers(enrichedMyTeamPlayers);
         
-        const savedOpponents = matchData.opponentPlayers || [];
+        const savedOpponents = matchData.opponentPlayers?.map((p: any) => ({
+            ...p,
+            goals: (p.goals && Array.isArray(p.goals)) ? p.goals : [],
+        })) || [];
         const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
         setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
 
