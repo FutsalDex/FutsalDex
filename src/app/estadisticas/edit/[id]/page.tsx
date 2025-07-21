@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert } from "lucide-react";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert, CheckCircle } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -146,6 +146,8 @@ const createGuestTeamStats = (isMyTeam: boolean): TeamStats => {
     };
 };
 
+type AutoSaveStatus = "unsaved" | "saving" | "saved";
+
 
 function EditMatchPageContent() {
   const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
@@ -182,6 +184,96 @@ function EditMatchPageContent() {
   const [time, setTime] = useState(timerDuration);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [activeHalf, setActiveHalf] = useState<'firstHalf' | 'secondHalf'>('firstHalf');
+
+  // Autosave State
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>("saved");
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fullMatchState = useMemo(() => {
+    return {
+      localTeamName, visitorTeamName, fecha, hora, campeonato, jornada, tipoPartido, myTeamSide,
+      myTeamStats, opponentTeamStats, myTeamPlayers, opponentPlayers,
+    };
+  }, [localTeamName, visitorTeamName, fecha, hora, campeonato, jornada, tipoPartido, myTeamSide,
+      myTeamStats, opponentTeamStats, myTeamPlayers, opponentPlayers]);
+
+  const handleUpdateStats = useCallback(async (isAutoSave = false) => {
+    if (!isRegisteredUser || !isSubscribed && !isAdmin) {
+      if (!isAutoSave) toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para guardar partidos.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
+      return false;
+    }
+    if (!user || !matchId) return false;
+    if (!myTeamSide) {
+      if (!isAutoSave) toast({ title: "Asignación de equipo requerida", description: "Por favor, usa el botón 'Usar mi equipo' para asignar tu plantilla antes de guardar.", variant: "destructive", duration: 7000 });
+      return false;
+    }
+
+    if (!isAutoSave) setIsSaving(true);
+    setAutoSaveStatus("saving");
+
+    const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
+    const filterMyTeamPlayersForSaving = (players: Player[]) => players
+      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
+      .map(({posicion, isActive, ...rest}) => rest);
+
+    const myTeamWasHome = myTeamSide === 'local';
+    const finalMyTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
+    const finalOpponentTeamName = myTeamSide === 'local' ? visitorTeamName : localTeamName;
+
+    const updatedData = {
+       myTeamName: finalMyTeamName,
+       opponentTeamName: finalOpponentTeamName,
+       myTeamWasHome,
+       fecha, hora, campeonato, jornada, tipoPartido,
+       myTeamStats, opponentTeamStats,
+       myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
+       opponentPlayers: filterOpponentPlayers(opponentPlayers),
+       timer: { duration: timerDuration },
+       updatedAt: serverTimestamp(),
+    };
+
+    try {
+       const db = getFirebaseDb();
+       const matchDocRef = doc(db, "partidos_estadisticas", matchId);
+       await updateDoc(matchDocRef, updatedData);
+       if (!isAutoSave) {
+          toast({ title: "Partido Guardado", description: "Los cambios se han guardado correctamente." });
+          router.push(`/estadisticas/historial/${matchId}`);
+       } else {
+          setAutoSaveStatus("saved");
+       }
+       return true;
+    } catch (error) {
+       console.error("Error updating match:", error);
+       if (!isAutoSave) toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive" });
+       setAutoSaveStatus("unsaved");
+       return false;
+    } finally {
+       if (!isAutoSave) setIsSaving(false);
+    }
+  }, [isRegisteredUser, isSubscribed, isAdmin, user, matchId, myTeamSide, localTeamName, visitorTeamName, fecha, hora, campeonato, jornada, tipoPartido, myTeamStats, opponentTeamStats, myTeamPlayers, opponentPlayers, timerDuration, toast, router]);
+
+
+  useEffect(() => {
+    // This effect triggers the autosave
+    if (isLoading) return; // Don't save while initial data is loading
+    
+    setAutoSaveStatus("unsaved");
+    if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+        handleUpdateStats(true); // Call the save function as an autosave
+    }, 3000); // 3-second debounce time
+
+    return () => {
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullMatchState, isLoading]); // Depend on the memoized full state
 
   const myTeamTotalFouls = useMemo(() => {
     if (!myTeamStats) return 0;
@@ -243,6 +335,7 @@ function EditMatchPageContent() {
         setOpponentTeamStats(createGuestTeamStats(false));
 
         setIsLoading(false);
+        setAutoSaveStatus("saved");
     };
 
     const fetchMatchAndRoster = async () => {
@@ -339,6 +432,7 @@ function EditMatchPageContent() {
         setNotFound(true);
       } finally {
         setIsLoading(false);
+        setAutoSaveStatus("saved");
       }
     };
     
@@ -348,65 +442,6 @@ function EditMatchPageContent() {
         setupDemoMode();
     }
   }, [isRegisteredUser, user, matchId, toast]);
-
-  const handleUpdateStats = async () => {
-    if (!isRegisteredUser) {
-        toast({ title: "Acción Requerida", description: "Debes iniciar sesión para editar un partido.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
-        return;
-    }
-    if (!isSubscribed && !isAdmin) {
-        toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para editar partidos.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
-        return;
-    }
-     if (!user || !matchId) return;
-
-     if (!myTeamSide) {
-      toast({ title: "Asignación de equipo requerida", description: "Por favor, usa el botón 'Usar mi equipo' para asignar tu plantilla antes de guardar.", variant: "destructive", duration: 7000 });
-      return;
-    }
-
-     setIsSaving(true);
-     
-     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
-     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, isActive, ...rest}) => rest);
-
-    const myTeamWasHome = myTeamSide === 'local';
-    const finalMyTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
-    const finalOpponentTeamName = myTeamSide === 'local' ? visitorTeamName : localTeamName;
-
-     const updatedData = {
-        myTeamName: finalMyTeamName,
-        opponentTeamName: finalOpponentTeamName,
-        myTeamWasHome,
-        fecha,
-        hora,
-        campeonato,
-        jornada,
-        tipoPartido,
-        myTeamStats,
-        opponentTeamStats,
-        myTeamPlayers: filterMyTeamPlayersForSaving(myTeamPlayers),
-        opponentPlayers: filterOpponentPlayers(opponentPlayers),
-        timer: { duration: timerDuration },
-        updatedAt: serverTimestamp(),
-     };
-
-     try {
-        const db = getFirebaseDb();
-        const matchDocRef = doc(db, "partidos_estadisticas", matchId);
-        await updateDoc(matchDocRef, updatedData);
-        toast({ title: "Partido Actualizado", description: "Los cambios se han guardado correctamente." });
-        router.push(`/estadisticas/historial/${matchId}`);
-     } catch (error) {
-        console.error("Error updating match:", error);
-        toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive" });
-     } finally {
-        setIsSaving(false);
-     }
-  };
-
 
    const handleStatChange = (
     team: 'myTeam' | 'opponentTeam',
@@ -662,6 +697,24 @@ function EditMatchPageContent() {
         </div>
     );
   }
+  
+  const AutoSaveIndicator = () => {
+    let content;
+    switch (autoSaveStatus) {
+      case "saving":
+        content = <><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</>;
+        break;
+      case "saved":
+        content = <><CheckCircle className="h-4 w-4 text-green-500" /> Guardado</>;
+        break;
+      case "unsaved":
+        content = <>Cambios sin guardar</>;
+        break;
+      default:
+        content = null;
+    }
+    return <div className="flex items-center gap-2 text-sm text-muted-foreground">{content}</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -675,14 +728,15 @@ function EditMatchPageContent() {
                 Gestiona el partido en tiempo real.
             </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+            <AutoSaveIndicator />
             <Button asChild variant="outline">
                 <Link href={`/estadisticas/historial`}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Cancelar
                 </Link>
             </Button>
-            <Button onClick={handleUpdateStats} disabled={isSaving || !isRegisteredUser}>
+            <Button onClick={() => handleUpdateStats(false)} disabled={isSaving || !isRegisteredUser}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Guardar y Salir
             </Button>
