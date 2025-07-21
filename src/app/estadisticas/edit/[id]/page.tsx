@@ -60,6 +60,7 @@ interface GoalEvent {
 }
 
 interface Player {
+  id: string;
   dorsal: string;
   nombre: string;
   posicion: string;
@@ -118,11 +119,11 @@ const createInitialTeamStats = (): TeamStats => ({
 
 // Demo data creators
 const createGuestPlayerRosterWithStats = (): Player[] => [
-    { dorsal: '1', nombre: 'A. García', posicion: 'Portero', isActive: true, goals: [], yellowCards: 0, redCards: 0, faltas: 1, paradas: 8, golesRecibidos: 2, unoVsUno: 3 },
-    { dorsal: '4', nombre: 'J. López', posicion: 'Cierre', isActive: true, goals: [{ id: 'g1', minute: 12, second: 30, half: 'firstHalf' }], yellowCards: 1, redCards: 0, faltas: 3, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', isActive: true, goals: [{ id: 'g2', minute: 28, second: 15, half: 'secondHalf' }, { id: 'g3', minute: 35, second: 0, half: 'secondHalf' }], yellowCards: 0, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', isActive: true, goals: [{ id: 'g4', minute: 18, second: 45, half: 'firstHalf' }], yellowCards: 0, redCards: 0, faltas: 1, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '8', nombre: 'S. Torres', posicion: 'Ala-Cierre', isActive: false, goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest1', dorsal: '1', nombre: 'A. García', posicion: 'Portero', isActive: true, goals: [], yellowCards: 0, redCards: 0, faltas: 1, paradas: 8, golesRecibidos: 2, unoVsUno: 3 },
+    { id: 'guest2', dorsal: '4', nombre: 'J. López', posicion: 'Cierre', isActive: true, goals: [{ id: 'g1', minute: 12, second: 30, half: 'firstHalf' }], yellowCards: 1, redCards: 0, faltas: 3, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest3', dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', isActive: true, goals: [{ id: 'g2', minute: 28, second: 15, half: 'secondHalf' }, { id: 'g3', minute: 35, second: 0, half: 'secondHalf' }], yellowCards: 0, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest4', dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', isActive: true, goals: [{ id: 'g4', minute: 18, second: 45, half: 'firstHalf' }], yellowCards: 0, redCards: 0, faltas: 1, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest5', dorsal: '8', nombre: 'S. Torres', posicion: 'Ala-Cierre', isActive: false, goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
 ];
 
 const createGuestOpponentPlayersWithStats = (): OpponentPlayer[] => {
@@ -221,7 +222,7 @@ function EditMatchPageContent() {
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, isActive, ...rest}) => rest);
+      .map(({posicion, isActive, id, ...rest}) => rest);
 
     const myTeamWasHome = myTeamSide === 'local';
     const finalMyTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;
@@ -418,11 +419,11 @@ function EditMatchPageContent() {
         setTime(matchData.timer?.duration || 25 * 60);
         setTimerDuration(matchData.timer?.duration || 25 * 60);
 
-        const roster: Player[] = rosterData.players?.filter((p: any) => p.isActive) || [];
+        const roster: Player[] = (rosterData.players || []).filter((p: any) => p.isActive);
         const enrichedMyTeamPlayers = roster.map(rosterPlayer => {
             const matchPlayer = matchData.myTeamPlayers?.find((p: any) => p.dorsal === rosterPlayer.dorsal);
-            // Ensure goals is always an array
             const goals = (matchPlayer?.goals && Array.isArray(matchPlayer.goals)) ? matchPlayer.goals : [];
+            
             return {
                 ...rosterPlayer,
                 goals: goals,
@@ -608,7 +609,7 @@ function EditMatchPageContent() {
                             </TableHeader>
                             <TableBody>
                                 {players.map((player, index) => (
-                                    <TableRow key={index}>
+                                    <TableRow key={(player as Player).id || index}>
                                         <TableCell className="px-1">
                                           <Input 
                                             className="h-8 text-xs w-full" 
@@ -911,3 +912,5 @@ export default function EditMatchPage() {
     <EditMatchPageContent />
   );
 }
+
+    
