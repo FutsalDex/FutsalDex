@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert, CheckCircle, Trash2 } from "lucide-react";
+import { BarChart2, Plus, Minus, RotateCcw, RectangleVertical, Save, Loader2, History, FileText, ArrowLeft, Edit, Info, Play, Pause, ShieldAlert, CheckCircle, Settings } from "lucide-react";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -187,7 +187,7 @@ function EditMatchPageContent() {
   const [activeTab, setActiveTab] = useState<'local' | 'visitante'>('local');
 
   // Timer State
-  const [timerDuration, setTimerDuration] = useState(25 * 60); // 25 minutes in seconds
+  const [timerDuration, setTimerDuration] = useState(25 * 60); // Default 25 minutes in seconds
   const [time, setTime] = useState(timerDuration);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [activeHalf, setActiveHalf] = useState<'firstHalf' | 'secondHalf'>('firstHalf');
@@ -199,10 +199,10 @@ function EditMatchPageContent() {
   const fullMatchState = useMemo(() => {
     return {
       localTeamName, visitorTeamName, fecha, hora, campeonato, jornada, tipoPartido, myTeamSide,
-      myTeamStats, opponentTeamStats, myTeamPlayers, opponentPlayers,
+      myTeamStats, opponentTeamStats, myTeamPlayers, opponentPlayers, timerDuration,
     };
   }, [localTeamName, visitorTeamName, fecha, hora, campeonato, jornada, tipoPartido, myTeamSide,
-      myTeamStats, opponentTeamStats, myTeamPlayers, opponentPlayers]);
+      myTeamStats, opponentTeamStats, myTeamPlayers, opponentPlayers, timerDuration]);
 
   const handleUpdateStats = useCallback(async (isAutoSave = false) => {
     if (!isRegisteredUser || !isSubscribed && !isAdmin) {
@@ -321,6 +321,11 @@ function EditMatchPageContent() {
     setIsTimerActive(false);
     setTime(timerDuration);
   };
+  
+  const handleDurationChange = (minutes: number) => {
+    setTimerDuration(minutes * 60);
+    setTime(minutes * 60);
+  }
 
   useEffect(() => {
     const setupDemoMode = () => {
@@ -522,7 +527,11 @@ function EditMatchPageContent() {
       setter(produce(draft => {
           const player = draft[index] as Player | OpponentPlayer;
           if (action === 'add') {
-              const totalSeconds = timerDuration - time;
+              let totalSeconds = timerDuration - time;
+              if (activeHalf === 'secondHalf') {
+                  totalSeconds += timerDuration; // Add duration of first half
+              }
+
               const newGoal: GoalEvent = {
                   minute: Math.floor(totalSeconds / 60),
                   second: totalSeconds % 60,
@@ -822,8 +831,8 @@ function EditMatchPageContent() {
              <div className="bg-primary text-primary-foreground rounded-lg px-6 py-2 my-2 inline-block">
                 <h1 className="text-5xl font-bold tracking-widest font-mono">{formatTime}</h1>
             </div>
-            <div className="flex justify-center items-center gap-4">
-                <Button onClick={() => setIsTimerActive(!isTimerActive)} className="w-32" variant={isTimerActive ? 'destructive' : 'default'} disabled={!isRegisteredUser}>
+            <div className="flex justify-center items-center gap-2 flex-wrap">
+                <Button onClick={() => setIsTimerActive(!isTimerActive)} className="w-28" variant={isTimerActive ? 'destructive' : 'default'} disabled={!isRegisteredUser}>
                     {isTimerActive ? <Pause className="mr-2" /> : <Play className="mr-2" />}
                     {isTimerActive ? 'Pausar' : 'Iniciar'}
                 </Button>
@@ -835,6 +844,41 @@ function EditMatchPageContent() {
                     <Button onClick={() => setActiveHalf('firstHalf')} variant={activeHalf === 'firstHalf' ? 'secondary' : 'outline'} size="sm" disabled={!isRegisteredUser}>1ª Parte</Button>
                     <Button onClick={() => setActiveHalf('secondHalf')} variant={activeHalf === 'secondHalf' ? 'secondary' : 'outline'} size="sm" disabled={!isRegisteredUser}>2ª Parte</Button>
                 </div>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="icon" disabled={!isRegisteredUser}><Settings className="h-4 w-4" /></Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-xs">
+                        <DialogHeader>
+                            <DialogTitle>Ajustes del Crono</DialogTitle>
+                            <DialogDescription>
+                                Selecciona la duración de cada parte del partido. Esto reiniciará el temporizador.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Label htmlFor="duration-select">Minutos por parte</Label>
+                            <Select
+                                value={(timerDuration / 60).toString()}
+                                onValueChange={(val) => handleDurationChange(parseInt(val, 10))}
+                            >
+                                <SelectTrigger id="duration-select">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="15">15 minutos</SelectItem>
+                                    <SelectItem value="20">20 minutos</SelectItem>
+                                    <SelectItem value="25">25 minutos</SelectItem>
+                                    <SelectItem value="30">30 minutos</SelectItem>
+                                    <SelectItem value="40">40 minutos</SelectItem>
+                                    <SelectItem value="45">45 minutos</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button>Aceptar</Button></DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </CardContent>
       </Card>

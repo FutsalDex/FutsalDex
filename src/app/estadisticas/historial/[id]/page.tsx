@@ -105,36 +105,9 @@ const StatDisplayTable: React.FC<{ title: string, stats: TeamStats['shots'] | Te
     );
 };
 
-const PlayerStatTable: React.FC<{ players: Player[], goalsOnly?: boolean }> = ({ players, goalsOnly = false }) => {
-    const relevantPlayers = goalsOnly ? players.filter(p => p.goals.length > 0) : players;
+const PlayerStatTable: React.FC<{ players: Player[] }> = ({ players }) => {
+    const relevantPlayers = players.filter(p => p.goals.length > 0 || p.yellowCards > 0 || p.redCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     if (!relevantPlayers || relevantPlayers.length === 0) return <p className="text-sm text-muted-foreground p-4">No se registraron estadísticas de jugadores para este partido.</p>;
-    
-    if (goalsOnly) {
-         const allGoals = relevantPlayers
-            .flatMap(p => p.goals.map(g => ({ ...g, playerName: p.nombre || `Dorsal ${p.dorsal}` })))
-            .sort((a, b) => {
-                if (a.half === 'firstHalf' && b.half === 'secondHalf') return -1;
-                if (a.half === 'secondHalf' && b.half === 'firstHalf') return 1;
-                return a.minute - b.minute || a.second - b.second;
-            });
-        if (allGoals.length === 0) return <p className="text-sm text-muted-foreground p-4">No se marcaron goles.</p>;
-
-        return (
-            <Card>
-                <CardHeader><CardTitle className="text-base flex items-center"><Goal className="mr-2 h-5 w-5"/> Cronología de Goles</CardTitle></CardHeader>
-                <CardContent>
-                    <div className="space-y-2">
-                        {allGoals.map(goal => (
-                            <div key={goal.id} className="flex justify-between items-center text-sm p-2 bg-muted/50 rounded-md">
-                                <span>{goal.playerName}</span>
-                                <span className="font-mono font-semibold">{`${String(goal.minute).padStart(2, '0')}'${String(goal.second).padStart(2, '0')}"`}</span>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
 
     return (
         <Card>
@@ -155,7 +128,7 @@ const PlayerStatTable: React.FC<{ players: Player[], goalsOnly?: boolean }> = ({
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {players.map((player, index) => (
+                        {relevantPlayers.map((player, index) => (
                             <TableRow key={index} className="text-sm">
                                 <TableCell className="font-semibold">{player.dorsal}</TableCell>
                                 <TableCell>{player.nombre || "-"}</TableCell>
@@ -170,6 +143,30 @@ const PlayerStatTable: React.FC<{ players: Player[], goalsOnly?: boolean }> = ({
                         ))}
                     </TableBody>
                 </Table>
+            </CardContent>
+        </Card>
+    );
+};
+
+const GoalTimeline: React.FC<{ players: Player[] }> = ({ players }) => {
+    const allGoals = players
+        .flatMap(p => p.goals.map(g => ({ ...g, playerName: p.nombre || `Dorsal ${p.dorsal}` })))
+        .sort((a, b) => a.minute - b.minute || a.second - b.second);
+
+    if (allGoals.length === 0) return null;
+
+    return (
+        <Card>
+            <CardHeader><CardTitle className="text-base flex items-center"><Goal className="mr-2 h-5 w-5"/> Cronología de Goles</CardTitle></CardHeader>
+            <CardContent>
+                <div className="space-y-2">
+                    {allGoals.map(goal => (
+                        <div key={goal.id} className="flex justify-between items-center text-sm p-2 bg-muted/50 rounded-md">
+                            <span>{goal.playerName}</span>
+                            <span className="font-mono font-semibold">{`${String(goal.minute).padStart(2, '0')}'${String(goal.second).padStart(2, '0')}"`}</span>
+                        </div>
+                    ))}
+                </div>
             </CardContent>
         </Card>
     );
@@ -300,7 +297,7 @@ function HistorialDetallePageContent() {
                 {/* Local Team Column */}
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold font-headline text-center text-primary">{localTeamName}</h2>
-                    <PlayerStatTable players={localTeamPlayers} goalsOnly />
+                    <GoalTimeline players={localTeamPlayers} />
                     <PlayerStatTable players={localTeamPlayers} />
                     <StatDisplayTable title="Tiros a Puerta" stats={localTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={localTeamStats.turnovers} type="events" />
@@ -310,7 +307,7 @@ function HistorialDetallePageContent() {
                 {/* Visitor Team Column */}
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold font-headline text-center text-accent">{visitorTeamName}</h2>
-                    <PlayerStatTable players={visitorTeamPlayers} goalsOnly />
+                    <GoalTimeline players={visitorTeamPlayers} />
                     <PlayerStatTable players={visitorTeamPlayers} />
                     <StatDisplayTable title="Tiros a Puerta" stats={visitorTeamStats.shots} type="shots" />
                     <StatDisplayTable title="Pérdidas" stats={visitorTeamStats.turnovers} type="events" />
