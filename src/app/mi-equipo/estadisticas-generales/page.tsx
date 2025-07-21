@@ -43,6 +43,10 @@ const guestDemoStats = {
         partidosEmpatados: 1,
         golesFavor: 14,
         golesContra: 9,
+        golesFavor1T: 8,
+        golesFavor2T: 6,
+        golesContra1T: 4,
+        golesContra2T: 5,
         faltasCometidas: 28,
     },
     leaderStats: {
@@ -117,6 +121,10 @@ function EstadisticasGeneralesContent() {
                     partidosEmpatados: 0,
                     golesFavor: 0,
                     golesContra: 0,
+                    golesFavor1T: 0,
+                    golesFavor2T: 0,
+                    golesContra1T: 0,
+                    golesContra2T: 0,
                     faltasCometidas: 0,
                 },
                 leaderStats: {
@@ -135,11 +143,25 @@ function EstadisticasGeneralesContent() {
 
             partidosSnapshot.forEach(doc => {
                 const data = doc.data();
-                const myGoals = data.myTeamPlayers?.reduce((sum: number, p: any) => sum + (p.goals?.length || 0), 0) || 0;
-                const opponentGoals = data.opponentPlayers?.reduce((sum: number, p: any) => sum + (p.goals?.length || 0), 0) || 0;
+                
+                const myGoalsEvents = data.myTeamPlayers?.flatMap((p: MatchDataPlayer) => p.goals || []) || [];
+                const opponentGoalsEvents = data.opponentPlayers?.flatMap((p: MatchDataPlayer) => p.goals || []) || [];
+
+                const myGoals = myGoalsEvents.length;
+                const opponentGoals = opponentGoalsEvents.length;
 
                 calculatedStats.generalStats.golesFavor += myGoals;
                 calculatedStats.generalStats.golesContra += opponentGoals;
+                
+                myGoalsEvents.forEach((goal: GoalEvent) => {
+                    if (goal.half === 'firstHalf') calculatedStats.generalStats.golesFavor1T++;
+                    else calculatedStats.generalStats.golesFavor2T++;
+                });
+
+                opponentGoalsEvents.forEach((goal: GoalEvent) => {
+                    if (goal.half === 'firstHalf') calculatedStats.generalStats.golesContra1T++;
+                    else calculatedStats.generalStats.golesContra2T++;
+                });
                 
                 if (myGoals > opponentGoals) calculatedStats.generalStats.partidosGanados++;
                 else if (myGoals < opponentGoals) calculatedStats.generalStats.partidosPerdidos++;
@@ -238,16 +260,38 @@ function EstadisticasGeneralesContent() {
                 <CardHeader>
                     <CardTitle className="text-xl font-headline">Resumen General de Partidos</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                     <StatCard title="Partidos Jugados" value={stats.generalStats.numPartidos} icon={<Trophy className="h-6 w-6"/>} />
-                    <StatCard title="Partidos Ganados" value={stats.generalStats.partidosGanados} icon={<TrendingUp className="h-6 w-6"/>} />
-                    <StatCard title="Partidos Empatados" value={stats.generalStats.partidosEmpatados} icon={<Handshake className="h-6 w-6"/>} />
-                    <StatCard title="Partidos Perdidos" value={stats.generalStats.partidosPerdidos} icon={<TrendingDown className="h-6 w-6"/>} />
-                    <StatCard title="Goles a Favor" value={stats.generalStats.golesFavor} icon={<Goal className="h-6 w-6"/>} />
-                    <StatCard title="Goles en Contra" value={stats.generalStats.golesContra} icon={<Shield className="h-6 w-6"/>} />
+                    <StatCard title="Ganados" value={stats.generalStats.partidosGanados} icon={<TrendingUp className="h-6 w-6"/>} />
+                    <StatCard title="Empatados" value={stats.generalStats.partidosEmpatados} icon={<Handshake className="h-6 w-6"/>} />
+                    <StatCard title="Perdidos" value={stats.generalStats.partidosPerdidos} icon={<TrendingDown className="h-6 w-6"/>} />
                     <StatCard title="Faltas Cometidas" value={stats.generalStats.faltasCometidas} icon={<ShieldAlert className="h-6 w-6"/>} />
                 </CardContent>
             </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-xl font-headline">Goles a Favor</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <StatCard title="Totales" value={stats.generalStats.golesFavor} icon={<Goal className="h-6 w-6"/>} />
+                        <StatCard title="1ª Parte" value={stats.generalStats.golesFavor1T} icon={<Goal className="h-6 w-6"/>} />
+                        <StatCard title="2ª Parte" value={stats.generalStats.golesFavor2T} icon={<Goal className="h-6 w-6"/>} />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-xl font-headline">Goles en Contra</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <StatCard title="Totales" value={stats.generalStats.golesContra} icon={<Shield className="h-6 w-6"/>} />
+                        <StatCard title="1ª Parte" value={stats.generalStats.golesContra1T} icon={<Shield className="h-6 w-6"/>} />
+                        <StatCard title="2ª Parte" value={stats.generalStats.golesContra2T} icon={<Shield className="h-6 w-6"/>} />
+                    </CardContent>
+                </Card>
+            </div>
+
 
             <Card>
                 <CardHeader>
