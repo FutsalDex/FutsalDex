@@ -269,24 +269,31 @@ function MiPlantillaPageContent() {
   };
 
     const getStatLeaders = () => {
+        const initialLeaders = {
+            goles: { name: 'N/A', value: 0 },
+            amarillas: { name: 'N/A', value: 0 },
+            rojas: { name: 'N/A', value: 0 },
+            faltas: { name: 'N/A', value: 0 },
+        };
+
         if (players.length === 0) {
-            return {
-                goles: { name: 'N/A', value: 0 },
-                amarillas: { name: 'N/A', value: 0 },
-                rojas: { name: 'N/A', value: 0 },
-                faltas: { name: 'N/A', value: 0 },
-            };
+            return initialLeaders;
         }
-        const mostGoals = players.reduce((prev, current) => (prev.totalGoles > current.totalGoles) ? prev : current);
-        const mostYellows = players.reduce((prev, current) => (prev.totalAmarillas > current.totalAmarillas) ? prev : current);
-        const mostReds = players.reduce((prev, current) => (prev.totalRojas > current.totalRojas) ? prev : current);
-        const mostFouls = players.reduce((prev, current) => (prev.totalFaltas > current.totalFaltas) ? prev : current);
+
+        const getLeader = (statKey: keyof Omit<DisplayPlayer, 'id' | 'dorsal' | 'nombre' | 'posicion' | 'isActive' | 'partidosJugados'>) => {
+            const leader = players.reduce((prev, current) => 
+                ((prev[statKey] || 0) > (current[statKey] || 0)) ? prev : current
+            );
+            const value = leader[statKey] || 0;
+            const name = value > 0 ? (leader.nombre || 'Sin nombre') : 'N/A';
+            return { name, value };
+        };
 
         return {
-            goles: { name: mostGoals.nombre || 'Sin nombre', value: mostGoals.totalGoles },
-            amarillas: { name: mostYellows.nombre || 'Sin nombre', value: mostYellows.totalAmarillas },
-            rojas: { name: mostReds.nombre || 'Sin nombre', value: mostReds.totalRojas },
-            faltas: { name: mostFouls.nombre || 'Sin nombre', value: mostFouls.totalFaltas },
+            goles: getLeader('totalGoles'),
+            amarillas: getLeader('totalAmarillas'),
+            rojas: getLeader('totalRojas'),
+            faltas: getLeader('totalFaltas'),
         };
     };
 
