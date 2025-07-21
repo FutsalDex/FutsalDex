@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import Link from "next/link";
 import { ArrowRight, Lock, BookOpen, Users, Bot } from "lucide-react";
 
-// --- MEJORA 1: Datos de las características definidos en un array ---
 const features = [
   {
     icon: <BookOpen className="h-6 w-6"/>,
@@ -25,18 +24,18 @@ const features = [
 
 export default function HomePage() {
   return (
-    <div className="container mx-auto px-4 py-12 md:px-6 md:py-16 lg:py-24">
-      <div className="flex flex-col items-center text-center">
+    <div className="flex flex-col items-center">
+      <div className="container mx-auto px-4 py-12 md:px-6 md:py-16 lg:py-24 text-center">
         <h1 className="text-5xl md:text-6xl font-bold text-primary font-headline mb-4">
           FutsalDex
         </h1>
-        <p className="mb-8 max-w-3xl text-lg text-foreground/80 md:text-xl">
+        <p className="mb-8 max-w-3xl mx-auto text-lg text-foreground/80 md:text-xl">
           Tu compañero definitivo para el entrenamiento de fútbol sala. Descubre cientos de ejercicios, diseña sesiones de entrenamientos, gestiona tu equipo y analiza su rendimiento.
         </p>
 
         {/* CTA Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl mb-16">
-            <Card className="bg-background shadow-xl border-accent border-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl mb-16 mx-auto">
+            <Card className="bg-background shadow-xl border-accent border-2 text-left">
               <CardHeader>
                 <CardTitle className="text-accent font-headline text-2xl">¡Potencia Tu Entrenamiento!</CardTitle>
               </CardHeader>
@@ -52,8 +51,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            {/* --- MEJORA 2: Coherencia de estilos en el borde --- */}
-            <Card className="bg-background shadow-xl border-primary/20 border-2">
+            <Card className="bg-background shadow-xl border-primary/20 border-2 text-left">
               <CardHeader>
                 <CardTitle className="text-primary font-headline text-2xl flex items-center gap-2">
                     <Lock className="text-primary/80"/>
@@ -63,7 +61,7 @@ export default function HomePage() {
                     ¿Quieres probar antes de suscribirte?
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2 text-left">
+              <CardContent className="space-y-2">
                 <p className="text-md text-foreground/90">
                   Como invitado, puedes:
                 </p>
@@ -80,7 +78,6 @@ export default function HomePage() {
         <div className="w-full max-w-6xl mx-auto border-t pt-16">
             <h2 className="mb-12 text-3xl font-bold text-center text-primary font-headline">Todo lo que necesitas en un solo lugar</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* --- MEJORA 1: Renderizado de características usando .map() --- */}
                 {features.map((feature) => (
                     <FeatureCard
                         key={feature.title}
