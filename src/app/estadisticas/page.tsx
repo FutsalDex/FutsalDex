@@ -59,6 +59,7 @@ interface Player {
   dorsal: string;
   nombre: string;
   posicion: string;
+  isActive: boolean;
   goals: number;
   yellowCards: number;
   redCards: number;
@@ -124,11 +125,11 @@ const createInitialOpponentPlayers = (count: number): OpponentPlayer[] =>
   }));
 
 const createGuestPlayerRoster = (): Player[] => [
-    { id: 'guest1', dorsal: '1', nombre: 'A. García', posicion: 'Portero', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { id: 'guest2', dorsal: '4', nombre: 'J. López', posicion: 'Cierre', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { id: 'guest3', dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { id: 'guest4', dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { id: 'guest5', dorsal: '8', nombre: 'S. Torres', posicion: 'Universal', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest1', dorsal: '1', nombre: 'A. García', posicion: 'Portero', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest2', dorsal: '4', nombre: 'J. López', posicion: 'Cierre', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest3', dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest4', dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { id: 'guest5', dorsal: '8', nombre: 'S. Torres', posicion: 'Universal', isActive: false, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
 ];
 
 
@@ -192,12 +193,13 @@ function EstadisticasPageContent() {
             setCampeonato(data.campeonato || "");
 
             if (data.players?.length > 0) {
-              const roster = data.players;
-              setMyTeamPlayers(roster.map((p: any) => ({
+              const roster: Player[] = data.players;
+              setMyTeamPlayers(roster.filter(p => p.isActive).map((p: any) => ({
                   id: p.id,
                   dorsal: p.dorsal || '',
                   nombre: p.nombre || 'Sin nombre',
                   posicion: p.posicion || '',
+                  isActive: p.isActive !== false,
                   goals: 0,
                   yellowCards: 0,
                   redCards: 0,
@@ -331,7 +333,7 @@ function EstadisticasPageContent() {
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, id, ...rest}) => rest);
+      .map(({posicion, id, isActive, ...rest}) => rest);
 
     setIsSaving(true);
     
@@ -397,7 +399,7 @@ function EstadisticasPageContent() {
                     <CardTitle className={`${cardTitleColor} p-2 rounded-t-lg text-base`}>JUGADORES - {headerTeamName || 'Mi Equipo'}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 text-center">
-                    <p className="text-muted-foreground mb-4">No tienes jugadores en tu equipo. Ve a "Mi Plantilla" para añadir tu plantilla.</p>
+                    <p className="text-muted-foreground mb-4">No tienes jugadores activos en tu equipo. Ve a "Mi Plantilla" para añadir o activar jugadores.</p>
                     <Button asChild>
                         <Link href="/mi-equipo/plantilla">
                             <Users className="mr-2 h-4 w-4" />

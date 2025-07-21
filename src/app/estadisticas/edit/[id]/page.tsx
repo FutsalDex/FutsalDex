@@ -56,6 +56,7 @@ interface Player {
   dorsal: string;
   nombre: string;
   posicion: string;
+  isActive: boolean;
   goals: number;
   yellowCards: number;
   redCards: number;
@@ -110,11 +111,11 @@ const createInitialTeamStats = (): TeamStats => ({
 
 // Demo data creators
 const createGuestPlayerRosterWithStats = (): Player[] => [
-    { dorsal: '1', nombre: 'A. García', posicion: 'Portero', goals: 0, yellowCards: 0, redCards: 0, faltas: 1, paradas: 8, golesRecibidos: 2, unoVsUno: 3 },
-    { dorsal: '4', nombre: 'J. López', posicion: 'Cierre', goals: 1, yellowCards: 1, redCards: 0, faltas: 3, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', goals: 2, yellowCards: 0, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', goals: 1, yellowCards: 0, redCards: 0, faltas: 1, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
-    { dorsal: '8', nombre: 'S. Torres', posicion: 'Ala-Cierre', goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '1', nombre: 'A. García', posicion: 'Portero', isActive: true, goals: 0, yellowCards: 0, redCards: 0, faltas: 1, paradas: 8, golesRecibidos: 2, unoVsUno: 3 },
+    { dorsal: '4', nombre: 'J. López', posicion: 'Cierre', isActive: true, goals: 1, yellowCards: 1, redCards: 0, faltas: 3, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', isActive: true, goals: 2, yellowCards: 0, redCards: 0, faltas: 2, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', isActive: true, goals: 1, yellowCards: 0, redCards: 0, faltas: 1, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
+    { dorsal: '8', nombre: 'S. Torres', posicion: 'Ala-Cierre', isActive: false, goals: 0, yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 },
 ];
 
 const createGuestOpponentPlayersWithStats = (): OpponentPlayer[] => {
@@ -312,8 +313,7 @@ function EditMatchPageContent() {
         setTime(matchData.timer?.duration || 25 * 60);
         setTimerDuration(matchData.timer?.duration || 25 * 60);
 
-
-        const roster: Player[] = rosterData.players || [];
+        const roster: Player[] = rosterData.players?.filter((p: any) => p.isActive) || [];
         const enrichedMyTeamPlayers = roster.map(rosterPlayer => {
             const matchPlayer = matchData.myTeamPlayers?.find((p: Player) => p.dorsal === rosterPlayer.dorsal);
             return {
@@ -370,7 +370,7 @@ function EditMatchPageContent() {
      const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
      const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .filter(p => p.dorsal.trim() !== '' && (p.goals > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, ...rest}) => rest);
+      .map(({posicion, isActive, ...rest}) => rest);
 
     const myTeamWasHome = myTeamSide === 'local';
     const finalMyTeamName = myTeamSide === 'local' ? localTeamName : visitorTeamName;

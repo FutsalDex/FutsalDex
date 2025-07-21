@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info, Trophy, ShieldAlert, RectangleVertical, ThumbsUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 
 // Player data structure for the roster (what is saved to DB)
 interface RosterPlayer {
@@ -27,10 +28,12 @@ interface RosterPlayer {
   dorsal: string;
   nombre: string;
   posicion: string;
+  isActive: boolean;
 }
 
 // Player data structure for display, including aggregated stats from matches
 interface DisplayPlayer extends RosterPlayer {
+  partidosJugados: number;
   totalGoles: number;
   totalAmarillas: number;
   totalRojas: number;
@@ -58,7 +61,24 @@ const createNewPlayer = (): RosterPlayer => ({
   dorsal: '',
   nombre: '',
   posicion: '',
+  isActive: true,
 });
+
+const StatHighlightCard = ({ title, playerName, value, icon }: { title: string, playerName: string, value: number, icon: React.ReactNode }) => (
+    <Card className="shadow-md text-center">
+        <CardHeader className="pb-2">
+            <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full mb-2">
+                {icon}
+            </div>
+            <CardTitle className="text-sm font-headline">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <p className="text-xl font-bold truncate" title={playerName}>{playerName}</p>
+            <p className="text-lg font-semibold text-muted-foreground">{value}</p>
+        </CardContent>
+    </Card>
+);
+
 
 function MiPlantillaPageContent() {
   const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
@@ -84,7 +104,6 @@ function MiPlantillaPageContent() {
     setIsLoading(true);
     
     try {
-        // 1. Fetch Roster
         const docRef = getTeamDocRef();
         if (!docRef) throw new Error("User not found");
 
@@ -92,7 +111,7 @@ function MiPlantillaPageContent() {
         let roster: RosterPlayer[] = [];
         if (docSnap.exists()) {
             const data = docSnap.data();
-            roster = data.players?.length > 0 ? data.players : [];
+            roster = data.players?.length > 0 ? data.players.map((p: any) => ({ ...p, isActive: p.isActive !== false })) : [];
             setClub(data.club || '');
             setEquipo(data.equipo || '');
             setCampeonato(data.campeonato || '');
@@ -100,15 +119,14 @@ function MiPlantillaPageContent() {
             roster = Array.from({ length: 5 }, createNewPlayer);
         }
 
-        // 2. Fetch all matches for the user
         const db = getFirebaseDb();
         const matchesQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
         const matchesSnapshot = await getDocs(matchesQuery);
         const matches: MatchData[] = matchesSnapshot.docs.map(d => d.data() as MatchData);
 
-        // 3. Aggregate stats
         const aggregatedPlayers: DisplayPlayer[] = roster.map(player => {
             const stats = {
+                partidosJugados: 0,
                 totalGoles: 0,
                 totalAmarillas: 0,
                 totalRojas: 0,
@@ -122,6 +140,7 @@ function MiPlantillaPageContent() {
                 for (const match of matches) {
                     const matchPlayer = match.myTeamPlayers?.find(p => p.dorsal === player.dorsal);
                     if (matchPlayer) {
+                        stats.partidosJugados++;
                         stats.totalGoles += matchPlayer.goals || 0;
                         stats.totalAmarillas += matchPlayer.yellowCards || 0;
                         stats.totalRojas += matchPlayer.redCards || 0;
@@ -153,26 +172,16 @@ function MiPlantillaPageContent() {
     if (isRegisteredUser) {
         fetchTeamAndAggregateStats();
     } else {
-        const createGuestPlayer = (id:string, dorsal:string, nombre:string, posicion:string, goles:number, amarillas:number, rojas:number, faltas:number, paradas:number, recibidos:number, uno:number): DisplayPlayer => ({
-            id: id,
-            dorsal: dorsal,
-            nombre: nombre,
-            posicion: posicion,
-            totalGoles: goles,
-            totalAmarillas: amarillas,
-            totalRojas: rojas,
-            totalFaltas: faltas,
-            totalParadas: paradas,
-            totalGolesRecibidos: recibidos,
-            totalUnoVsUno: uno,
+        const createGuestPlayer = (id:string, dorsal:string, nombre:string, posicion:string, isActive: boolean, pj: number, goles:number, amarillas:number, rojas:number, faltas:number, paradas:number, recibidos:number, uno:number): DisplayPlayer => ({
+            id: id, dorsal, nombre, posicion, isActive, partidosJugados: pj, totalGoles: goles, totalAmarillas: amarillas, totalRojas: rojas, totalFaltas: faltas, totalParadas: paradas, totalGolesRecibidos: recibidos, totalUnoVsUno: uno,
         });
 
         setPlayers([
-            createGuestPlayer(uuidv4(), '1', 'A. García (Portero)', 'Portero', 0, 0, 0, 1, 12, 3, 5),
-            createGuestPlayer(uuidv4(), '4', 'J. López (Cierre)', 'Cierre', 2, 1, 0, 5, 0, 0, 0),
-            createGuestPlayer(uuidv4(), '7', 'M. Pérez (Ala)', 'Ala', 8, 2, 0, 4, 0, 0, 0),
-            createGuestPlayer(uuidv4(), '10', 'C. Ruiz (Pívot)', 'Pívot', 15, 0, 0, 4, 0, 0, 0),
-            createGuestPlayer(uuidv4(), '8', 'S. Torres (Ala-Cierre)', 'Ala-Cierre', 5, 1, 1, 2, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '1', 'A. García (Portero)', 'Portero', true, 10, 0, 0, 0, 1, 12, 3, 5),
+            createGuestPlayer(uuidv4(), '4', 'J. López (Cierre)', 'Cierre', true, 8, 2, 1, 0, 5, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '7', 'M. Pérez (Ala)', 'Ala', true, 9, 8, 2, 0, 4, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '10', 'C. Ruiz (Pívot)', 'Pívot', true, 10, 15, 0, 0, 4, 0, 0, 0),
+            createGuestPlayer(uuidv4(), '8', 'S. Torres (Ala-Cierre)', 'Ala-Cierre', false, 5, 5, 1, 1, 2, 0, 0, 0),
         ]);
         setClub('FutsalDex Club');
         setEquipo('Equipo Demo');
@@ -181,7 +190,7 @@ function MiPlantillaPageContent() {
     }
   }, [isRegisteredUser, fetchTeamAndAggregateStats]);
   
-  const handlePlayerChange = (id: string, field: keyof RosterPlayer, value: string | number) => {
+  const handlePlayerChange = (id: string, field: keyof RosterPlayer, value: string | number | boolean) => {
     setPlayers(
       produce(draft => {
         const player = draft.find(p => p.id === id);
@@ -198,19 +207,13 @@ function MiPlantillaPageContent() {
         return;
     }
     setPlayers(produce(draft => {
-      if (draft.length >= 12) {
-        toast({ title: "Límite de Jugadores", description: "Puedes añadir un máximo de 12 jugadores a la plantilla.", variant: "default" });
+      if (draft.length >= 20) {
+        toast({ title: "Límite de Jugadores", description: "Puedes añadir un máximo de 20 jugadores a la plantilla.", variant: "default" });
         return;
       }
       const newPlayer: DisplayPlayer = {
         ...createNewPlayer(),
-        totalGoles: 0,
-        totalAmarillas: 0,
-        totalRojas: 0,
-        totalFaltas: 0,
-        totalParadas: 0,
-        totalGolesRecibidos: 0,
-        totalUnoVsUno: 0,
+        partidosJugados: 0, totalGoles: 0, totalAmarillas: 0, totalRojas: 0, totalFaltas: 0, totalParadas: 0, totalGolesRecibidos: 0, totalUnoVsUno: 0,
       }
       draft.push(newPlayer);
     }));
@@ -242,6 +245,7 @@ function MiPlantillaPageContent() {
         dorsal: p.dorsal,
         nombre: p.nombre,
         posicion: p.posicion,
+        isActive: p.isActive,
       }));
       const docRef = getTeamDocRef();
       if (docRef) {
@@ -263,6 +267,30 @@ function MiPlantillaPageContent() {
       setIsSaving(false);
     }
   };
+
+    const getStatLeaders = () => {
+        if (players.length === 0) {
+            return {
+                goles: { name: 'N/A', value: 0 },
+                amarillas: { name: 'N/A', value: 0 },
+                rojas: { name: 'N/A', value: 0 },
+                faltas: { name: 'N/A', value: 0 },
+            };
+        }
+        const mostGoals = players.reduce((prev, current) => (prev.totalGoles > current.totalGoles) ? prev : current);
+        const mostYellows = players.reduce((prev, current) => (prev.totalAmarillas > current.totalAmarillas) ? prev : current);
+        const mostReds = players.reduce((prev, current) => (prev.totalRojas > current.totalRojas) ? prev : current);
+        const mostFouls = players.reduce((prev, current) => (prev.totalFaltas > current.totalFaltas) ? prev : current);
+
+        return {
+            goles: { name: mostGoals.nombre || 'Sin nombre', value: mostGoals.totalGoles },
+            amarillas: { name: mostYellows.nombre || 'Sin nombre', value: mostYellows.totalAmarillas },
+            rojas: { name: mostReds.nombre || 'Sin nombre', value: mostReds.totalRojas },
+            faltas: { name: mostFouls.nombre || 'Sin nombre', value: mostFouls.totalFaltas },
+        };
+    };
+
+    const statLeaders = getStatLeaders();
 
   if (isLoading) {
     return (
@@ -319,7 +347,7 @@ function MiPlantillaPageContent() {
         <CardHeader>
           <CardTitle>Plantilla del Equipo</CardTitle>
           <CardDescription>
-            Introduce los datos de tus jugadores. Las estadísticas se calculan automáticamente a partir de los partidos guardados.
+            Introduce los datos de tus jugadores. Máximo 20. Solo los jugadores "Activos" aparecerán en el módulo de partidos.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -339,8 +367,10 @@ function MiPlantillaPageContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[60px] px-1">Dorsal</TableHead>
-                  <TableHead className="w-[300px] px-1">Nombre</TableHead>
-                  <TableHead className="w-[150px] px-1">Posición</TableHead>
+                  <TableHead className="min-w-[200px] px-1">Nombre</TableHead>
+                  <TableHead className="min-w-[150px] px-1">Posición</TableHead>
+                  <TableHead className="w-[80px] px-1 text-center">Activo</TableHead>
+                  <TableHead className="w-[60px] px-1 text-center" title="Partidos Jugados">PJ</TableHead>
                   <TableHead className="w-[60px] px-1 text-center" title="Goles">Goles</TableHead>
                   <TableHead className="w-[60px] px-1 text-center" title="Tarjetas Amarillas">T.A.</TableHead>
                   <TableHead className="w-[60px] px-1 text-center" title="Tarjetas Rojas">T.R.</TableHead>
@@ -356,36 +386,21 @@ function MiPlantillaPageContent() {
                   return (
                     <TableRow key={player.id}>
                       <TableCell className="py-1 px-1">
-                        <Input
-                          type="text"
-                          value={player.dorsal}
-                          onChange={(e) => handlePlayerChange(player.id, 'dorsal', e.target.value)}
-                          className="h-8 text-sm"
-                          disabled={!isRegisteredUser}
-                        />
+                        <Input type="text" value={player.dorsal} onChange={(e) => handlePlayerChange(player.id, 'dorsal', e.target.value)} className="h-8 text-sm" disabled={!isRegisteredUser}/>
                       </TableCell>
                       <TableCell className="py-1 px-1">
-                        <Input
-                          value={player.nombre}
-                          onChange={(e) => handlePlayerChange(player.id, 'nombre', e.target.value)}
-                          className="h-8 text-sm"
-                          placeholder="Nombre del jugador"
-                          disabled={!isRegisteredUser}
-                        />
+                        <Input value={player.nombre} onChange={(e) => handlePlayerChange(player.id, 'nombre', e.target.value)} className="h-8 text-sm" placeholder="Nombre del jugador" disabled={!isRegisteredUser}/>
                       </TableCell>
                       <TableCell className="py-1 px-1">
-                        <Select
-                          value={player.posicion}
-                          onValueChange={(value) => handlePlayerChange(player.id, 'posicion', value)}
-                          disabled={!isRegisteredUser}
-                        >
+                        <Select value={player.posicion} onValueChange={(value) => handlePlayerChange(player.id, 'posicion', value)} disabled={!isRegisteredUser}>
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                          <SelectContent>
-                            {POSICIONES_FUTSAL.map(pos => <SelectItem key={pos} value={pos}>{pos}</SelectItem>)}
-                          </SelectContent>
+                          <SelectContent>{POSICIONES_FUTSAL.map(pos => <SelectItem key={pos} value={pos}>{pos}</SelectItem>)}</SelectContent>
                         </Select>
                       </TableCell>
-                      {/* Aggregated stats (read-only) */}
+                      <TableCell className="py-1 px-1 text-center">
+                        <Switch checked={player.isActive} onCheckedChange={(checked) => handlePlayerChange(player.id, 'isActive', checked)} disabled={!isRegisteredUser} />
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-sm py-1 px-1">{player.partidosJugados}</TableCell>
                       <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalGoles}</TableCell>
                       <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalAmarillas}</TableCell>
                       <TableCell className="text-center font-bold text-sm py-1 px-1">{player.totalRojas}</TableCell>
@@ -415,6 +430,20 @@ function MiPlantillaPageContent() {
           </Button>
         </CardFooter>
       </Card>
+
+      <Card className="mt-8">
+        <CardHeader>
+            <CardTitle>Jugadores Destacados</CardTitle>
+            <CardDescription>Resumen de los líderes estadísticos de la temporada.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatHighlightCard title="Máximo Goleador" playerName={statLeaders.goles.name} value={statLeaders.goles.value} icon={<Trophy className="h-6 w-6"/>} />
+            <StatHighlightCard title="Más Tarjetas Amarillas" playerName={statLeaders.amarillas.name} value={statLeaders.amarillas.value} icon={<RectangleVertical className="h-6 w-6 text-yellow-500 fill-yellow-400"/>} />
+            <StatHighlightCard title="Más Tarjetas Rojas" playerName={statLeaders.rojas.name} value={statLeaders.rojas.value} icon={<RectangleVertical className="h-6 w-6 text-red-600 fill-red-500"/>} />
+            <StatHighlightCard title="Más Faltas Cometidas" playerName={statLeaders.faltas.name} value={statLeaders.faltas.value} icon={<ShieldAlert className="h-6 w-6"/>} />
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
