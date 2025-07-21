@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, TrendingUp, BookOpen, Repeat, Trophy, Goal, Shield, Square, TrendingDown, ClipboardList, AlertTriangle, ShieldAlert, Info } from 'lucide-react';
+import { Loader2, ArrowLeft, TrendingUp, BookOpen, Repeat, Trophy, Goal, Shield, Square, TrendingDown, ClipboardList, AlertTriangle, ShieldAlert, Info, Handshake } from 'lucide-react';
 import Link from 'next/link';
 import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -19,6 +19,7 @@ interface Stats {
   numPartidos: number;
   partidosGanados: number;
   partidosPerdidos: number;
+  partidosEmpatados: number;
   golesFavor: number;
   golesContra: number;
   faltasCometidas: number;
@@ -31,9 +32,10 @@ const guestDemoStats: Stats = {
     numEjerciciosUtilizados: 23,
     ejercicioMasUtilizado: "Rondo 4 vs 2",
     numSesiones: 5,
-    numPartidos: 3,
+    numPartidos: 4,
     partidosGanados: 2,
     partidosPerdidos: 1,
+    partidosEmpatados: 1,
     golesFavor: 14,
     golesContra: 9,
     faltasCometidas: 28,
@@ -90,6 +92,7 @@ function EstadisticasGeneralesContent() {
                 numPartidos: partidosSnapshot.size,
                 partidosGanados: 0,
                 partidosPerdidos: 0,
+                partidosEmpatados: 0,
                 golesFavor: 0,
                 golesContra: 0,
                 faltasCometidas: 0,
@@ -139,7 +142,8 @@ function EstadisticasGeneralesContent() {
                 calculatedStats.golesContra += opponentGoals;
                 
                 if (myGoals > opponentGoals) calculatedStats.partidosGanados++;
-                if (myGoals < opponentGoals) calculatedStats.partidosPerdidos++;
+                else if (myGoals < opponentGoals) calculatedStats.partidosPerdidos++;
+                else calculatedStats.partidosEmpatados++;
                 
                 calculatedStats.faltasCometidas += data.myTeamPlayers?.reduce((sum: number, p: any) => sum + (p.faltas || 0), 0) || 0;
                 calculatedStats.faltasRecibidas += data.opponentPlayers?.reduce((sum: number, p: any) => sum + (p.faltas || 0), 0) || 0;
@@ -215,6 +219,7 @@ function EstadisticasGeneralesContent() {
                 <StatCard title="Partidos Jugados" value={stats.numPartidos} icon={<Trophy className="h-6 w-6"/>} />
                 <StatCard title="Partidos Ganados" value={stats.partidosGanados} icon={<TrendingUp className="h-6 w-6"/>} />
                 <StatCard title="Partidos Perdidos" value={stats.partidosPerdidos} icon={<TrendingDown className="h-6 w-6"/>} />
+                <StatCard title="Partidos Empatados" value={stats.partidosEmpatados} icon={<Handshake className="h-6 w-6"/>} />
                 <StatCard title="Goles a Favor" value={stats.golesFavor} icon={<Goal className="h-6 w-6"/>} />
                 <StatCard title="Goles en Contra" value={stats.golesContra} icon={<Shield className="h-6 w-6"/>} />
                 <StatCard title="Faltas Cometidas" value={stats.faltasCometidas} icon={<AlertTriangle className="h-6 w-6"/>} />
