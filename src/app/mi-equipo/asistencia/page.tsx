@@ -10,10 +10,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, ArrowLeft, CalendarIcon, History, Info } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, CalendarIcon, History, Info, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getFirebaseDb } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, updateDoc, FieldValue, deleteField } from 'firebase/firestore';
 import { produce } from 'immer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { ToastAction } from '@/components/ui/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
 
 interface RosterPlayer {
@@ -87,6 +88,8 @@ function AsistenciaPageContent() {
     const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     
     const [allAttendanceData, setAllAttendanceData] = useState<Record<string, any>>({});
     const [historyStats, setHistoryStats] = useState<DisplayPlayerStats[]>([]);
@@ -228,12 +231,51 @@ function AsistenciaPageContent() {
         }
     };
     
+    const handleDeleteRecord = async () => {
+        if (!isRegisteredUser || !user || !selectedDate) return;
+        setIsDeleting(true);
+        const dateString = format(selectedDate, 'yyyy-MM-dd');
+
+        try {
+            const db = getFirebaseDb();
+            const docRef = doc(db, 'usuarios', user.uid, 'team', 'attendance');
+            await updateDoc(docRef, {
+                [dateString]: deleteField(),
+                updatedAt: serverTimestamp()
+            });
+
+            toast({ title: "Registro Eliminado", description: `El registro de asistencia para el ${format(selectedDate, 'PPP', { locale: es })} ha sido eliminado.` });
+            
+            // Optimistic update of local state before re-fetching
+            const newAttendanceData = { ...allAttendanceData };
+            delete newAttendanceData[dateString];
+            setAllAttendanceData(newAttendanceData);
+            
+            // Re-fetch can also be done here instead of optimistic update for more safety
+            // await fetchFullData();
+        } catch (error) {
+            console.error("Error deleting attendance record: ", error);
+            toast({ title: "Error al Eliminar", description: "No se pudo eliminar el registro de asistencia.", variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
+            setIsDeleteDialogOpen(false);
+        }
+    };
+
     const recordedDates = useMemo(() => {
+        // Create dates in UTC to avoid timezone issues with react-day-picker matching
         return Object.keys(allAttendanceData).map(dateString => {
             const [year, month, day] = dateString.split('-').map(Number);
-            return new Date(year, month - 1, day);
+            return new Date(Date.UTC(year, month - 1, day));
         });
     }, [allAttendanceData]);
+
+    const hasRecordForSelectedDate = useMemo(() => {
+        if (!selectedDate) return false;
+        const dateString = format(selectedDate, 'yyyy-MM-dd');
+        return Object.keys(allAttendanceData).includes(dateString);
+    }, [selectedDate, allAttendanceData]);
+
 
     if (isLoading) {
         return (
@@ -276,7 +318,7 @@ function AsistenciaPageContent() {
                 <CardHeader>
                     <CardTitle>Registro de Asistencia</CardTitle>
                     <CardDescription>
-                        Selecciona una fecha y marca el estado de cada jugador. Los días enmarcados en verde ya tienen un registro.
+                        Selecciona una fecha y marca el estado de cada jugador. Los días enmarcados ya tienen un registro.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -300,7 +342,7 @@ function AsistenciaPageContent() {
                                 initialFocus
                                 locale={es}
                                 modifiers={{ recorded: recordedDates }}
-                                modifiersClassNames={{ recorded: 'rdp-day_recorded' }}
+                                modifiersClassNames={{ recorded: 'has-record' }}
                                 />
                             </PopoverContent>
                         </Popover>
@@ -354,7 +396,13 @@ function AsistenciaPageContent() {
                         </div>
                     )}
                     
-                    <div className="mt-6 flex justify-end">
+                    <div className="mt-6 flex justify-end gap-2">
+                         {hasRecordForSelectedDate && (
+                            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isDeleting}>
+                                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                Eliminar Registro
+                            </Button>
+                        )}
                         <Button onClick={handleSaveAttendance} disabled={isSaving || isLoading || players.length === 0}>
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                             Guardar Asistencia
@@ -420,6 +468,26 @@ function AsistenciaPageContent() {
                     )}
                 </CardContent>
             </Card>
+
+             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Confirmar Eliminación?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción eliminará permanentemente el registro de asistencia para el día{" "}
+                            <strong>{selectedDate ? format(selectedDate, 'PPP', { locale: es }) : ''}</strong>.
+                            No se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteRecord} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                           {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
