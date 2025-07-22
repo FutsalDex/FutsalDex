@@ -12,7 +12,7 @@ import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getFirebaseDb } from "@/lib/firebase";
-import { collection, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -361,18 +361,22 @@ function EditMatchPageContent() {
 
         try {
             const db = getFirebaseDb();
+            // 1. Get Match Data
             const matchDocRef = doc(db, "partidos_estadisticas", matchId);
             const matchSnap = await getDoc(matchDocRef);
-
             if (!matchSnap.exists() || matchSnap.data().userId !== user.uid) {
                 setNotFound(true);
                 setIsLoading(false);
                 return;
             }
-
             const matchData = matchSnap.data();
 
-            // Set basic match info
+            // 2. Get Roster Data
+            const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
+            const rosterSnap = await getDoc(rosterDocRef);
+            const rosterPlayers = (rosterSnap.exists() ? rosterSnap.data().players : []).filter((p: any) => p.isActive);
+
+            // 3. Set Match Info
             setMyTeamSide(matchData.myTeamWasHome ? 'local' : 'visitante');
             setLocalTeamName(matchData.myTeamWasHome ? matchData.myTeamName : matchData.opponentTeamName);
             setVisitorTeamName(matchData.myTeamWasHome ? matchData.opponentTeamName : matchData.myTeamName);
@@ -381,41 +385,39 @@ function EditMatchPageContent() {
             setCampeonato(matchData.campeonato || "");
             setJornada(matchData.jornada || "");
             setTipoPartido(matchData.tipoPartido || "");
-            
-            // Set team stats, ensuring they are not null
-            const mergeWithDefaults = (data?: Partial<TeamStats>): TeamStats => {
-                const defaults = createInitialTeamStats();
-                if (!data) return defaults;
-                return {
-                    ...defaults,
-                    ...data,
-                    shots: { ...defaults.shots, ...data.shots },
-                    turnovers: { ...defaults.turnovers, ...data.turnovers },
-                    steals: { ...defaults.steals, ...data.steals },
-                    timeouts: { ...defaults.timeouts, ...data.timeouts },
-                    faltas: { ...defaults.faltas, ...data.faltas },
-                };
-            };
-            setMyTeamStats(mergeWithDefaults(matchData.myTeamStats));
-            setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
-            
-            // Set players ensuring 'goals' is an array
-            const ensureGoalsIsArray = (players: any[] | undefined) => {
-                return (players || []).map(p => ({
-                    ...p,
-                    goals: Array.isArray(p.goals) ? p.goals : [],
-                }));
-            };
-            setMyTeamPlayers(ensureGoalsIsArray(matchData.myTeamPlayers));
+            setTimerDuration(matchData.timer?.duration || 25 * 60);
+            setTime(matchData.timer?.duration || 25 * 60);
 
-            // Set opponent players, padding with empty slots if needed
-            const savedOpponents = ensureGoalsIsArray(matchData.opponentPlayers);
+            // 4. Merge Roster with Match Stats for myTeamPlayers
+            const matchPlayersData = matchData.myTeamPlayers || [];
+            const finalMyTeamPlayers = rosterPlayers.map((rosterPlayer: any) => {
+                const savedPlayerStats = matchPlayersData.find((p: any) => p.dorsal === rosterPlayer.dorsal);
+                return {
+                    ...rosterPlayer,
+                    goals: Array.isArray(savedPlayerStats?.goals) ? savedPlayerStats.goals : [],
+                    yellowCards: savedPlayerStats?.yellowCards || 0,
+                    redCards: savedPlayerStats?.redCards || 0,
+                    faltas: savedPlayerStats?.faltas || 0,
+                    paradas: savedPlayerStats?.paradas || 0,
+                    golesRecibidos: savedPlayerStats?.golesRecibidos || 0,
+                    unoVsUno: savedPlayerStats?.unoVsUno || 0,
+                };
+            });
+            setMyTeamPlayers(finalMyTeamPlayers);
+            
+            // 5. Set Opponent Players
+            const savedOpponents = (matchData.opponentPlayers || []).map((p: any) => ({ ...p, goals: Array.isArray(p.goals) ? p.goals : [] }));
             const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
             setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
 
-            // Set timer
-            setTime(matchData.timer?.duration || 25 * 60);
-            setTimerDuration(matchData.timer?.duration || 25 * 60);
+            // 6. Set Team Stats
+            const mergeWithDefaults = (data?: Partial<TeamStats>): TeamStats => {
+                const defaults = createInitialTeamStats();
+                if (!data) return defaults;
+                return { ...defaults, ...data, shots: { ...defaults.shots, ...data.shots }, turnovers: { ...defaults.turnovers, ...data.turnovers }, steals: { ...defaults.steals, ...data.steals }, timeouts: { ...defaults.timeouts, ...data.timeouts }, faltas: { ...defaults.faltas, ...data.faltas } };
+            };
+            setMyTeamStats(mergeWithDefaults(matchData.myTeamStats));
+            setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
 
         } catch (error) {
             console.error("Error fetching data for edit:", error);
@@ -886,4 +888,3 @@ export default function EditMatchPage() {
     <EditMatchPageContent />
   );
 }
-
