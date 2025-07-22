@@ -298,11 +298,10 @@ function HistorialPageContent() {
         try {
             const db = getFirebaseDb();
             const collectionRef = collection(db, "partidos_estadisticas");
-            const docRef = await addDoc(collectionRef, newMatchData);
+            await addDoc(collectionRef, newMatchData);
             toast({ title: "Partido Añadido", description: "El nuevo partido se ha guardado. Ahora puedes editarlo para añadir estadísticas." });
             setIsAddMatchDialogOpen(false);
             fetchMatches();
-            router.push(`/estadisticas/edit/${docRef.id}`);
         } catch (error) {
             console.error("Error saving new match: ", error);
             toast({ title: "Error al Guardar", description: "No se pudo añadir el nuevo partido.", variant: "destructive" });
@@ -418,7 +417,7 @@ function HistorialPageContent() {
                                       <Button type="button" variant="ghost" onClick={() => setIsAddMatchDialogOpen(false)}>Cancelar</Button>
                                       <Button type="submit" disabled={isSavingMatch}>
                                           {isSavingMatch && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                          Guardar y Editar
+                                          Guardar
                                       </Button>
                                   </DialogFooter>
                                 </form>
