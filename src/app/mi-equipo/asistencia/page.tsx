@@ -67,7 +67,7 @@ const createGuestHistoryStats = (players: RosterPlayer[]): DisplayPlayerStats[] 
     const justificado = Math.floor(Math.random() * 2); // 0-1
     const lesionado = Math.floor(Math.random() * 2); // 0-1
     const totalEsperado = presente + ausente + justificado + lesionado;
-    const pct = totalEsperado > 0 ? Math.round(((presente) / (totalEsperado)) * 100) : 0;
+    const pct = totalEsperado > 0 ? Math.round(((presente + justificado) / totalEsperado) * 100) : 0;
     return {
         id: p.id,
         dorsal: p.dorsal,
@@ -176,7 +176,7 @@ function AsistenciaPageContent() {
         const finalHistoryStats = players.map(player => {
             const playerStats = stats[player.id];
             const totalConvocatorias = playerStats.presente + playerStats.ausente + playerStats.justificado + playerStats.lesionado;
-            const pct = totalConvocatorias > 0 ? Math.round(((playerStats.presente) / totalConvocatorias) * 100) : 0;
+            const pct = totalConvocatorias > 0 ? Math.round(((playerStats.presente + playerStats.justificado) / totalConvocatorias) * 100) : 0;
 
             return {
                 id: player.id,
@@ -262,14 +262,16 @@ function AsistenciaPageContent() {
 
     const recordedDates = useMemo(() => {
         return Object.keys(allAttendanceData).map(dateString => {
-            return parse(dateString, 'yyyy-MM-dd', new Date());
+            const date = parse(dateString, 'yyyy-MM-dd', new Date());
+            date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+            return date;
         });
     }, [allAttendanceData]);
 
     const hasRecordForSelectedDate = useMemo(() => {
         if (!selectedDate) return false;
         const dateString = format(selectedDate, 'yyyy-MM-dd');
-        return Object.keys(allAttendanceData).includes(dateString);
+        return allAttendanceData.hasOwnProperty(dateString);
     }, [selectedDate, allAttendanceData]);
 
 
@@ -338,7 +340,7 @@ function AsistenciaPageContent() {
                                 initialFocus
                                 locale={es}
                                 modifiers={{ recorded: recordedDates }}
-                                modifiersClassNames={{ recorded: 'rdp-day_recorded' }}
+                                modifiersClassNames={{ recorded: 'has-record' }}
                                 />
                             </PopoverContent>
                         </Popover>
@@ -459,7 +461,7 @@ function AsistenciaPageContent() {
                                     ))}
                                 </TableBody>
                             </Table>
-                            <p className="text-xs text-muted-foreground mt-2">* El % de asistencia se calcula como: (Presente / (Presente + Ausente + Justificado + Lesionado)) * 100.</p>
+                            <p className="text-xs text-muted-foreground mt-2">* El % de asistencia se calcula como: ((Presente + Justificado) / (Presente + Ausente + Justificado + Lesionado)) * 100.</p>
                         </div>
                     )}
                 </CardContent>
