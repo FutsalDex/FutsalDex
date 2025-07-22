@@ -60,10 +60,11 @@ interface SavedMatch {
     id: string;
     myTeamName: string;
     opponentTeamName: string;
+    myTeamWasHome: boolean;
     fecha: string;
     hora?: string;
     tipoPartido?: string;
-    myTeamPlayers?: { goals: any[] }[]; // Array of players with goals arrays
+    myTeamPlayers?: { goals: any[] }[];
     opponentPlayers?: { goals: any[] }[];
     createdAt: string; 
 }
@@ -88,9 +89,9 @@ const createGuestMatches = (): SavedMatch[] => {
         return date.toISOString().split('T')[0];
     };
     return [
-        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: [{},{},{},{},{}] }], opponentPlayers: [{ goals: [{},{},{}] }], createdAt: new Date().toISOString() },
-        { id: 'demo2', myTeamName: 'Furia Roja', opponentTeamName: 'FutsalDex Demo', fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: [{},{}] }], opponentPlayers: [{ goals: [{},{}] }], createdAt: new Date().toISOString() },
-        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: [{},{},{},{},{},{},{}] }], opponentPlayers: [{ goals: [{},{},{},{}] }], createdAt: new Date().toISOString() },
+        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', myTeamWasHome: true, fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: [{},{},{},{},{}] }], opponentPlayers: [{ goals: [{},{},{}] }], createdAt: new Date().toISOString() },
+        { id: 'demo2', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Furia Roja', myTeamWasHome: false, fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: [{},{}] }], opponentPlayers: [{ goals: [{},{}] }], createdAt: new Date().toISOString() },
+        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', myTeamWasHome: true, fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: [{},{},{},{},{},{},{}] }], opponentPlayers: [{ goals: [{},{},{},{}] }], createdAt: new Date().toISOString() },
     ];
 };
 
@@ -152,6 +153,7 @@ function HistorialPageContent() {
                     id: doc.id,
                     myTeamName: data.myTeamName || '',
                     opponentTeamName: data.opponentTeamName || '',
+                    myTeamWasHome: data.myTeamWasHome === true, // Default to false if undefined
                     fecha: data.fecha || '',
                     hora: data.hora,
                     tipoPartido: data.tipoPartido,
@@ -314,11 +316,18 @@ function HistorialPageContent() {
         setRosterSide(side);
     }
 
+    const getMatchDisplayInfo = (match: SavedMatch) => {
+        const localTeam = match.myTeamWasHome ? match.myTeamName : match.opponentTeamName;
+        const visitorTeam = match.myTeamWasHome ? match.opponentTeamName : match.myTeamName;
+        
+        const localScore = (match.myTeamWasHome ? match.myTeamPlayers : match.opponentPlayers)?.reduce((acc, p) => acc + (p.goals?.length || 0), 0) || 0;
+        const visitorScore = (match.myTeamWasHome ? match.opponentPlayers : match.myTeamPlayers)?.reduce((acc, p) => acc + (p.goals?.length || 0), 0) || 0;
 
-    const calculateScore = (match: SavedMatch) => {
-        const myGoals = match.myTeamPlayers?.reduce((total, player) => total + (player.goals?.length || 0), 0) || 0;
-        const opponentGoals = match.opponentPlayers?.reduce((total, player) => total + (player.goals?.length || 0), 0) || 0;
-        return `${myGoals} - ${opponentGoals}`;
+        return {
+            localTeam,
+            visitorTeam,
+            score: `${localScore} - ${visitorScore}`
+        };
     };
 
     const formatDate = (dateStr: string) => {
@@ -443,33 +452,36 @@ function HistorialPageContent() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {matches.map(match => (
-                        <Card key={match.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow">
-                            <CardHeader className="pb-4 text-center">
-                                <CardTitle className="text-lg font-headline truncate" title={`${match.myTeamName} vs ${match.opponentTeamName}`}>
-                                    {match.myTeamName} vs {match.opponentTeamName}
-                                </CardTitle>
-                                <CardDescription>
-                                    {formatDate(match.fecha)} {match.hora && `- ${match.hora}`}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex-grow text-center">
-                                <p className="text-4xl font-bold text-primary">{calculateScore(match)}</p>
-                                {match.tipoPartido && <Badge variant="secondary" className="mt-2">{match.tipoPartido}</Badge>}
-                            </CardContent>
-                            <CardFooter className="flex justify-center gap-2">
-                                <Button asChild variant="ghost" size="icon" title="Ver Detalles" disabled={!isRegisteredUser}>
-                                  <Link href={`/estadisticas/historial/${match.id}`}><Eye className="h-4 w-4"/></Link>
-                                </Button>
-                                <Button asChild variant="ghost" size="icon" title="Gestionar Partido en Vivo" disabled={!isRegisteredUser}>
-                                  <Link href={`/estadisticas/edit/${match.id}`}><BarChart2 className="h-4 w-4"/></Link>
-                                </Button>
-                                <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)} disabled={!isRegisteredUser}>
-                                  <Trash2 className="h-4 w-4 text-destructive"/>
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    ))}
+                    {matches.map(match => {
+                        const { localTeam, visitorTeam, score } = getMatchDisplayInfo(match);
+                        return (
+                            <Card key={match.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow">
+                                <CardHeader className="pb-4 text-center">
+                                    <CardTitle className="text-lg font-headline truncate" title={`${localTeam} vs ${visitorTeam}`}>
+                                        {localTeam} vs {visitorTeam}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {formatDate(match.fecha)} {match.hora && `- ${match.hora}`}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-grow text-center">
+                                    <p className="text-4xl font-bold text-primary">{score}</p>
+                                    {match.tipoPartido && <Badge variant="secondary" className="mt-2">{match.tipoPartido}</Badge>}
+                                </CardContent>
+                                <CardFooter className="flex justify-center gap-2">
+                                    <Button asChild variant="ghost" size="icon" title="Ver Detalles" disabled={!isRegisteredUser}>
+                                    <Link href={`/estadisticas/historial/${match.id}`}><Eye className="h-4 w-4"/></Link>
+                                    </Button>
+                                    <Button asChild variant="ghost" size="icon" title="Gestionar Partido en Vivo" disabled={!isRegisteredUser}>
+                                    <Link href={`/estadisticas/edit/${match.id}`}><BarChart2 className="h-4 w-4"/></Link>
+                                    </Button>
+                                    <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)} disabled={!isRegisteredUser}>
+                                    <Trash2 className="h-4 w-4 text-destructive"/>
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        )
+                    })}
                 </div>
             )}
             
@@ -500,4 +512,3 @@ export default function HistorialEstadisticasPage() {
         <HistorialPageContent />
     );
 }
-
