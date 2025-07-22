@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -267,14 +268,6 @@ function MiPlantillaPageContent() {
     }))
     .sort((a, b) => a.goles - b.goles);
 
-  const foulsData = players
-    .filter(p => p.totalFaltas > 0)
-    .map(p => ({
-      name: p.nombre || `Dorsal ${p.dorsal}`,
-      faltas: p.totalFaltas,
-    }))
-    .sort((a, b) => a.faltas - b.faltas);
-
 
   if (isLoading) {
     return (
@@ -417,7 +410,7 @@ function MiPlantillaPageContent() {
         </CardFooter>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+      <div className="grid grid-cols-1 gap-8 mt-8">
         <Card>
           <CardHeader>
               <CardTitle className="font-headline text-xl flex items-center">
@@ -452,49 +445,14 @@ function MiPlantillaPageContent() {
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-              <CardTitle className="font-headline text-xl flex items-center">
-                <ShieldAlert className="mr-2 h-5 w-5 text-primary" />
-                Faltas Cometidas
-              </CardTitle>
-              <CardDescription>Visualización de las faltas cometidas por cada jugador.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {foulsData.length > 0 ? (
-              <div style={{ height: `${foulsData.length * 40 + 60}px`, minHeight: '200px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    layout="vertical"
-                    data={foulsData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} />
-                    <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
-                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
-                    <Bar dataKey="faltas" fill="hsl(var(--primary))">
-                      <LabelList dataKey="faltas" position="right" style={{ fill: 'hsl(var(--foreground))' }}/>
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-10">
-                Aún no se han registrado faltas esta temporada.
-              </p>
-            )}
-          </CardContent>
-        </Card>
       </div>
-
     </div>
   );
 }
 
+
 export default function MiPlantillaPage() {
-  return (
-    <MiPlantillaPageContent />
-  );
+    return (
+        <MiPlantillaPageContent />
+    );
 }
