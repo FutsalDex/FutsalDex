@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info, Goal } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Users, ArrowLeft, Info, Goal, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
@@ -268,6 +267,14 @@ function MiPlantillaPageContent() {
     }))
     .sort((a, b) => a.goles - b.goles);
 
+  const foulsData = players
+    .filter(p => p.totalFaltas > 0)
+    .map(p => ({
+      name: p.nombre || `Dorsal ${p.dorsal}`,
+      faltas: p.totalFaltas,
+    }))
+    .sort((a, b) => a.faltas - b.faltas);
+
 
   if (isLoading) {
     return (
@@ -396,9 +403,11 @@ function MiPlantillaPageContent() {
               </TableBody>
             </Table>
           </div>
-          <Button onClick={addPlayerRow} variant="outline" className="mt-4" disabled={!isRegisteredUser}>
-            <Plus className="mr-2 h-4 w-4" /> Añadir Jugador
-          </Button>
+          <CardFooter className="px-0 pt-4">
+            <Button onClick={addPlayerRow} variant="outline" className="mt-4" disabled={!isRegisteredUser}>
+              <Plus className="mr-2 h-4 w-4" /> Añadir Jugador
+            </Button>
+          </CardFooter>
         </CardContent>
         <CardFooter>
           <Button onClick={handleSaveTeam} disabled={isSaving}>
@@ -408,45 +417,77 @@ function MiPlantillaPageContent() {
         </CardFooter>
       </Card>
 
-      <Card className="mt-8">
-        <CardHeader>
-            <CardTitle className="font-headline text-xl flex items-center">
-              <Goal className="mr-2 h-5 w-5 text-primary" />
-              Goleadores de la Temporada
-            </CardTitle>
-            <CardDescription>Visualización de los goles marcados por cada jugador.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {goalscorerData.length > 0 ? (
-            <div style={{ height: `${goalscorerData.length * 40 + 60}px`, minHeight: '200px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  layout="vertical"
-                  data={goalscorerData}
-                  margin={{
-                    top: 5,
-                    right: 30,
-                    left: 20,
-                    bottom: 5,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
-                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
-                  <Bar dataKey="goles" fill="hsl(var(--primary))">
-                    <LabelList dataKey="goles" position="right" style={{ fill: 'hsl(var(--foreground))' }}/>
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-10">
-              Aún no se han registrado goles esta temporada.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+        <Card>
+          <CardHeader>
+              <CardTitle className="font-headline text-xl flex items-center">
+                <Goal className="mr-2 h-5 w-5 text-primary" />
+                Goleadores de la Temporada
+              </CardTitle>
+              <CardDescription>Visualización de los goles marcados por cada jugador.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {goalscorerData.length > 0 ? (
+              <div style={{ height: `${goalscorerData.length * 40 + 60}px`, minHeight: '200px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    layout="vertical"
+                    data={goalscorerData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                    <Bar dataKey="goles" fill="hsl(var(--primary))">
+                      <LabelList dataKey="goles" position="right" style={{ fill: 'hsl(var(--foreground))' }}/>
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-10">
+                Aún no se han registrado goles esta temporada.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+              <CardTitle className="font-headline text-xl flex items-center">
+                <ShieldAlert className="mr-2 h-5 w-5 text-primary" />
+                Faltas Cometidas
+              </CardTitle>
+              <CardDescription>Visualización de las faltas cometidas por cada jugador.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {foulsData.length > 0 ? (
+              <div style={{ height: `${foulsData.length * 40 + 60}px`, minHeight: '200px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    layout="vertical"
+                    data={foulsData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                    <Bar dataKey="faltas" fill="hsl(var(--primary))">
+                      <LabelList dataKey="faltas" position="right" style={{ fill: 'hsl(var(--foreground))' }}/>
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-10">
+                Aún no se han registrado faltas esta temporada.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
     </div>
   );
