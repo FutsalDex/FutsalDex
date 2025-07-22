@@ -58,7 +58,7 @@ const createGuestEvents = (): Evento[] => {
         { id: 'guest_session_1', type: 'sesion', date: createDate(3), title: 'Sesión de Finalización', description: 'Trabajo de definición y movimientos de pívot', link: '/mis-sesiones' },
         { id: 'guest_match_2', type: 'partido', date: createDate(9), title: 'Titanes FS vs FutsalDex Demo', description: 'Amistoso de pre-temporada', link: '/estadisticas/historial' },
         { id: 'guest_session_2', type: 'sesion', date: createDate(10), title: 'Sesión de Transiciones (IA)', description: 'Foco en transiciones defensa-ataque', link: '/mis-sesiones' },
-    ].sort((a, b) => b.date.getTime() - a.date.getTime());
+    ].sort((a, b) => a.date.getTime() - b.date.getTime());
 };
 
 
@@ -120,7 +120,7 @@ function EventosPageContent() {
         }
       });
 
-      fetchedEvents.sort((a, b) => b.date.getTime() - a.date.getTime());
+      fetchedEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
       setAllEvents(fetchedEvents);
 
     } catch (error) {
