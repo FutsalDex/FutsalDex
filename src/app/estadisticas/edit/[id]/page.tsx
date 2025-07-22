@@ -834,31 +834,66 @@ function EditMatchPageContent() {
                     <DialogTrigger asChild>
                         <Button variant="outline" size="icon" disabled={!isRegisteredUser}><Settings className="h-4 w-4" /></Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-xs">
+                    <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle>Ajustes del Crono</DialogTitle>
+                            <DialogTitle>Ajustes del Partido</DialogTitle>
                             <DialogDescription>
-                                Selecciona la duración de cada parte del partido. Esto reiniciará el temporizador.
+                                Modifica los datos del partido. Los cambios se guardarán automáticamente.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="py-4">
-                            <Label htmlFor="duration-select">Minutos por parte</Label>
-                            <Select
-                                value={(timerDuration / 60).toString()}
-                                onValueChange={(val) => handleDurationChange(parseInt(val, 10))}
-                            >
-                                <SelectTrigger id="duration-select">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="15">15 minutos</SelectItem>
-                                    <SelectItem value="20">20 minutos</SelectItem>
-                                    <SelectItem value="25">25 minutos</SelectItem>
-                                    <SelectItem value="30">30 minutos</SelectItem>
-                                    <SelectItem value="40">40 minutos</SelectItem>
-                                    <SelectItem value="45">45 minutos</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="py-4 space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-local-name">Equipo Local</Label>
+                                <Input id="edit-local-name" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-visitor-name">Equipo Visitante</Label>
+                                <Input id="edit-visitor-name" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} />
+                            </div>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="edit-fecha">Fecha</Label>
+                                    <Input id="edit-fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+                                </div>
+                                <div>
+                                    <Label htmlFor="edit-hora">Hora</Label>
+                                    <Input id="edit-hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
+                                </div>
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="edit-campeonato">Campeonato</Label>
+                                <Input id="edit-campeonato" value={campeonato} onChange={(e) => setCampeonato(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-jornada">Jornada</Label>
+                                <Input id="edit-jornada" value={jornada} onChange={(e) => setJornada(e.target.value)} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="edit-tipo-partido">Tipo de Partido</Label>
+                                <Select value={tipoPartido} onValueChange={setTipoPartido}>
+                                  <SelectTrigger id="edit-tipo-partido"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Amistoso">Amistoso</SelectItem><SelectItem value="Liga">Liga</SelectItem><SelectItem value="Torneo">Torneo</SelectItem><SelectItem value="Copa">Copa</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2 pt-2 border-t">
+                                <Label htmlFor="duration-select">Minutos por parte (afecta al crono)</Label>
+                                <Select
+                                    value={(timerDuration / 60).toString()}
+                                    onValueChange={(val) => handleDurationChange(parseInt(val, 10))}
+                                >
+                                    <SelectTrigger id="duration-select"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="15">15 minutos</SelectItem>
+                                        <SelectItem value="20">20 minutos</SelectItem>
+                                        <SelectItem value="25">25 minutos</SelectItem>
+                                        <SelectItem value="30">30 minutos</SelectItem>
+                                        <SelectItem value="40">40 minutos</SelectItem>
+                                        <SelectItem value="45">45 minutos</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button>Aceptar</Button></DialogClose>

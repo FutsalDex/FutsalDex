@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Eye, History, PlusCircle, BarChart2, Trash2, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, History, PlusCircle, BarChart2, Trash2, Info, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -472,8 +472,8 @@ function HistorialPageContent() {
                                     <Button asChild variant="ghost" size="icon" title="Ver Detalles" disabled={!isRegisteredUser}>
                                     <Link href={`/estadisticas/historial/${match.id}`}><Eye className="h-4 w-4"/></Link>
                                     </Button>
-                                    <Button asChild variant="ghost" size="icon" title="Gestionar Partido en Vivo" disabled={!isRegisteredUser}>
-                                    <Link href={`/estadisticas/edit/${match.id}`}><BarChart2 className="h-4 w-4"/></Link>
+                                    <Button asChild variant="ghost" size="icon" title="Editar Estadísticas y Datos" disabled={!isRegisteredUser}>
+                                    <Link href={`/estadisticas/edit/${match.id}`}><Edit className="h-4 w-4"/></Link>
                                     </Button>
                                     <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)} disabled={!isRegisteredUser}>
                                     <Trash2 className="h-4 w-4 text-destructive"/>
