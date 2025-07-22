@@ -223,9 +223,16 @@ function EditMatchPageContent() {
     
     // Create a clean representation of my team's players for saving.
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '')
-      .map(({posicion, isActive, id, ...rest}) => ({
-          ...rest
+      .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.yellowCards > 0 || p.redCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
+      .map(({posicion, isActive, id, nombre, ...rest}) => ({
+          dorsal: rest.dorsal,
+          goals: rest.goals,
+          yellowCards: rest.yellowCards,
+          redCards: rest.redCards,
+          faltas: rest.faltas,
+          paradas: rest.paradas,
+          golesRecibidos: rest.golesRecibidos,
+          unoVsUno: rest.unoVsUno,
       }));
 
 
@@ -365,14 +372,14 @@ function EditMatchPageContent() {
 
       try {
         const db = getFirebaseDb();
-        const matchDocRef = doc(db, "partidos_estadisticas", matchId);
         const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
-
-        const [matchSnap, rosterSnap] = await Promise.all([
-          getDoc(matchDocRef),
-          getDoc(rosterDocRef)
+        const matchDocRef = doc(db, "partidos_estadisticas", matchId);
+        
+        const [rosterSnap, matchSnap] = await Promise.all([
+          getDoc(rosterDocRef),
+          getDoc(matchDocRef)
         ]);
-
+        
         if (!matchSnap.exists() || matchSnap.data().userId !== user.uid) {
             setNotFound(true);
             setIsLoading(false);
@@ -383,12 +390,11 @@ function EditMatchPageContent() {
         const rosterData = rosterSnap.exists() ? rosterSnap.data() : { players: [], equipo: '', campeonato: '' };
         
         const currentRosterPlayers = (rosterData.players || []).filter((p: any) => p.isActive) as Player[];
-
-        const savedMyTeamPlayersData = matchData.myTeamPlayers || [];
+        const savedMatchPlayers = (matchData.myTeamPlayers || []) as { dorsal: string; goals: GoalEvent[]; yellowCards: number; redCards: number; faltas: number; paradas: number; golesRecibidos: number; unoVsUno: number }[];
 
         // Merge roster with saved match data
         const mergedMyTeamPlayers = currentRosterPlayers.map(rosterPlayer => {
-            const savedPlayerData = savedMyTeamPlayersData.find((p: any) => p.dorsal === rosterPlayer.dorsal);
+            const savedPlayerData = savedMatchPlayers.find(p => p.dorsal === rosterPlayer.dorsal);
             return {
                 ...rosterPlayer,
                 goals: savedPlayerData?.goals || [],
@@ -402,17 +408,16 @@ function EditMatchPageContent() {
         });
 
         setMyTeamPlayers(mergedMyTeamPlayers);
-
         setRosterInfo({ name: rosterData.equipo || '', campeonato: rosterData.campeonato || '' });
 
         if (matchData.myTeamWasHome) {
-            setLocalTeamName(matchData.myTeamName || rosterData.equipo);
-            setVisitorTeamName(matchData.opponentTeamName);
+            setLocalTeamName(matchData.myTeamName || rosterData.equipo || "Mi Equipo");
+            setVisitorTeamName(matchData.opponentTeamName || "Oponente");
             setMyTeamSide('local');
             setActiveTab('local');
         } else {
-            setLocalTeamName(matchData.opponentTeamName);
-            setVisitorTeamName(matchData.myTeamName || rosterData.equipo);
+            setLocalTeamName(matchData.opponentTeamName || "Oponente");
+            setVisitorTeamName(matchData.myTeamName || rosterData.equipo || "Mi Equipo");
             setMyTeamSide('visitante');
             setActiveTab('visitante');
         }
@@ -445,10 +450,10 @@ function EditMatchPageContent() {
         setTime(matchData.timer?.duration || 25 * 60);
         setTimerDuration(matchData.timer?.duration || 25 * 60);
         
-        const savedOpponents = matchData.opponentPlayers?.map((p: any) => ({
+        const savedOpponents = (matchData.opponentPlayers || []).map((p: any) => ({
             ...p,
             goals: (p.goals && Array.isArray(p.goals)) ? p.goals : [],
-        })) || [];
+        }));
         const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
         setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
 
@@ -535,6 +540,11 @@ function EditMatchPageContent() {
       
       setter(produce(draft => {
           const player = draft[index] as Player | OpponentPlayer;
+          // Ensure goals is an array before pushing
+          if (!Array.isArray(player.goals)) {
+            player.goals = [];
+          }
+
           if (action === 'add') {
               let totalSeconds = timerDuration - time;
               let currentMinute = Math.floor(totalSeconds / 60);
@@ -645,10 +655,10 @@ function EditMatchPageContent() {
                                         </TableCell>
                                         <TableCell>
                                            <div className="flex items-center justify-center gap-1">
-                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoalChange(teamType, index, 'remove')} disabled={!isRegisteredUser || player.goals.length <= 0}>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoalChange(teamType, index, 'remove')} disabled={!isRegisteredUser || (player.goals?.length || 0) <= 0}>
                                                     <Minus className="h-4 w-4" />
                                                 </Button>
-                                                <span className="w-6 text-center font-mono text-base">{player.goals.length}</span>
+                                                <span className="w-6 text-center font-mono text-base">{player.goals?.length || 0}</span>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleGoalChange(teamType, index, 'add')} disabled={!isRegisteredUser}>
                                                     <Plus className="h-4 w-4" />
                                                 </Button>
@@ -781,8 +791,8 @@ function EditMatchPageContent() {
     return <div className="flex items-center gap-2 text-sm text-muted-foreground">{content}</div>;
   }
 
-  const myTeamScore = (myTeamSide === 'local' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals.length, 0);
-  const opponentTeamScore = (myTeamSide === 'local' ? opponentPlayers : myTeamPlayers).reduce((acc, p) => acc + p.goals.length, 0);
+  const myTeamScore = myTeamPlayers.reduce((acc, p) => acc + (p.goals?.length || 0), 0);
+  const opponentTeamScore = opponentPlayers.reduce((acc, p) => acc + (p.goals?.length || 0), 0);
   
   const localScore = myTeamSide === 'local' ? myTeamScore : opponentTeamScore;
   const visitorScore = myTeamSide === 'visitante' ? myTeamScore : opponentTeamScore;
