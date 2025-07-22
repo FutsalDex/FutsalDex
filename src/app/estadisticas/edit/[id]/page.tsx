@@ -223,7 +223,7 @@ function EditMatchPageContent() {
     
     // Create a clean representation of my team's players for saving.
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
+      .filter(p => p.dorsal.trim() !== '')
       .map(({posicion, isActive, id, ...rest}) => ({
           ...rest
       }));
@@ -251,7 +251,7 @@ function EditMatchPageContent() {
        await updateDoc(matchDocRef, updatedData);
        if (!isAutoSave) {
           toast({ title: "Partido Guardado", description: "Los cambios se han guardado correctamente." });
-          router.push(`/estadisticas/historial/${matchId}`);
+          router.push(`/estadisticas/historial`);
        } else {
           setAutoSaveStatus("saved");
        }
@@ -382,16 +382,37 @@ function EditMatchPageContent() {
         const matchData = matchSnap.data();
         const rosterData = rosterSnap.exists() ? rosterSnap.data() : { players: [], equipo: '', campeonato: '' };
         
+        const currentRosterPlayers = (rosterData.players || []).filter((p: any) => p.isActive) as Player[];
+
+        const savedMyTeamPlayersData = matchData.myTeamPlayers || [];
+
+        // Merge roster with saved match data
+        const mergedMyTeamPlayers = currentRosterPlayers.map(rosterPlayer => {
+            const savedPlayerData = savedMyTeamPlayersData.find((p: any) => p.dorsal === rosterPlayer.dorsal);
+            return {
+                ...rosterPlayer,
+                goals: savedPlayerData?.goals || [],
+                yellowCards: savedPlayerData?.yellowCards || 0,
+                redCards: savedPlayerData?.redCards || 0,
+                faltas: savedPlayerData?.faltas || 0,
+                paradas: savedPlayerData?.paradas || 0,
+                golesRecibidos: savedPlayerData?.golesRecibidos || 0,
+                unoVsUno: savedPlayerData?.unoVsUno || 0,
+            };
+        });
+
+        setMyTeamPlayers(mergedMyTeamPlayers);
+
         setRosterInfo({ name: rosterData.equipo || '', campeonato: rosterData.campeonato || '' });
 
         if (matchData.myTeamWasHome) {
-            setLocalTeamName(matchData.myTeamName);
+            setLocalTeamName(matchData.myTeamName || rosterData.equipo);
             setVisitorTeamName(matchData.opponentTeamName);
             setMyTeamSide('local');
             setActiveTab('local');
         } else {
             setLocalTeamName(matchData.opponentTeamName);
-            setVisitorTeamName(matchData.myTeamName);
+            setVisitorTeamName(matchData.myTeamName || rosterData.equipo);
             setMyTeamSide('visitante');
             setActiveTab('visitante');
         }
@@ -423,26 +444,6 @@ function EditMatchPageContent() {
         setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
         setTime(matchData.timer?.duration || 25 * 60);
         setTimerDuration(matchData.timer?.duration || 25 * 60);
-
-        const roster: Player[] = (rosterData.players || []).filter((p: any) => p.isActive);
-        const savedMyTeamPlayers: Player[] = matchData.myTeamPlayers || [];
-
-        const enrichedMyTeamPlayers = roster.map(rosterPlayer => {
-            const matchPlayer = savedMyTeamPlayers.find((p: any) => p.dorsal === rosterPlayer.dorsal);
-            const goals = matchPlayer?.goals ? (Array.isArray(matchPlayer.goals) ? matchPlayer.goals : []) : [];
-            
-            return {
-                ...rosterPlayer,
-                goals: goals,
-                yellowCards: matchPlayer?.yellowCards || 0,
-                redCards: matchPlayer?.redCards || 0,
-                faltas: matchPlayer?.faltas || 0,
-                paradas: matchPlayer?.paradas || 0,
-                golesRecibidos: matchPlayer?.golesRecibidos || 0,
-                unoVsUno: matchPlayer?.unoVsUno || 0,
-            };
-        });
-        setMyTeamPlayers(enrichedMyTeamPlayers);
         
         const savedOpponents = matchData.opponentPlayers?.map((p: any) => ({
             ...p,
@@ -536,12 +537,14 @@ function EditMatchPageContent() {
           const player = draft[index] as Player | OpponentPlayer;
           if (action === 'add') {
               let totalSeconds = timerDuration - time;
+              let currentMinute = Math.floor(totalSeconds / 60);
+
               if (activeHalf === 'secondHalf') {
-                  totalSeconds += timerDuration; // Add duration of first half
+                  currentMinute += Math.floor(timerDuration / 60); 
               }
 
               const newGoal: GoalEvent = {
-                  minute: Math.floor(totalSeconds / 60),
+                  minute: currentMinute,
                   second: totalSeconds % 60,
                   half: activeHalf,
                   id: new Date().toISOString() // Simple unique ID
@@ -779,7 +782,10 @@ function EditMatchPageContent() {
   }
 
   const myTeamScore = (myTeamSide === 'local' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals.length, 0);
-  const opponentTeamScore = (myTeamSide === 'visitante' ? myTeamPlayers : opponentPlayers).reduce((acc, p) => acc + p.goals.length, 0);
+  const opponentTeamScore = (myTeamSide === 'local' ? opponentPlayers : myTeamPlayers).reduce((acc, p) => acc + p.goals.length, 0);
+  
+  const localScore = myTeamSide === 'local' ? myTeamScore : opponentTeamScore;
+  const visitorScore = myTeamSide === 'visitante' ? myTeamScore : opponentTeamScore;
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
@@ -828,7 +834,7 @@ function EditMatchPageContent() {
                      {myTeamSide === 'local' && myTeamTotalFouls >= 5 && <ShieldAlert className="mx-auto mt-1 h-5 w-5 text-destructive" />}
                 </div>
                 <div className="flex-1 text-4xl font-bold text-primary">
-                   {myTeamSide === 'local' ? myTeamScore : opponentTeamScore} - {myTeamSide === 'visitante' ? myTeamScore : opponentTeamScore}
+                   {localScore} - {visitorScore}
                 </div>
                 <div className="flex-1">
                     <p className="font-bold truncate text-lg">{visitorTeamName}</p>

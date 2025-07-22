@@ -63,9 +63,9 @@ interface SavedMatch {
     fecha: string;
     hora?: string;
     tipoPartido?: string;
-    myTeamPlayers?: { goals: { length: number }; }[];
-    opponentPlayers: { goals: { length: number }; }[];
-    createdAt: string; // Changed to string for serialization
+    myTeamPlayers?: { goals: any[] }[]; // Array of players with goals arrays
+    opponentPlayers?: { goals: any[] }[];
+    createdAt: string; 
 }
 
 const createInitialTeamStats = () => ({
@@ -88,9 +88,9 @@ const createGuestMatches = (): SavedMatch[] => {
         return date.toISOString().split('T')[0];
     };
     return [
-        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: { length: 5 } }], opponentPlayers: [{ goals: { length: 3 } }], createdAt: new Date().toISOString() },
-        { id: 'demo2', myTeamName: 'Furia Roja', opponentTeamName: 'FutsalDex Demo', fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: { length: 2 } }], opponentPlayers: [{ goals: { length: 2 } }], createdAt: new Date().toISOString() },
-        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: { length: 7 } }], opponentPlayers: [{ goals: { length: 4 } }], createdAt: new Date().toISOString() },
+        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: [{},{},{},{},{}] }], opponentPlayers: [{ goals: [{},{},{}] }], createdAt: new Date().toISOString() },
+        { id: 'demo2', myTeamName: 'Furia Roja', opponentTeamName: 'FutsalDex Demo', fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: [{},{}] }], opponentPlayers: [{ goals: [{},{}] }], createdAt: new Date().toISOString() },
+        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: [{},{},{},{},{},{},{}] }], opponentPlayers: [{ goals: [{},{},{},{}] }], createdAt: new Date().toISOString() },
     ];
 };
 
@@ -107,7 +107,7 @@ function HistorialPageContent() {
     const [isAddMatchDialogOpen, setIsAddMatchDialogOpen] = useState(false);
     const [matchToDeleteId, setMatchToDeleteId] = useState<string | null>(null);
 
-    const [rosterInfo, setRosterInfo] = useState({ name: '', campeonato: '' });
+    const [rosterInfo, setRosterInfo] = useState({ name: '', campeonato: '', players: [] as any[] });
     const [rosterSide, setRosterSide] = useState<'local' | 'visitante'>('local');
 
     const form = useForm<NewMatchFormValues>({
@@ -190,7 +190,11 @@ function HistorialPageContent() {
             const rosterSnap = await getDoc(rosterDocRef);
             if (rosterSnap.exists()) {
               const data = rosterSnap.data();
-              const teamInfo = { name: data.equipo || '', campeonato: data.campeonato || '' };
+              const teamInfo = { 
+                  name: data.equipo || '', 
+                  campeonato: data.campeonato || '',
+                  players: data.players || []
+              };
               setRosterInfo(teamInfo);
               form.reset({
                 localTeamName: teamInfo.name,
@@ -257,6 +261,23 @@ function HistorialPageContent() {
         }
 
         setIsSavingMatch(true);
+        
+        const activePlayersFromRoster = rosterInfo.players
+            .filter(p => p.isActive)
+            .map(p => ({
+                id: p.id,
+                dorsal: p.dorsal,
+                nombre: p.nombre,
+                posicion: p.posicion,
+                isActive: p.isActive,
+                goals: [],
+                yellowCards: 0,
+                redCards: 0,
+                faltas: 0,
+                paradas: 0,
+                golesRecibidos: 0,
+                unoVsUno: 0,
+            }));
 
         const newMatchData = {
           userId: user.uid,
@@ -270,7 +291,7 @@ function HistorialPageContent() {
           tipoPartido: values.tipoPartido || null,
           myTeamStats: createInitialTeamStats(),
           opponentTeamStats: createInitialTeamStats(),
-          myTeamPlayers: [],
+          myTeamPlayers: activePlayersFromRoster,
           opponentPlayers: [],
           timer: { duration: 25 * 60 },
           createdAt: serverTimestamp(),
@@ -483,9 +504,3 @@ export default function HistorialEstadisticasPage() {
         <HistorialPageContent />
     );
 }
-
-    
-
-    
-
-
