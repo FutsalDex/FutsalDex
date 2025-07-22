@@ -65,14 +65,14 @@ const createGuestHistoryStats = (players: RosterPlayer[]): DisplayPlayerStats[] 
     const ausente = Math.floor(Math.random() * 3); // 0-2
     const justificado = Math.floor(Math.random() * 2); // 0-1
     const lesionado = Math.floor(Math.random() * 2); // 0-1
-    const totalEsperado = presente + ausente + justificado;
+    const totalEsperado = presente + ausente + justificado + lesionado;
     const pct = totalEsperado > 0 ? Math.round((presente / totalEsperado) * 100) : 0;
     return {
         id: p.id,
         dorsal: p.dorsal,
         nombre: p.nombre,
         presente, ausente, justificado, lesionado,
-        totalRegistros: totalEsperado + lesionado,
+        totalRegistros: totalEsperado,
         asistenciaPct: pct
     };
 });
@@ -172,15 +172,15 @@ function AsistenciaPageContent() {
 
         const finalHistoryStats = players.map(player => {
             const playerStats = stats[player.id];
-            const totalEsperado = playerStats.presente + playerStats.ausente + playerStats.justificado;
-            const pct = totalEsperado > 0 ? Math.round((playerStats.presente / totalEsperado) * 100) : 0;
+            const totalConvocatorias = playerStats.presente + playerStats.ausente + playerStats.justificado + playerStats.lesionado;
+            const pct = totalConvocatorias > 0 ? Math.round((playerStats.presente / totalConvocatorias) * 100) : 0;
 
             return {
                 id: player.id,
                 dorsal: player.dorsal,
                 nombre: player.nombre,
                 ...playerStats,
-                totalRegistros: playerStats.presente + playerStats.ausente + playerStats.justificado + playerStats.lesionado,
+                totalRegistros: totalConvocatorias,
                 asistenciaPct: pct,
             };
         });
@@ -406,7 +406,7 @@ function AsistenciaPageContent() {
                                     ))}
                                 </TableBody>
                             </Table>
-                            <p className="text-xs text-muted-foreground mt-2">* El % de asistencia se calcula como: (Presente / (Presente + Ausente + Justificado)) * 100.</p>
+                            <p className="text-xs text-muted-foreground mt-2">* El % de asistencia se calcula como: (Presente / (Presente + Ausente + Justificado + Lesionado)) * 100.</p>
                         </div>
                     )}
                 </CardContent>
