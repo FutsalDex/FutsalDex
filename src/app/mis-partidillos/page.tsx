@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Minus, RotateCcw, RectangleVertical, Play, Pause, AlertTriangle, Info, Loader2, Settings } from "lucide-react";
+import { Plus, Minus, RotateCcw, RectangleVertical, Play, Pause, AlertTriangle, Info, Loader2, Settings, Goal, ShieldAlert } from "lucide-react";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -50,34 +50,26 @@ const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecreme
 );
 
 // --- State and Types ---
-interface Player {
-  id: string;
-  dorsal: string;
-  nombre: string;
-  posicion: string;
+interface TeamGeneralStats {
   goals: number;
+  fouls: number;
   yellowCards: number;
   redCards: number;
-  faltas: number;
 }
 
-const createGuestPlayers = (): Player[] => [
-    { id: uuidv4(), dorsal: '1', nombre: 'A. García', posicion: 'Portero', goals: 0, yellowCards: 0, redCards: 0, faltas: 0 },
-    { id: uuidv4(), dorsal: '4', nombre: 'J. López', posicion: 'Cierre', goals: 0, yellowCards: 0, redCards: 0, faltas: 0 },
-    { id: uuidv4(), dorsal: '7', nombre: 'M. Pérez', posicion: 'Ala', goals: 0, yellowCards: 0, redCards: 0, faltas: 0 },
-    { id: uuidv4(), dorsal: '10', nombre: 'C. Ruiz', posicion: 'Pívot', goals: 0, yellowCards: 0, redCards: 0, faltas: 0 },
-    { id: uuidv4(), dorsal: '8', nombre: 'S. Torres', posicion: 'Ala-Cierre', goals: 0, yellowCards: 0, redCards: 0, faltas: 0 },
-];
-
+const initialGeneralStats = (): TeamGeneralStats => ({
+    goals: 0,
+    fouls: 0,
+    yellowCards: 0,
+    redCards: 0
+});
 
 function MisPartidillosPageContent() {
-  const { user, isRegisteredUser } = useAuth();
+  const { isRegisteredUser } = useAuth();
   const { toast } = useToast();
 
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [localScore, setLocalScore] = useState(0);
-  const [visitorScore, setVisitorScore] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [localStats, setLocalStats] = useState<TeamGeneralStats>(initialGeneralStats());
+  const [visitorStats, setVisitorStats] = useState<TeamGeneralStats>(initialGeneralStats());
 
   // New state for team names and timer duration
   const [localTeamName, setLocalTeamName] = useState("Equipo Local");
@@ -87,47 +79,6 @@ function MisPartidillosPageContent() {
   // Timer State
   const [time, setTime] = useState(timerDuration);
   const [isTimerActive, setIsTimerActive] = useState(false);
-
-  const fetchRoster = useCallback(async () => {
-    setIsLoading(true);
-    if (!isRegisteredUser || !user) {
-        setPlayers(createGuestPlayers());
-        setIsLoading(false);
-        return;
-    }
-
-    try {
-        const db = getFirebaseDb();
-        const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
-        const rosterSnap = await getDoc(rosterDocRef);
-
-        if (rosterSnap.exists()) {
-            const rosterData = rosterSnap.data();
-            const activePlayers = (rosterData.players || [])
-                .filter((p: any) => p.isActive)
-                .map((p: any) => ({
-                    ...p,
-                    goals: 0,
-                    yellowCards: 0,
-                    redCards: 0,
-                    faltas: 0
-                }));
-            setPlayers(activePlayers);
-            if (rosterData.equipo) {
-                setLocalTeamName(rosterData.equipo);
-            }
-        }
-    } catch (error) {
-        console.error("Error fetching roster:", error);
-        toast({ title: "Error", description: "No se pudo cargar la plantilla.", variant: "destructive" });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [user, toast, isRegisteredUser]);
-
-  useEffect(() => {
-    fetchRoster();
-  }, [fetchRoster]);
   
   // Timer Effect
   useEffect(() => {
@@ -147,35 +98,23 @@ function MisPartidillosPageContent() {
       if (interval) clearInterval(interval);
     };
   }, [isTimerActive, time, toast]);
-
-  const handlePlayerStatChange = (
-    playerId: string,
-    field: 'goals' | 'yellowCards' | 'redCards' | 'faltas',
+  
+  const handleStatChange = (
+    team: 'local' | 'visitor',
+    field: keyof TeamGeneralStats,
     delta: number
   ) => {
-    if (!isRegisteredUser) return;
-    setPlayers(produce(draft => {
-        const player = draft.find(p => p.id === playerId);
-        if (player) {
-            (player as any)[field] = Math.max(0, player[field] + delta);
-        }
+    const setter = team === 'local' ? setLocalStats : setVisitorStats;
+    setter(produce(draft => {
+        draft[field] = Math.max(0, draft[field] + delta);
     }));
   };
   
   const resetAllStats = () => {
-    if (!isRegisteredUser) return;
-    setLocalScore(0);
-    setVisitorScore(0);
-    setPlayers(produce(draft => {
-        draft.forEach(p => {
-            p.goals = 0;
-            p.yellowCards = 0;
-            p.redCards = 0;
-            p.faltas = 0;
-        })
-    }));
+    setLocalStats(initialGeneralStats());
+    setVisitorStats(initialGeneralStats());
     handleResetTimer();
-    toast({ title: "Estadísticas Reiniciadas", description: "El marcador y las estadísticas de los jugadores se han restablecido." });
+    toast({ title: "Estadísticas Reiniciadas", description: "El marcador y las estadísticas se han restablecido." });
   }
 
   const formatTime = useMemo(() => {
@@ -195,68 +134,46 @@ function MisPartidillosPageContent() {
       setTime(minutes * 60);
     }
   }
-  
-  if (isLoading) {
-      return (
-          <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          </div>
-      );
-  }
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
       <header className="mb-4">
-        <h1 className="text-3xl font-bold text-primary mb-1 font-headline">Marcador de Partidillos</h1>
+        <h1 className="text-3xl font-bold text-primary mb-1 font-headline">Marcador</h1>
         <p className="text-lg text-foreground/80">Gestiona un partido rápido en tiempo real.</p>
       </header>
-      
-       {!isRegisteredUser && (
-        <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
-            <Info className="h-4 w-4 text-blue-700" />
-            <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
-            <AlertDescription>
-                Estás viendo el marcador con una plantilla de ejemplo. Para usarlo con tu equipo, por favor{" "}
-                <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
-                <Link href="/login" className="font-bold underline">inicia sesión</Link>.
-            </AlertDescription>
-        </Alert>
-       )}
        
       <Card className="mb-6 text-center">
         <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-around w-full">
                 <div className="flex-1">
                     <p className="font-bold truncate text-lg">{localTeamName}</p>
-                    <StatCounter value={localScore} onIncrement={() => setLocalScore(s => s + 1)} onDecrement={() => setLocalScore(s => s - 1)} disabled={!isRegisteredUser}/>
                 </div>
                 <div className="flex-1 text-4xl font-bold text-primary">
-                   {localScore} - {visitorScore}
+                   {localStats.goals} - {visitorStats.goals}
                 </div>
                 <div className="flex-1">
                     <p className="font-bold truncate text-lg">{visitorTeamName}</p>
-                    <StatCounter value={visitorScore} onIncrement={() => setVisitorScore(s => s + 1)} onDecrement={() => setVisitorScore(s => s - 1)} disabled={!isRegisteredUser}/>
                 </div>
             </div>
              <div className="bg-primary text-primary-foreground rounded-lg px-6 py-2 my-2 inline-block">
                 <h1 className="text-5xl font-bold tracking-widest font-mono">{formatTime}</h1>
             </div>
             <div className="flex justify-center items-center gap-2 flex-wrap">
-                <Button onClick={() => setIsTimerActive(!isTimerActive)} className="w-28" variant={isTimerActive ? 'destructive' : 'default'} disabled={!isRegisteredUser}>
+                <Button onClick={() => setIsTimerActive(!isTimerActive)} className="w-28" variant={isTimerActive ? 'destructive' : 'default'}>
                     {isTimerActive ? <Pause className="mr-2" /> : <Play className="mr-2" />}
                     {isTimerActive ? 'Pausar' : 'Iniciar'}
                 </Button>
-                <Button onClick={handleResetTimer} variant="outline" disabled={!isRegisteredUser}>
+                <Button onClick={handleResetTimer} variant="outline">
                     <RotateCcw className="mr-2"/>
                     Reiniciar
                 </Button>
                 <Dialog>
                     <DialogTrigger asChild>
-                        <Button variant="outline" size="icon" disabled={!isRegisteredUser}><Settings className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon"><Settings className="h-4 w-4" /></Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle>Ajustes del Partidillo</DialogTitle>
+                            <DialogTitle>Ajustes del Marcador</DialogTitle>
                             <DialogDescription>
                                 Personaliza los nombres de los equipos y la duración del cronómetro.
                             </DialogDescription>
@@ -271,7 +188,7 @@ function MisPartidillosPageContent() {
                                 <Input id="visitor-name" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="duration-select">Minutos del partidillo</Label>
+                                <Label htmlFor="duration-select">Minutos del partido</Label>
                                 <Select
                                     value={(timerDuration / 60).toString()}
                                     onValueChange={(val) => handleDurationChange(parseInt(val, 10))}
@@ -302,50 +219,53 @@ function MisPartidillosPageContent() {
       <Card>
           <CardHeader className="p-0">
               <div className="flex justify-between items-center p-2 rounded-t-lg bg-primary text-primary-foreground">
-                <CardTitle className="text-base">JUGADORES - Mi Equipo</CardTitle>
-                <Button variant="destructive" size="sm" onClick={resetAllStats} disabled={!isRegisteredUser}><RotateCcw className="mr-2 h-4 w-4"/>Reiniciar Todo</Button>
+                <CardTitle className="text-base">Estadísticas Generales</CardTitle>
+                <Button variant="destructive" size="sm" onClick={resetAllStats}><RotateCcw className="mr-2 h-4 w-4"/>Reiniciar Todo</Button>
               </div>
           </CardHeader>
-          <CardContent className="p-4 overflow-x-auto">
-              <div className="min-w-[800px]">
-                  <Table>
-                      <TableHeader>
-                          <TableRow>
-                              <TableHead className="w-[80px] text-xs px-1">Dorsal</TableHead>
-                              <TableHead className="text-xs">Nombre</TableHead>
-                              <TableHead className="text-center w-[110px] text-xs">Goles</TableHead>
-                              <TableHead title="T.A." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-yellow-500"/></TableHead>
-                              <TableHead title="T.R." className="text-center w-[60px] text-xs"><RectangleVertical className="h-4 w-4 inline-block text-red-600"/></TableHead>
-                              <TableHead className="text-center w-[110px] text-xs">Faltas</TableHead>
-                          </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                          {players.length > 0 ? players.map((player) => (
-                              <TableRow key={player.id}>
-                                  <TableCell className="px-1 font-semibold text-center">{player.dorsal}</TableCell>
-                                  <TableCell className="font-medium text-sm px-1">{player.nombre}</TableCell>
-                                  <TableCell>
-                                      <StatCounter value={player.goals} onIncrement={() => handlePlayerStatChange(player.id, 'goals', 1)} onDecrement={() => handlePlayerStatChange(player.id, 'goals', -1)} disabled={!isRegisteredUser} />
-                                  </TableCell>
-                                  <TableCell>
-                                      <StatCounter value={player.yellowCards} onIncrement={() => handlePlayerStatChange(player.id, 'yellowCards', 1)} onDecrement={() => handlePlayerStatChange(player.id, 'yellowCards', -1)} disabled={!isRegisteredUser}/>
-                                  </TableCell>
-                                  <TableCell>
-                                      <StatCounter value={player.redCards} onIncrement={() => handlePlayerStatChange(player.id, 'redCards', 1)} onDecrement={() => handlePlayerStatChange(player.id, 'redCards', -1)} disabled={!isRegisteredUser}/>
-                                  </TableCell>
-                                  <TableCell>
-                                      <StatCounter value={player.faltas} onIncrement={() => handlePlayerStatChange(player.id, 'faltas', 1)} onDecrement={() => handlePlayerStatChange(player.id, 'faltas', -1)} disabled={!isRegisteredUser}/>
-                                  </TableCell>
-                              </TableRow>
-                          )) : (
-                             <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                    No tienes jugadores en tu plantilla. <Link href="/mi-equipo/plantilla" className="text-primary underline">Añade jugadores aquí</Link>.
-                                </TableCell>
-                             </TableRow>
-                          )}
-                      </TableBody>
-                  </Table>
+          <CardContent className="p-4">
+              <div className="grid grid-cols-2 gap-x-4">
+                {/* Local Team Stats */}
+                <div className="space-y-2">
+                    <h3 className="text-center font-bold text-lg">{localTeamName}</h3>
+                    <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                        <Label className="flex items-center gap-2 font-semibold"><Goal className="h-5 w-5"/>Goles</Label>
+                        <StatCounter value={localStats.goals} onIncrement={() => handleStatChange('local', 'goals', 1)} onDecrement={() => handleStatChange('local', 'goals', -1)}/>
+                    </div>
+                     <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                        <Label className="flex items-center gap-2 font-semibold"><ShieldAlert className="h-5 w-5"/>Faltas</Label>
+                        <StatCounter value={localStats.fouls} onIncrement={() => handleStatChange('local', 'fouls', 1)} onDecrement={() => handleStatChange('local', 'fouls', -1)}/>
+                    </div>
+                     <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                        <Label className="flex items-center gap-2 font-semibold"><RectangleVertical className="h-5 w-5 text-yellow-500"/>T. Amarillas</Label>
+                        <StatCounter value={localStats.yellowCards} onIncrement={() => handleStatChange('local', 'yellowCards', 1)} onDecrement={() => handleStatChange('local', 'yellowCards', -1)}/>
+                    </div>
+                     <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                        <Label className="flex items-center gap-2 font-semibold"><RectangleVertical className="h-5 w-5 text-red-600"/>T. Rojas</Label>
+                        <StatCounter value={localStats.redCards} onIncrement={() => handleStatChange('local', 'redCards', 1)} onDecrement={() => handleStatChange('local', 'redCards', -1)}/>
+                    </div>
+                </div>
+
+                {/* Visitor Team Stats */}
+                <div className="space-y-2">
+                    <h3 className="text-center font-bold text-lg">{visitorTeamName}</h3>
+                     <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                        <Label className="flex items-center gap-2 font-semibold"><Goal className="h-5 w-5"/>Goles</Label>
+                        <StatCounter value={visitorStats.goals} onIncrement={() => handleStatChange('visitor', 'goals', 1)} onDecrement={() => handleStatChange('visitor', 'goals', -1)}/>
+                    </div>
+                     <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                        <Label className="flex items-center gap-2 font-semibold"><ShieldAlert className="h-5 w-5"/>Faltas</Label>
+                        <StatCounter value={visitorStats.fouls} onIncrement={() => handleStatChange('visitor', 'fouls', 1)} onDecrement={() => handleStatChange('visitor', 'fouls', -1)}/>
+                    </div>
+                     <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                        <Label className="flex items-center gap-2 font-semibold"><RectangleVertical className="h-5 w-5 text-yellow-500"/>T. Amarillas</Label>
+                        <StatCounter value={visitorStats.yellowCards} onIncrement={() => handleStatChange('visitor', 'yellowCards', 1)} onDecrement={() => handleStatChange('visitor', 'yellowCards', -1)}/>
+                    </div>
+                     <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                        <Label className="flex items-center gap-2 font-semibold"><RectangleVertical className="h-5 w-5 text-red-600"/>T. Rojas</Label>
+                        <StatCounter value={visitorStats.redCards} onIncrement={() => handleStatChange('visitor', 'redCards', 1)} onDecrement={() => handleStatChange('visitor', 'redCards', -1)}/>
+                    </div>
+                </div>
               </div>
           </CardContent>
       </Card>
