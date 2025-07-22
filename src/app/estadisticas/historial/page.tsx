@@ -263,7 +263,17 @@ function HistorialPageContent() {
         setIsSavingMatch(true);
         
         const activePlayersFromRoster = rosterInfo.players
-            .filter(p => p.isActive);
+            .filter(p => p.isActive)
+            .map(p => ({
+                ...p,
+                goals: [], // Initialize goals as an empty array
+                yellowCards: 0,
+                redCards: 0,
+                faltas: 0,
+                paradas: 0,
+                golesRecibidos: 0,
+                unoVsUno: 0
+            }));
 
         const newMatchData = {
           userId: user.uid,
@@ -490,3 +500,4 @@ export default function HistorialEstadisticasPage() {
         <HistorialPageContent />
     );
 }
+

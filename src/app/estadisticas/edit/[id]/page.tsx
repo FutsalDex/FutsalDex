@@ -219,7 +219,9 @@ function EditMatchPageContent() {
     // Pass the full player object but without the display-only stats
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
       .map(({posicion, isActive, id, ...rest}) => ({
-          ...rest
+          ...rest,
+          // Ensure goals is always an array for saving
+          goals: Array.isArray(rest.goals) ? rest.goals : []
       }));
 
 
@@ -351,103 +353,78 @@ function EditMatchPageContent() {
     };
 
     const fetchMatchAndRoster = async () => {
-      if (!user || !matchId) {
-        setIsLoading(false); 
-        return;
-      }
-      setIsLoading(true);
-
-      try {
-        const db = getFirebaseDb();
-        const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
-        const matchDocRef = doc(db, "partidos_estadisticas", matchId);
-        
-        const [rosterSnap, matchSnap] = await Promise.all([
-          getDoc(rosterDocRef),
-          getDoc(matchDocRef)
-        ]);
-        
-        if (!matchSnap.exists() || matchSnap.data().userId !== user.uid) {
-            setNotFound(true);
+        if (!user || !matchId) {
             setIsLoading(false);
             return;
         }
+        setIsLoading(true);
 
-        const matchData = matchSnap.data();
-        const rosterData = rosterSnap.exists() ? rosterSnap.data() : { players: [] };
-        
-        // 1. Get the current active roster
-        const currentRosterPlayers: Player[] = (rosterData.players || []).filter((p: any) => p.isActive);
+        try {
+            const db = getFirebaseDb();
+            const matchDocRef = doc(db, "partidos_estadisticas", matchId);
+            const matchSnap = await getDoc(matchDocRef);
 
-        // 2. Get the players saved in the match document
-        const savedMatchMyTeamPlayers: Player[] = matchData.myTeamPlayers || [];
+            if (!matchSnap.exists() || matchSnap.data().userId !== user.uid) {
+                setNotFound(true);
+                setIsLoading(false);
+                return;
+            }
 
-        // 3. Merge them: Use the current roster as the base, and fill in stats from the saved match
-        const mergedMyTeamPlayers = currentRosterPlayers.map(rosterPlayer => {
-            const savedPlayerData = savedMatchMyTeamPlayers.find(p => p.id === rosterPlayer.id);
-            return {
-                ...rosterPlayer,
-                goals: savedPlayerData?.goals || [],
-                yellowCards: savedPlayerData?.yellowCards || 0,
-                redCards: savedPlayerData?.redCards || 0,
-                faltas: savedPlayerData?.faltas || 0,
-                paradas: savedPlayerData?.paradas || 0,
-                golesRecibidos: savedPlayerData?.golesRecibidos || 0,
-                unoVsUno: savedPlayerData?.unoVsUno || 0,
+            const matchData = matchSnap.data();
+
+            // Set basic match info
+            setMyTeamSide(matchData.myTeamWasHome ? 'local' : 'visitante');
+            setLocalTeamName(matchData.myTeamWasHome ? matchData.myTeamName : matchData.opponentTeamName);
+            setVisitorTeamName(matchData.myTeamWasHome ? matchData.opponentTeamName : matchData.myTeamName);
+            setFecha(matchData.fecha || "");
+            setHora(matchData.hora || "");
+            setCampeonato(matchData.campeonato || "");
+            setJornada(matchData.jornada || "");
+            setTipoPartido(matchData.tipoPartido || "");
+            
+            // Set team stats, ensuring they are not null
+            const mergeWithDefaults = (data?: Partial<TeamStats>): TeamStats => {
+                const defaults = createInitialTeamStats();
+                if (!data) return defaults;
+                return {
+                    ...defaults,
+                    ...data,
+                    shots: { ...defaults.shots, ...data.shots },
+                    turnovers: { ...defaults.turnovers, ...data.turnovers },
+                    steals: { ...defaults.steals, ...data.steals },
+                    timeouts: { ...defaults.timeouts, ...data.timeouts },
+                    faltas: { ...defaults.faltas, ...data.faltas },
+                };
             };
-        });
-
-        setMyTeamPlayers(mergedMyTeamPlayers);
-        
-        const mergeWithDefaults = (data?: Partial<TeamStats>): TeamStats => {
-            const defaults = createInitialTeamStats();
-            if (!data) return defaults;
-            return {
-                ...defaults,
-                ...data,
-                shots: {
-                    onTarget: { ...defaults.shots.onTarget, ...data.shots?.onTarget },
-                    offTarget: { ...defaults.shots.offTarget, ...data.shots?.offTarget },
-                    blocked: { ...defaults.shots.blocked, ...data.shots?.blocked },
-                },
-                turnovers: { ...defaults.turnovers, ...data.turnovers },
-                steals: { ...defaults.steals, ...data.steals },
-                timeouts: { ...defaults.timeouts, ...data.timeouts },
-                faltas: { ...defaults.faltas, ...data.faltas },
+            setMyTeamStats(mergeWithDefaults(matchData.myTeamStats));
+            setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
+            
+            // Set players ensuring 'goals' is an array
+            const ensureGoalsIsArray = (players: any[] | undefined) => {
+                return (players || []).map(p => ({
+                    ...p,
+                    goals: Array.isArray(p.goals) ? p.goals : [],
+                }));
             };
-        };
-        
-        setMyTeamSide(matchData.myTeamWasHome ? 'local' : 'visitante');
-        setLocalTeamName(matchData.myTeamWasHome ? matchData.myTeamName : matchData.opponentTeamName);
-        setVisitorTeamName(matchData.myTeamWasHome ? matchData.opponentTeamName : matchData.myTeamName);
-        
-        setMyTeamStats(mergeWithDefaults(matchData.myTeamStats));
-        setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
-        
-        setFecha(matchData.fecha || "");
-        setHora(matchData.hora || "");
-        setCampeonato(matchData.campeonato || "");
-        setJornada(matchData.jornada || "");
-        setTipoPartido(matchData.tipoPartido || "");
-        
-        setTime(matchData.timer?.duration || 25 * 60);
-        setTimerDuration(matchData.timer?.duration || 25 * 60);
-        
-        const savedOpponents = (matchData.opponentPlayers || []).map((p: any) => ({
-            ...p,
-            goals: (p.goals && Array.isArray(p.goals)) ? p.goals : [],
-        }));
-        const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
-        setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
+            setMyTeamPlayers(ensureGoalsIsArray(matchData.myTeamPlayers));
 
-      } catch (error) {
-        console.error("Error fetching data for edit:", error);
-        toast({ title: "Error", description: "No se pudieron cargar los datos del partido.", variant: "destructive" });
-        setNotFound(true);
-      } finally {
-        setIsLoading(false);
-        setAutoSaveStatus("saved");
-      }
+            // Set opponent players, padding with empty slots if needed
+            const savedOpponents = ensureGoalsIsArray(matchData.opponentPlayers);
+            const emptyOpponents = Array.from({ length: Math.max(0, 12 - savedOpponents.length) }, () => ({ dorsal: '', nombre: '', goals: [], yellowCards: 0, redCards: 0, faltas: 0, paradas: 0, golesRecibidos: 0, unoVsUno: 0 }));
+            setOpponentPlayers([...savedOpponents, ...emptyOpponents]);
+
+            // Set timer
+            setTime(matchData.timer?.duration || 25 * 60);
+            setTimerDuration(matchData.timer?.duration || 25 * 60);
+
+        } catch (error) {
+            console.error("Error fetching data for edit:", error);
+            toast({ title: "Error", description: "No se pudieron cargar los datos del partido.", variant: "destructive" });
+            setNotFound(true);
+        } finally {
+            setIsLoading(false);
+            setAutoSaveStatus("saved");
+        }
     };
     
     if (isRegisteredUser) {
@@ -909,3 +886,4 @@ export default function EditMatchPage() {
     <EditMatchPageContent />
   );
 }
+
