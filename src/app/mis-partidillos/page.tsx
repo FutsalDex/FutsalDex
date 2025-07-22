@@ -87,7 +87,6 @@ function MisPartidillosPageContent() {
   // Timer State
   const [time, setTime] = useState(timerDuration);
   const [isTimerActive, setIsTimerActive] = useState(false);
-  const [activeHalf, setActiveHalf] = useState<'firstHalf' | 'secondHalf'>('firstHalf');
 
   const fetchRoster = useCallback(async () => {
     setIsLoading(true);
@@ -140,14 +139,14 @@ function MisPartidillosPageContent() {
     } else if (isTimerActive && time === 0) {
       setIsTimerActive(false);
       toast({
-        title: "Final de la parte",
-        description: `El tiempo para la ${activeHalf === 'firstHalf' ? 'primera' : 'segunda'} parte ha terminado.`,
+        title: "Final del tiempo",
+        description: `El tiempo del partidillo ha terminado.`,
       });
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isTimerActive, time, activeHalf, toast]);
+  }, [isTimerActive, time, toast]);
 
   const handlePlayerStatChange = (
     playerId: string,
@@ -251,10 +250,6 @@ function MisPartidillosPageContent() {
                     <RotateCcw className="mr-2"/>
                     Reiniciar
                 </Button>
-                <div className="flex items-center gap-2">
-                    <Button onClick={() => setActiveHalf('firstHalf')} variant={activeHalf === 'firstHalf' ? 'secondary' : 'outline'} size="sm" disabled={!isRegisteredUser}>1ª Parte</Button>
-                    <Button onClick={() => setActiveHalf('secondHalf')} variant={activeHalf === 'secondHalf' ? 'secondary' : 'outline'} size="sm" disabled={!isRegisteredUser}>2ª Parte</Button>
-                </div>
                 <Dialog>
                     <DialogTrigger asChild>
                         <Button variant="outline" size="icon" disabled={!isRegisteredUser}><Settings className="h-4 w-4" /></Button>
@@ -276,7 +271,7 @@ function MisPartidillosPageContent() {
                                 <Input id="visitor-name" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="duration-select">Minutos por parte</Label>
+                                <Label htmlFor="duration-select">Minutos del partidillo</Label>
                                 <Select
                                     value={(timerDuration / 60).toString()}
                                     onValueChange={(val) => handleDurationChange(parseInt(val, 10))}
