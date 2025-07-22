@@ -17,7 +17,7 @@ import { doc, getDoc, setDoc, serverTimestamp, updateDoc, FieldValue, deleteFiel
 import { produce } from 'immer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -67,7 +67,7 @@ const createGuestHistoryStats = (players: RosterPlayer[]): DisplayPlayerStats[] 
     const justificado = Math.floor(Math.random() * 2); // 0-1
     const lesionado = Math.floor(Math.random() * 2); // 0-1
     const totalEsperado = presente + ausente + justificado + lesionado;
-    const pct = totalEsperado > 0 ? Math.round((presente / (presente + ausente + justificado + lesionado)) * 100) : 0;
+    const pct = totalEsperado > 0 ? Math.round(((presente) / (totalEsperado)) * 100) : 0;
     return {
         id: p.id,
         dorsal: p.dorsal,
@@ -176,7 +176,7 @@ function AsistenciaPageContent() {
         const finalHistoryStats = players.map(player => {
             const playerStats = stats[player.id];
             const totalConvocatorias = playerStats.presente + playerStats.ausente + playerStats.justificado + playerStats.lesionado;
-            const pct = totalConvocatorias > 0 ? Math.round((playerStats.presente / totalConvocatorias) * 100) : 0;
+            const pct = totalConvocatorias > 0 ? Math.round(((playerStats.presente) / totalConvocatorias) * 100) : 0;
 
             return {
                 id: player.id,
@@ -251,8 +251,6 @@ function AsistenciaPageContent() {
             delete newAttendanceData[dateString];
             setAllAttendanceData(newAttendanceData);
             
-            // Re-fetch can also be done here instead of optimistic update for more safety
-            // await fetchFullData();
         } catch (error) {
             console.error("Error deleting attendance record: ", error);
             toast({ title: "Error al Eliminar", description: "No se pudo eliminar el registro de asistencia.", variant: "destructive" });
@@ -263,10 +261,8 @@ function AsistenciaPageContent() {
     };
 
     const recordedDates = useMemo(() => {
-        // Create dates in UTC to avoid timezone issues with react-day-picker matching
         return Object.keys(allAttendanceData).map(dateString => {
-            const [year, month, day] = dateString.split('-').map(Number);
-            return new Date(Date.UTC(year, month - 1, day));
+            return parse(dateString, 'yyyy-MM-dd', new Date());
         });
     }, [allAttendanceData]);
 
@@ -342,7 +338,7 @@ function AsistenciaPageContent() {
                                 initialFocus
                                 locale={es}
                                 modifiers={{ recorded: recordedDates }}
-                                modifiersClassNames={{ recorded: 'has-record' }}
+                                modifiersClassNames={{ recorded: 'rdp-day_recorded' }}
                                 />
                             </PopoverContent>
                         </Popover>
