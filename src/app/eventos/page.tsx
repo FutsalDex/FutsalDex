@@ -4,7 +4,7 @@
 import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, orderBy as firestoreOrderBy, getDocs, Timestamp } from "firebase/firestore";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, CalendarClock, ArrowRight, ClipboardList, Trophy, Info } from "lucide-react";
@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 
 interface Evento {
   id: string;
@@ -64,12 +65,13 @@ const createGuestEvents = (): Evento[] => {
 function EventosPageContent() {
   const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
-  const [events, setEvents] = useState<Evento[]>([]);
+  const [allEvents, setAllEvents] = useState<Evento[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterType, setFilterType] = useState<'currentWeek' | 'all'>('currentWeek');
 
   const fetchEvents = useCallback(async () => {
     if (!isRegisteredUser || !user) {
-        setEvents(createGuestEvents());
+        setAllEvents(createGuestEvents());
         setIsLoading(false);
         return;
     }
@@ -77,6 +79,7 @@ function EventosPageContent() {
     setIsLoading(true);
     try {
       const db = getFirebaseDb();
+      // Fetch all events first, filtering will happen on the client
       const sesionesQuery = query(collection(db, "mis_sesiones"), where("userId", "==", user.uid));
       const partidosQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
       
@@ -118,7 +121,7 @@ function EventosPageContent() {
       });
 
       fetchedEvents.sort((a, b) => b.date.getTime() - a.date.getTime());
-      setEvents(fetchedEvents);
+      setAllEvents(fetchedEvents);
 
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -131,6 +134,19 @@ function EventosPageContent() {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  const filteredEvents = useMemo(() => {
+      if (filterType === 'all') {
+          return allEvents;
+      }
+      if (filterType === 'currentWeek') {
+          const today = new Date();
+          const start = startOfWeek(today, { weekStartsOn: 1 }); // Week starts on Monday
+          const end = endOfWeek(today, { weekStartsOn: 1 });
+          return allEvents.filter(event => isWithinInterval(event.date, { start, end }));
+      }
+      return allEvents;
+  }, [allEvents, filterType]);
 
   if (isLoading) {
     return (
@@ -145,12 +161,27 @@ function EventosPageContent() {
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-primary mb-1 font-headline flex items-center">
           <CalendarClock className="mr-3 h-8 w-8"/>
-          Cronología de Mis Eventos
+          Mis Eventos
         </h1>
         <p className="text-lg text-foreground/80">
           Un listado de todos tus partidos y sesiones de entrenamiento, ordenados por fecha.
         </p>
       </header>
+
+      <div className="mb-6 flex items-center gap-2">
+          <Button 
+              variant={filterType === 'currentWeek' ? 'default' : 'outline'}
+              onClick={() => setFilterType('currentWeek')}
+          >
+              Semana Actual
+          </Button>
+          <Button 
+              variant={filterType === 'all' ? 'default' : 'outline'}
+              onClick={() => setFilterType('all')}
+          >
+              Ver Todos
+          </Button>
+      </div>
       
       {!isRegisteredUser && (
         <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
@@ -164,16 +195,16 @@ function EventosPageContent() {
         </Alert>
       )}
 
-      {events.length === 0 ? (
+      {filteredEvents.length === 0 ? (
         <Card className="text-center py-12">
             <CardHeader>
                 <CardTitle>No hay eventos guardados</CardTitle>
-                <CardDescription>Aún no has guardado ninguna sesión o partido.</CardDescription>
+                <CardDescription>{filterType === 'currentWeek' ? "No tienes eventos programados para esta semana." : "Aún no has guardado ninguna sesión o partido."}</CardDescription>
             </CardHeader>
         </Card>
       ) : (
         <div className="space-y-6">
-            {events.map(evento => (
+            {filteredEvents.map(evento => (
                 <Card key={evento.id} className="shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader className="grid grid-cols-1 md:grid-cols-4 items-start gap-4">
                         <div className="md:col-span-1">
