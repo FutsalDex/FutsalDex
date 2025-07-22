@@ -21,14 +21,14 @@ const featureCards = [
         icon: ClipboardCheck,
     },
     {
-        title: "Mis Partidos Oficiales",
+        title: "Mis Partidos",
         description: "Da de alta nuevos partidos, consulta el historial y gestiona las estadísticas en vivo con el marcador integrado.",
         href: "/estadisticas/historial",
         icon: BarChart2,
     },
     {
-        title: "Mis Partidillos",
-        description: "Usa un marcador rápido para partidillos o entrenamientos y registra estadísticas básicas para tus jugadores.",
+        title: "Marcador",
+        description: "Usa un marcador rápido para partidos o entrenamientos y registra estadísticas básicas.",
         href: "/mis-partidillos",
         icon: Swords,
     },
