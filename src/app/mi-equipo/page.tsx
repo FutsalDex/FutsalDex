@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BarChart2, BookUser, ArrowRight, LifeBuoy, ClipboardCheck, Activity, CalendarClock } from "lucide-react";
+import { Users, BarChart2, BookUser, ArrowRight, LifeBuoy, ClipboardCheck, Activity, CalendarClock, Swords } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -21,10 +21,16 @@ const featureCards = [
         icon: ClipboardCheck,
     },
     {
-        title: "Mis Partidos",
+        title: "Mis Partidos Oficiales",
         description: "Da de alta nuevos partidos, consulta el historial y gestiona las estadísticas en vivo con el marcador integrado.",
         href: "/estadisticas/historial",
         icon: BarChart2,
+    },
+    {
+        title: "Mis Partidillos",
+        description: "Usa un marcador rápido para partidillos o entrenamientos y registra estadísticas básicas para tus jugadores.",
+        href: "/mis-partidillos",
+        icon: Swords,
     },
     {
         title: "Mis Sesiones",
