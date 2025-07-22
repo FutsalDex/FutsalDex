@@ -17,7 +17,7 @@ import { doc, getDoc, setDoc, serverTimestamp, updateDoc, FieldValue, deleteFiel
 import { produce } from 'immer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format, parse } from 'date-fns';
+import { format, parse, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -78,6 +78,10 @@ const createGuestHistoryStats = (players: RosterPlayer[]): DisplayPlayerStats[] 
     };
 });
 
+// Helper function to normalize a date, removing time and timezone effects.
+const normalizeDate = (date: Date): Date => {
+  return startOfDay(date);
+};
 
 function AsistenciaPageContent() {
     const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
@@ -261,18 +265,16 @@ function AsistenciaPageContent() {
     };
 
     const recordedDates = useMemo(() => {
-        return Object.keys(allAttendanceData).map(dateString => {
-            const date = parse(dateString, 'yyyy-MM-dd', new Date());
-            date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
-            return date;
-        });
+        return Object.keys(allAttendanceData)
+          .map(dateString => parse(dateString, 'yyyy-MM-dd', new Date()))
+          .filter(date => !isNaN(date.getTime()));
     }, [allAttendanceData]);
 
     const hasRecordForSelectedDate = useMemo(() => {
         if (!selectedDate) return false;
-        const dateString = format(selectedDate, 'yyyy-MM-dd');
-        return allAttendanceData.hasOwnProperty(dateString);
-    }, [selectedDate, allAttendanceData]);
+        const normalizedSelected = normalizeDate(selectedDate).getTime();
+        return recordedDates.some(d => normalizeDate(d).getTime() === normalizedSelected);
+    }, [selectedDate, recordedDates]);
 
 
     if (isLoading) {

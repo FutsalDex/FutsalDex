@@ -71,13 +71,13 @@
 }
 
 /* Modifier for recorded days in the calendar */
-.rdp-day_recorded:not([aria-selected]) {
+.has-record:not([aria-selected]) {
     border: 2px solid hsl(var(--primary) / 0.8);
     background-color: transparent;
     border-radius: var(--radius);
 }
 
-.rdp-day_recorded:hover:not([aria-selected]) {
+.has-record:hover:not([aria-selected]) {
     background-color: hsl(var(--accent) / 0.1);
 }
 
