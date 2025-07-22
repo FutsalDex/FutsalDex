@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Minus, RotateCcw, RectangleVertical, Play, Pause, AlertTriangle, Info, Loader2 } from "lucide-react";
+import { Plus, Minus, RotateCcw, RectangleVertical, Play, Pause, AlertTriangle, Info, Loader2, Settings } from "lucide-react";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { produce } from "immer";
 import { useAuth } from "@/contexts/auth-context";
@@ -14,6 +14,19 @@ import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { v4 as uuidv4 } from "uuid";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 // --- Helper Components ---
@@ -58,7 +71,7 @@ const createGuestPlayers = (): Player[] => [
 
 
 function MisPartidillosPageContent() {
-  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
 
   const [players, setPlayers] = useState<Player[]>([]);
@@ -66,8 +79,13 @@ function MisPartidillosPageContent() {
   const [visitorScore, setVisitorScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // New state for team names and timer duration
+  const [localTeamName, setLocalTeamName] = useState("Equipo Local");
+  const [visitorTeamName, setVisitorTeamName] = useState("Equipo Visitante");
+  const [timerDuration, setTimerDuration] = useState(25 * 60);
+
   // Timer State
-  const [time, setTime] = useState(25 * 60);
+  const [time, setTime] = useState(timerDuration);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [activeHalf, setActiveHalf] = useState<'firstHalf' | 'secondHalf'>('firstHalf');
 
@@ -85,8 +103,8 @@ function MisPartidillosPageContent() {
         const rosterSnap = await getDoc(rosterDocRef);
 
         if (rosterSnap.exists()) {
-            const rosterData = rosterSnap.data().players || [];
-            const activePlayers = rosterData
+            const rosterData = rosterSnap.data();
+            const activePlayers = (rosterData.players || [])
                 .filter((p: any) => p.isActive)
                 .map((p: any) => ({
                     ...p,
@@ -96,6 +114,9 @@ function MisPartidillosPageContent() {
                     faltas: 0
                 }));
             setPlayers(activePlayers);
+            if (rosterData.equipo) {
+                setLocalTeamName(rosterData.equipo);
+            }
         }
     } catch (error) {
         console.error("Error fetching roster:", error);
@@ -108,6 +129,25 @@ function MisPartidillosPageContent() {
   useEffect(() => {
     fetchRoster();
   }, [fetchRoster]);
+  
+  // Timer Effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isTimerActive && time > 0) {
+      interval = setInterval(() => {
+        setTime((prevTime) => prevTime - 1);
+      }, 1000);
+    } else if (isTimerActive && time === 0) {
+      setIsTimerActive(false);
+      toast({
+        title: "Final de la parte",
+        description: `El tiempo para la ${activeHalf === 'firstHalf' ? 'primera' : 'segunda'} parte ha terminado.`,
+      });
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerActive, time, activeHalf, toast]);
 
   const handlePlayerStatChange = (
     playerId: string,
@@ -139,25 +179,6 @@ function MisPartidillosPageContent() {
     toast({ title: "Estadísticas Reiniciadas", description: "El marcador y las estadísticas de los jugadores se han restablecido." });
   }
 
-  // Timer Effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isTimerActive && time > 0) {
-      interval = setInterval(() => {
-        setTime((prevTime) => prevTime - 1);
-      }, 1000);
-    } else if (isTimerActive && time === 0) {
-      setIsTimerActive(false);
-      toast({
-        title: "Final de la parte",
-        description: `El tiempo para la ${activeHalf === 'firstHalf' ? 'primera' : 'segunda'} parte ha terminado.`,
-      });
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isTimerActive, time, activeHalf, toast]);
-  
   const formatTime = useMemo(() => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
@@ -166,8 +187,15 @@ function MisPartidillosPageContent() {
   
   const handleResetTimer = () => {
     setIsTimerActive(false);
-    setTime(25 * 60);
+    setTime(timerDuration);
   };
+  
+  const handleDurationChange = (minutes: number) => {
+    setTimerDuration(minutes * 60);
+    if (!isTimerActive) {
+      setTime(minutes * 60);
+    }
+  }
   
   if (isLoading) {
       return (
@@ -200,14 +228,14 @@ function MisPartidillosPageContent() {
         <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-around w-full">
                 <div className="flex-1">
-                    <p className="font-bold truncate text-lg">Equipo Local</p>
+                    <p className="font-bold truncate text-lg">{localTeamName}</p>
                     <StatCounter value={localScore} onIncrement={() => setLocalScore(s => s + 1)} onDecrement={() => setLocalScore(s => s - 1)} disabled={!isRegisteredUser}/>
                 </div>
                 <div className="flex-1 text-4xl font-bold text-primary">
                    {localScore} - {visitorScore}
                 </div>
                 <div className="flex-1">
-                    <p className="font-bold truncate text-lg">Equipo Visitante</p>
+                    <p className="font-bold truncate text-lg">{visitorTeamName}</p>
                     <StatCounter value={visitorScore} onIncrement={() => setVisitorScore(s => s + 1)} onDecrement={() => setVisitorScore(s => s - 1)} disabled={!isRegisteredUser}/>
                 </div>
             </div>
@@ -227,6 +255,51 @@ function MisPartidillosPageContent() {
                     <Button onClick={() => setActiveHalf('firstHalf')} variant={activeHalf === 'firstHalf' ? 'secondary' : 'outline'} size="sm" disabled={!isRegisteredUser}>1ª Parte</Button>
                     <Button onClick={() => setActiveHalf('secondHalf')} variant={activeHalf === 'secondHalf' ? 'secondary' : 'outline'} size="sm" disabled={!isRegisteredUser}>2ª Parte</Button>
                 </div>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="icon" disabled={!isRegisteredUser}><Settings className="h-4 w-4" /></Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Ajustes del Partidillo</DialogTitle>
+                            <DialogDescription>
+                                Personaliza los nombres de los equipos y la duración del cronómetro.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="local-name">Nombre Equipo Local</Label>
+                                <Input id="local-name" value={localTeamName} onChange={(e) => setLocalTeamName(e.target.value)} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="visitor-name">Nombre Equipo Visitante</Label>
+                                <Input id="visitor-name" value={visitorTeamName} onChange={(e) => setVisitorTeamName(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="duration-select">Minutos por parte</Label>
+                                <Select
+                                    value={(timerDuration / 60).toString()}
+                                    onValueChange={(val) => handleDurationChange(parseInt(val, 10))}
+                                >
+                                    <SelectTrigger id="duration-select">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="15">15 minutos</SelectItem>
+                                        <SelectItem value="20">20 minutos</SelectItem>
+                                        <SelectItem value="25">25 minutos</SelectItem>
+                                        <SelectItem value="30">30 minutos</SelectItem>
+                                        <SelectItem value="40">40 minutos</SelectItem>
+                                        <SelectItem value="45">45 minutos</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button>Aceptar</Button></DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </CardContent>
       </Card>
@@ -291,5 +364,3 @@ export default function MisPartidillosPage() {
         <MisPartidillosPageContent />
     )
 }
-
-    
