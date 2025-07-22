@@ -165,7 +165,6 @@ function EditMatchPageContent() {
   const matchId = params.id as string;
 
   // Match Info
-  const [rosterInfo, setRosterInfo] = useState({ name: '', campeonato: '' });
   const [localTeamName, setLocalTeamName] = useState("");
   const [visitorTeamName, setVisitorTeamName] = useState("");
   const [fecha, setFecha] = useState("");
@@ -211,28 +210,16 @@ function EditMatchPageContent() {
       return false;
     }
     if (!user || !matchId) return false;
-    if (!myTeamSide) {
-      if (!isAutoSave) toast({ title: "Asignación de equipo requerida", description: "Por favor, usa el botón 'Usar mi equipo' para asignar tu plantilla antes de guardar.", variant: "destructive", duration: 7000 });
-      return false;
-    }
 
     if (!isAutoSave) setIsSaving(true);
     setAutoSaveStatus("saving");
 
     const filterOpponentPlayers = (players: OpponentPlayer[]) => players.filter(p => p.dorsal.trim() !== '' || p.nombre?.trim() !== '' || p.goals.length > 0 || p.redCards > 0 || p.yellowCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0);
     
-    // Create a clean representation of my team's players for saving.
+    // Pass the full player object but without the display-only stats
     const filterMyTeamPlayersForSaving = (players: Player[]) => players
-      .filter(p => p.dorsal.trim() !== '' && (p.goals.length > 0 || p.yellowCards > 0 || p.redCards > 0 || p.faltas > 0 || p.paradas > 0 || p.golesRecibidos > 0 || p.unoVsUno > 0))
-      .map(({posicion, isActive, id, nombre, ...rest}) => ({
-          dorsal: rest.dorsal,
-          goals: rest.goals,
-          yellowCards: rest.yellowCards,
-          redCards: rest.redCards,
-          faltas: rest.faltas,
-          paradas: rest.paradas,
-          golesRecibidos: rest.golesRecibidos,
-          unoVsUno: rest.unoVsUno,
+      .map(({posicion, isActive, id, ...rest}) => ({
+          ...rest
       }));
 
 
@@ -387,13 +374,17 @@ function EditMatchPageContent() {
         }
 
         const matchData = matchSnap.data();
-        const rosterData = rosterSnap.exists() ? rosterSnap.data() : { players: [], equipo: '', campeonato: '' };
+        const rosterData = rosterSnap.exists() ? rosterSnap.data() : { players: [] };
         
-        const currentRosterPlayers = (rosterData.players || []).filter((p: any) => p.isActive) as Player[];
-        const savedMatchMyTeamPlayers = (matchData.myTeamPlayers || []) as { dorsal: string; goals: GoalEvent[]; yellowCards: number; redCards: number; faltas: number; paradas: number; golesRecibidos: number; unoVsUno: number }[];
-        
+        // 1. Get the current active roster
+        const currentRosterPlayers: Player[] = (rosterData.players || []).filter((p: any) => p.isActive);
+
+        // 2. Get the players saved in the match document
+        const savedMatchMyTeamPlayers: Player[] = matchData.myTeamPlayers || [];
+
+        // 3. Merge them: Use the current roster as the base, and fill in stats from the saved match
         const mergedMyTeamPlayers = currentRosterPlayers.map(rosterPlayer => {
-            const savedPlayerData = savedMatchMyTeamPlayers.find(p => p.dorsal === rosterPlayer.dorsal);
+            const savedPlayerData = savedMatchMyTeamPlayers.find(p => p.id === rosterPlayer.id);
             return {
                 ...rosterPlayer,
                 goals: savedPlayerData?.goals || [],
@@ -407,7 +398,6 @@ function EditMatchPageContent() {
         });
 
         setMyTeamPlayers(mergedMyTeamPlayers);
-        setRosterInfo({ name: rosterData.equipo || '', campeonato: rosterData.campeonato || '' });
         
         const mergeWithDefaults = (data?: Partial<TeamStats>): TeamStats => {
             const defaults = createInitialTeamStats();
@@ -426,19 +416,11 @@ function EditMatchPageContent() {
                 faltas: { ...defaults.faltas, ...data.faltas },
             };
         };
-
-        if (matchData.myTeamWasHome) {
-            setLocalTeamName(matchData.myTeamName || rosterData.equipo || "Mi Equipo");
-            setVisitorTeamName(matchData.opponentTeamName || "Oponente");
-            setMyTeamSide('local');
-            setActiveTab('local');
-        } else {
-            setLocalTeamName(matchData.opponentTeamName || "Oponente");
-            setVisitorTeamName(matchData.myTeamName || rosterData.equipo || "Mi Equipo");
-            setMyTeamSide('visitante');
-            setActiveTab('visitante');
-        }
-
+        
+        setMyTeamSide(matchData.myTeamWasHome ? 'local' : 'visitante');
+        setLocalTeamName(matchData.myTeamWasHome ? matchData.myTeamName : matchData.opponentTeamName);
+        setVisitorTeamName(matchData.myTeamWasHome ? matchData.opponentTeamName : matchData.myTeamName);
+        
         setMyTeamStats(mergeWithDefaults(matchData.myTeamStats));
         setOpponentTeamStats(mergeWithDefaults(matchData.opponentTeamStats));
         
@@ -541,7 +523,7 @@ function EditMatchPageContent() {
       
       setter(produce(draft => {
           const player = draft[index] as Player | OpponentPlayer;
-          // Ensure goals is an array before pushing
+          
           if (!Array.isArray(player.goals)) {
             player.goals = [];
           }
@@ -566,15 +548,6 @@ function EditMatchPageContent() {
           }
       }));
   }
-
-  const handleSetMyTeam = (side: 'local' | 'visitor') => {
-    if (side === 'local') {
-      setLocalTeamName(rosterInfo.name);
-    } else { // visitor
-      setVisitorTeamName(rosterInfo.name);
-    }
-    setMyTeamSide(side);
-  };
 
   if (isLoading) {
     return (

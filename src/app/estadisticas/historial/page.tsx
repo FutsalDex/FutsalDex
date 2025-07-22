@@ -255,29 +255,15 @@ function HistorialPageContent() {
         if (!user) return;
         
         const myTeamName = rosterSide === 'local' ? values.localTeamName : values.visitorTeamName;
-        if (!myTeamName) {
-            toast({ title: "Asigna tu equipo", description: "Asegúrate de que el nombre de tu equipo esté en el campo Local o Visitante y selecciona el lado correcto.", variant: "destructive" });
+        if (!myTeamName || myTeamName !== rosterInfo.name) {
+            toast({ title: "Asigna tu equipo", description: "Asegúrate de que el nombre de tu equipo esté en el campo Local o Visitante y selecciona el lado correcto usando el botón 'Mi Equipo'.", variant: "destructive" });
             return;
         }
 
         setIsSavingMatch(true);
         
         const activePlayersFromRoster = rosterInfo.players
-            .filter(p => p.isActive)
-            .map(p => ({
-                id: p.id,
-                dorsal: p.dorsal,
-                nombre: p.nombre,
-                posicion: p.posicion,
-                isActive: p.isActive,
-                goals: [],
-                yellowCards: 0,
-                redCards: 0,
-                faltas: 0,
-                paradas: 0,
-                golesRecibidos: 0,
-                unoVsUno: 0,
-            }));
+            .filter(p => p.isActive);
 
         const newMatchData = {
           userId: user.uid,
