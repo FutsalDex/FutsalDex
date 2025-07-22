@@ -66,7 +66,7 @@ const createGuestHistoryStats = (players: RosterPlayer[]): DisplayPlayerStats[] 
     const justificado = Math.floor(Math.random() * 2); // 0-1
     const lesionado = Math.floor(Math.random() * 2); // 0-1
     const totalEsperado = presente + ausente + justificado + lesionado;
-    const pct = totalEsperado > 0 ? Math.round((presente / totalEsperado) * 100) : 0;
+    const pct = totalEsperado > 0 ? Math.round((presente / (presente + ausente + justificado + lesionado)) * 100) : 0;
     return {
         id: p.id,
         dorsal: p.dorsal,
@@ -229,9 +229,12 @@ function AsistenciaPageContent() {
     };
     
     const recordedDates = useMemo(() => {
+        // Correctly parse yyyy-MM-dd strings into local Date objects.
+        // new Date('2024-07-22') is parsed as UTC midnight, which can cause off-by-one errors.
+        // new Date(year, monthIndex, day) uses the local timezone.
         return Object.keys(allAttendanceData).map(dateString => {
             const [year, month, day] = dateString.split('-').map(Number);
-            return new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid timezone issues
+            return new Date(year, month - 1, day);
         });
     }, [allAttendanceData]);
 
@@ -276,7 +279,7 @@ function AsistenciaPageContent() {
                 <CardHeader>
                     <CardTitle>Registro de Asistencia</CardTitle>
                     <CardDescription>
-                        Selecciona una fecha y marca el estado de cada jugador. Los días con un punto verde ya tienen un registro.
+                        Selecciona una fecha y marca el estado de cada jugador. Los días en verde ya tienen un registro.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
