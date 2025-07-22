@@ -70,6 +70,23 @@
   }
 }
 
+/* Modifier for recorded days in the calendar */
+.rdp-day.has-record:not(.rdp-day_outside) {
+    position: relative;
+}
+
+.rdp-day.has-record:not(.rdp-day_outside)::after {
+    content: '';
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+    background-color: hsl(var(--primary));
+    border-radius: 50%;
+    border: 1px solid hsl(var(--background));
+}
+
 @media print {
   body * {
     visibility: hidden;

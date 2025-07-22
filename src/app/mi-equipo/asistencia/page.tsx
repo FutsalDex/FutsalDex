@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -228,6 +228,13 @@ function AsistenciaPageContent() {
         }
     };
     
+    const recordedDates = useMemo(() => {
+        return Object.keys(allAttendanceData).map(dateString => {
+            const [year, month, day] = dateString.split('-').map(Number);
+            return new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid timezone issues
+        });
+    }, [allAttendanceData]);
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center py-12">
@@ -269,7 +276,7 @@ function AsistenciaPageContent() {
                 <CardHeader>
                     <CardTitle>Registro de Asistencia</CardTitle>
                     <CardDescription>
-                        Selecciona una fecha y marca el estado de cada jugador.
+                        Selecciona una fecha y marca el estado de cada jugador. Los días con un punto verde ya tienen un registro.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -292,6 +299,8 @@ function AsistenciaPageContent() {
                                 onSelect={setSelectedDate}
                                 initialFocus
                                 locale={es}
+                                modifiers={{ recorded: recordedDates }}
+                                modifiersClassNames={{ recorded: 'has-record' }}
                                 />
                             </PopoverContent>
                         </Popover>
