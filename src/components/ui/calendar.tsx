@@ -9,20 +9,6 @@ import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
-function DayWithFrame({ ...props }: DayProps) {
-  return (
-    <div
-      className={cn(
-        "h-9 w-9 p-0 font-normal flex items-center justify-center relative",
-        // The following classes are to make the wrapper div mimic the original button's focus/hover states if needed
-        buttonVariants({ variant: "ghost" })
-      )}
-    >
-      {props.date.getDate()}
-    </div>
-  )
-}
-
 function Calendar({
   className,
   classNames,
@@ -68,7 +54,6 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Day: DayWithFrame,
         IconLeft: ({ className, ...props }) => (
           <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
         ),

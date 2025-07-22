@@ -229,9 +229,6 @@ function AsistenciaPageContent() {
     };
     
     const recordedDates = useMemo(() => {
-        // Correctly parse yyyy-MM-dd strings into local Date objects.
-        // new Date('2024-07-22') is parsed as UTC midnight, which can cause off-by-one errors.
-        // new Date(year, monthIndex, day) uses the local timezone.
         return Object.keys(allAttendanceData).map(dateString => {
             const [year, month, day] = dateString.split('-').map(Number);
             return new Date(year, month - 1, day);
@@ -279,7 +276,7 @@ function AsistenciaPageContent() {
                 <CardHeader>
                     <CardTitle>Registro de Asistencia</CardTitle>
                     <CardDescription>
-                        Selecciona una fecha y marca el estado de cada jugador. Los días en verde ya tienen un registro.
+                        Selecciona una fecha y marca el estado de cada jugador. Los días enmarcados en verde ya tienen un registro.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -303,7 +300,7 @@ function AsistenciaPageContent() {
                                 initialFocus
                                 locale={es}
                                 modifiers={{ recorded: recordedDates }}
-                                modifiersClassNames={{ recorded: 'has-record' }}
+                                modifiersClassNames={{ recorded: 'rdp-day_recorded' }}
                                 />
                             </PopoverContent>
                         </Popover>
