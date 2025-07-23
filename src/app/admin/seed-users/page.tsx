@@ -42,10 +42,14 @@ function SeedUsersPageContent() {
         });
     } catch (error: any) {
         const errorMessage = error.message || "Un error desconocido ocurrió en el cliente.";
-        setResult({ success: false, message: errorMessage });
+        const displayMessage = error.message.includes("ADMIN_SDK_NOT_CONFIGURED") 
+            ? "Error de Configuración: Las credenciales del SDK de Admin no están configuradas en el servidor. Esta función no está disponible en este entorno."
+            : errorMessage;
+            
+        setResult({ success: false, message: displayMessage });
         toast({
-            title: "Error Inesperado del Cliente",
-            description: errorMessage,
+            title: "Error Inesperado",
+            description: displayMessage,
             variant: "destructive",
         });
     }
@@ -108,7 +112,9 @@ function SeedUsersPageContent() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Advertencia</AlertTitle>
             <AlertDescription>
-              Esta acción es irreversible y modificará los datos en Firebase Authentication y Firestore. No se puede deshacer. Esta función solo está disponible en entornos de desarrollo con las credenciales de administrador configuradas.
+              Esta acción es irreversible y modificará los datos en Firebase Authentication y Firestore. No se
+              puede deshacer. Esta función solo está disponible en entornos de desarrollo con las
+              credenciales de administrador configuradas.
             </AlertDescription>
           </Alert>
 

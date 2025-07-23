@@ -34,13 +34,6 @@ interface SeedResult {
 }
 
 export async function seedPremiumUsers(): Promise<SeedResult> {
-    if (process.env.NODE_ENV === 'production') {
-        return { 
-            success: false, 
-            message: "Esta función solo está disponible en un entorno de desarrollo por razones de seguridad. Las credenciales de administrador no están expuestas en producción."
-        };
-    }
-
     try {
         const adminAuth = getAuth();
         const adminDb = getAdminDb();
@@ -105,7 +98,7 @@ export async function seedPremiumUsers(): Promise<SeedResult> {
 
     } catch (error: any) {
         console.error("Error en la función seedPremiumUsers:", error);
-        if (error.message.includes("instance no inicializada de Firebase Admin DB")) {
+        if (error.message && error.message.includes('credential')) {
              return { success: false, message: "Error de configuración: El SDK de Firebase Admin no está configurado en el servidor. Asegúrate de que las variables de entorno del servidor estén definidas en tu entorno local." };
         }
         return { success: false, message: "Un error inesperado ocurrió en el servidor." };

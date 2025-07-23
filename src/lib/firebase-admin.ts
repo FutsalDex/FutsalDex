@@ -26,21 +26,14 @@ export function getAdminDb(): Firestore {
   if (!isServiceAccountConfigured(serviceAccount)) {
       if (!hasLoggedWarning) {
         console.warn(
-            'Las credenciales del SDK de Firebase Admin no están configuradas para el entorno de servidor. ' +
-            'Las funciones de administrador (como guardado de datos) no funcionarán en el entorno local. ' +
-            'Esto es normal si no se han configurado secretos para desarrollo local. En producción, esto es un error.'
+            'ADVERTENCIA: Las credenciales del SDK de Firebase Admin no están configuradas. ' +
+            'Las funciones que requieren acceso de administrador fallarán. ' +
+            'Esto es esperado en desarrollo local si no se han definido los secretos del servidor.'
         );
-        hasLoggedWarning = true; // Set flag so it doesn't log again
+        hasLoggedWarning = true;
       }
-      
-      return new Proxy({}, {
-          get(target, prop) {
-              if (typeof prop === 'string' && ['collection', 'batch', 'doc'].includes(prop)) {
-                  throw new Error(`Se intentó acceder a '${prop}' en una instancia no inicializada de Firebase Admin DB. Asegúrate de que las credenciales del servidor estén configuradas en tu entorno local si necesitas usar funciones de administrador.`);
-              }
-              return (target as any)[prop];
-          }
-      }) as Firestore;
+      // Throw a specific error that can be caught by server actions
+      throw new Error("ADMIN_SDK_NOT_CONFIGURED: Las credenciales del SDK de Firebase Admin no están disponibles en este entorno.");
   }
 
   if (getApps().length === 0) {
