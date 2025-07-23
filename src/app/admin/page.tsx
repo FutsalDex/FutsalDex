@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, AlertTriangle, PlusCircle, UploadCloud, Users, Wrench } from "lucide-react";
+import { ShieldCheck, AlertTriangle, PlusCircle, UploadCloud, Users, Wrench, DatabaseZap } from "lucide-react";
 import Link from "next/link";
 
 function AdminPageContent() {
@@ -91,6 +91,23 @@ function AdminPageContent() {
                 <Link href="/admin/manage-subscriptions">
                   <Users className="mr-2 h-5 w-5" />
                   Gestionar Suscripciones
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl">Crear Usuarios de Prueba</CardTitle>
+            <CardDescription>Crea un lote de 15 usuarios con suscripción Pro para pruebas.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
+              <Button variant="outline" asChild className="w-full sm:w-auto">
+                <Link href="/admin/seed-users">
+                  <DatabaseZap className="mr-2 h-5 w-5" />
+                  Crear Usuarios
                 </Link>
               </Button>
             </div>
