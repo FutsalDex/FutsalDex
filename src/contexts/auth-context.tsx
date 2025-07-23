@@ -45,7 +45,7 @@ type AuthContextType = {
   isAdmin: boolean;
   isSubscribed: boolean;
   subscriptionType: SubscriptionType;
-  subscriptionExpiresAt: Date | null;
+  subscriptionEnd: Date | null;
   login: (values: z.infer<typeof loginSchema>) => Promise<FirebaseUser | null>;
   register: (values: z.infer<typeof registerSchema>) => Promise<FirebaseUser | null>;
   signOut: () => Promise<void>;
@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriptionType, setSubscriptionType] = useState<SubscriptionType>(null);
-  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<Date | null>(null);
+  const [subscriptionEnd, setSubscriptionEnd] = useState<Date | null>(null);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -112,14 +112,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
             setIsSubscribed(finalIsSubscribed);
             setSubscriptionType(finalSubsType);
-            setSubscriptionExpiresAt(finalSubExpiresAt);
+            setSubscriptionEnd(finalSubExpiresAt);
 
         } catch (dbError) {
             console.error("Error fetching user document from Firestore:", dbError);
             setIsAdmin(false);
             setIsSubscribed(false);
             setSubscriptionType(null);
-            setSubscriptionExpiresAt(null);
+            setSubscriptionEnd(null);
         }
 
       } else {
@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAdmin(false);
         setIsSubscribed(false);
         setSubscriptionType(null);
-        setSubscriptionExpiresAt(null);
+        setSubscriptionEnd(null);
       }
       setLoading(false);
     });
@@ -229,7 +229,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isRegisteredUser = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionExpiresAt, login, register, signOut, changePassword, error, clearError }}>
+    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionEnd, login, register, signOut, changePassword, error, clearError }}>
       {children}
     </AuthContext.Provider>
   );
