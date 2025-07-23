@@ -21,7 +21,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function Header() {
-  const { user, signOut, loading, isAdmin, subscriptionType, subscriptionExpiresAt } = useAuth();
+  const { user, signOut, loading, isAdmin, subscriptionType, subscriptionEnd } = useAuth();
   const pathname = usePathname();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -117,7 +117,7 @@ export default function Header() {
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground">Caducidad</p>
-                            <p className="text-sm font-medium">{formatExpirationDate(subscriptionExpiresAt)}</p>
+                            <p className="text-sm font-medium">{formatExpirationDate(subscriptionEnd)}</p>
                         </div>
                     </div>
                 </DropdownMenuLabel>
