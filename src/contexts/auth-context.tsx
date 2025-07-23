@@ -73,7 +73,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         const userDocRef = doc(db, "usuarios", currentUser.uid);
         try {
-            const docSnap = await getDoc(userDocRef);
+            let docSnap = await getDoc(userDocRef);
+
+            // If user exists in Auth but not in Firestore, create their document
+            if (!docSnap.exists()) {
+                const userRole = currentUser.email === ADMIN_EMAIL ? 'admin' : 'user';
+                const trialEnds = new Date();
+                trialEnds.setHours(trialEnds.getHours() + 48);
+
+                await setDoc(userDocRef, {
+                    uid: currentUser.uid,
+                    email: currentUser.email,
+                    createdAt: serverTimestamp(),
+                    role: userRole,
+                    subscriptionStatus: 'inactive',
+                    trialEndsAt: Timestamp.fromDate(trialEnds),
+                    subscriptionEnd: null,
+                });
+                // Re-fetch the document to get the fresh data
+                docSnap = await getDoc(userDocRef);
+            }
 
             const isAdminByEmail = currentUser.email === ADMIN_EMAIL;
             const isAdminByRole = docSnap.exists() && docSnap.data().role === 'admin';
@@ -139,7 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const auth = getFirebaseAuth();
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      // onAuthStateChanged will handle setting admin/subscription state
+      // onAuthStateChanged will handle setting admin/subscription state and creating doc if missing
       return userCredential.user;
     } catch (e) {
       const authError = e as AuthError;
