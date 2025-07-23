@@ -5,11 +5,94 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, AlertTriangle, PlusCircle, UploadCloud, Users, Wrench } from "lucide-react";
+import { ShieldCheck, AlertTriangle, PlusCircle, UploadCloud, Users, Wrench, Eye, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, getDocs, query } from 'firebase/firestore';
+
+interface PageViewData {
+    [key: string]: number;
+}
+
+const mapPathToName = (pathKey: string): string => {
+    const mappings: Record<string, string> = {
+        'home': 'Página Principal',
+        'ejercicios': 'Ver ejercicios',
+        'crear-sesion': 'Crear Sesión Manual',
+        'crear-sesion-ia': 'Crear Sesión con IA',
+        'mi-equipo': 'Panel de Mi Equipo',
+        'mi-equipo_plantilla': 'Mi Plantilla',
+        'mi-equipo_asistencia': 'Control de Asistencia',
+        'estadisticas_historial': 'Historial de Partidos',
+        'mis-sesiones': 'Mis Sesiones',
+        'favoritos': 'Favoritos',
+        'suscripcion': 'Suscripción',
+        'soporte': 'Soporte con IA',
+        'perfil': 'Perfil de Usuario',
+        'admin': 'Panel de Admin',
+    };
+    const sortedKeys = Object.keys(mappings).sort((a, b) => b.length - a.length);
+    for (const key of sortedKeys) {
+        if (pathKey.startsWith(key)) {
+            return mappings[key];
+        }
+    }
+    return pathKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
+
+const StatCard = ({ title, value, icon, isText = false }: { title: string, value: string | number, icon: React.ReactNode, isText?: boolean }) => (
+    <Card className="shadow-md text-center">
+        <CardHeader className="pb-2">
+            <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full mb-2">
+                {icon}
+            </div>
+            <CardTitle className="text-lg font-headline">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <p className="text-3xl font-bold">{value}</p>
+        </CardContent>
+    </Card>
+);
 
 function AdminPageContent() {
   const { isAdmin, user } = useAuth();
+  const [pageViewStats, setPageviewStats] = useState<{name: string, count: number}[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  const fetchPageViews = useCallback(async () => {
+    if (!isAdmin) return;
+    setIsLoadingStats(true);
+    try {
+        const db = getFirebaseDb();
+        const pageViewsQuery = query(collection(db, "user_page_views"));
+        const pageViewsSnapshot = await getDocs(pageViewsQuery);
+        const pageCounts: { [key: string]: number } = {};
+        pageViewsSnapshot.forEach(doc => {
+            const data = doc.data() as PageViewData;
+            for (const key in data) {
+                if (key !== 'lastVisitedPath' && key !== 'updatedAt') {
+                    const pageName = mapPathToName(key);
+                    pageCounts[pageName] = (pageCounts[pageName] || 0) + data[key];
+                }
+            }
+        });
+        const stats = Object.entries(pageCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+        setPageviewStats(stats);
+    } catch (error) {
+        console.error("Error fetching page view stats:", error);
+        setPageviewStats([]);
+    } finally {
+        setIsLoadingStats(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+      fetchPageViews();
+  }, [fetchPageViews]);
 
   if (!isAdmin) {
     return (
@@ -96,8 +179,31 @@ function AdminPageContent() {
             </div>
           </CardContent>
         </Card>
-
       </div>
+
+       <Card className="mt-8">
+            <CardHeader>
+                <CardTitle className="text-xl font-headline flex items-center">
+                    <Eye className="mr-2 h-5 w-5"/>Páginas Más Visitadas
+                </CardTitle>
+                <CardDescription>Top 5 de páginas más visitadas por todos los usuarios.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoadingStats ? (
+                     <div className="flex justify-center items-center h-24">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                     </div>
+                ) : pageViewStats.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        {pageViewStats.map((page, index) => (
+                            <StatCard key={index} title={page.name} value={page.count} icon={<div className="font-bold text-lg">{index + 1}</div>} />
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-muted-foreground text-center py-4">No hay datos de visitas de páginas para mostrar.</p>
+                )}
+            </CardContent>
+        </Card>
 
     </div>
   );
