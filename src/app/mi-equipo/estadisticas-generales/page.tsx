@@ -148,7 +148,7 @@ const mapPathToName = (pathKey: string): string => {
 
 
 function EstadisticasGeneralesContent() {
-    const { user, isRegisteredUser } = useAuth();
+    const { user, isRegisteredUser, isAdmin } = useAuth();
     const [stats, setStats] = useState<typeof guestDemoStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -169,13 +169,19 @@ function EstadisticasGeneralesContent() {
                 where("fecha", "<=", today)
             );
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
-            const pageViewsQuery = query(collection(db, "user_page_views")); // For admin, read all; for user, would need rules change
-
-            const [partidosSnapshot, rosterSnap, pageViewsSnapshot] = await Promise.all([
+            
+            const promises = [
                 getDocs(partidosQuery),
-                getDoc(rosterDocRef),
-                getDocs(pageViewsQuery) // Note: This requires admin-level read access in Firestore rules
-            ]);
+                getDoc(rosterDocRef)
+            ];
+
+            // Only fetch page views if the user is an admin
+            if (isAdmin) {
+                const pageViewsQuery = query(collection(db, "user_page_views"));
+                promises.push(getDocs(pageViewsQuery));
+            }
+
+            const [partidosSnapshot, rosterSnap, pageViewsSnapshot] = await Promise.all(promises);
             
             const calculatedStats = {
                 generalStats: {
@@ -257,22 +263,24 @@ function EstadisticasGeneralesContent() {
                 }
             });
 
-            // Process page views
-            const pageCounts: { [key: string]: number } = {};
-            pageViewsSnapshot.forEach(doc => {
-                const data = doc.data() as PageViewData;
-                for (const key in data) {
-                    if (key !== 'lastVisitedPath' && key !== 'updatedAt') {
-                        const pageName = mapPathToName(key);
-                        pageCounts[pageName] = (pageCounts[pageName] || 0) + data[key];
+            // Process page views only if the snapshot exists (i.e., user is admin)
+            if (pageViewsSnapshot) {
+                const pageCounts: { [key: string]: number } = {};
+                pageViewsSnapshot.forEach(doc => {
+                    const data = doc.data() as PageViewData;
+                    for (const key in data) {
+                        if (key !== 'lastVisitedPath' && key !== 'updatedAt') {
+                            const pageName = mapPathToName(key);
+                            pageCounts[pageName] = (pageCounts[pageName] || 0) + data[key];
+                        }
                     }
-                }
-            });
+                });
 
-            calculatedStats.topPages = Object.entries(pageCounts)
-                .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5); // Get top 5
+                calculatedStats.topPages = Object.entries(pageCounts)
+                    .map(([name, count]) => ({ name, count }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 5); // Get top 5
+            }
 
             const findLeader = (stat: keyof typeof playerStats['dorsal']) => {
                 let maxVal = 0;
@@ -298,7 +306,7 @@ function EstadisticasGeneralesContent() {
         } finally {
             setIsLoading(false);
         }
-    }, [user, isRegisteredUser]);
+    }, [user, isRegisteredUser, isAdmin]);
 
     useEffect(() => {
         calculateStats();
@@ -352,24 +360,26 @@ function EstadisticasGeneralesContent() {
                 </Alert>
             )}
 
-             <Card className="mb-8">
-                <CardHeader>
-                    <CardTitle className="text-xl font-headline flex items-center">
-                        <Eye className="mr-2 h-5 w-5"/>Páginas Más Visitadas
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {stats.topPages.length > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            {stats.topPages.map((page, index) => (
-                                <StatCard key={index} title={page.name} value={page.count} icon={<div className="font-bold text-lg">{index + 1}</div>} />
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-muted-foreground text-center py-4">No hay datos de visitas de páginas para mostrar.</p>
-                    )}
-                </CardContent>
-            </Card>
+            {isAdmin && (
+                 <Card className="mb-8">
+                    <CardHeader>
+                        <CardTitle className="text-xl font-headline flex items-center">
+                            <Eye className="mr-2 h-5 w-5"/>Páginas Más Visitadas (Admin)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {stats.topPages.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                {stats.topPages.map((page, index) => (
+                                    <StatCard key={index} title={page.name} value={page.count} icon={<div className="font-bold text-lg">{index + 1}</div>} />
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-muted-foreground text-center py-4">No hay datos de visitas de páginas para mostrar.</p>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             <Card className="mb-8">
                 <CardHeader>
