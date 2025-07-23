@@ -25,16 +25,19 @@ import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, orderBy, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 
+type SubscriptionType = 'Pro' | 'Básica' | 'Prueba' | 'inactive';
+
 interface UserSubscription {
   id: string;
   email: string;
   role: 'admin' | 'user';
   subscriptionStatus: 'active' | 'inactive';
-  updatedAt?: number;
+  subscriptionType: SubscriptionType;
+  subscriptionExpiresAt?: number; // Store as epoch milliseconds
 }
 
 const ITEMS_PER_PAGE = 20;
-type SortableField = 'email' | 'role' | 'subscriptionStatus' | 'updatedAt';
+type SortableField = 'email' | 'role' | 'subscriptionStatus' | 'subscriptionType' | 'subscriptionExpiresAt';
 type SortDirection = 'asc' | 'desc';
 
 function ManageSubscriptionsPageContent() {
@@ -74,12 +77,27 @@ function ManageSubscriptionsPageContent() {
 
           const usersFromDb = querySnapshot.docs.map(docSnap => {
             const data = docSnap.data();
+            let subType: SubscriptionType = 'inactive';
+            let expiresAt: number | undefined;
+
+            if (data.subscriptionStatus === 'active') {
+                subType = data.subscriptionType || 'Pro'; // Default to pro if active but no type
+            }
+            if (data.trialEndsAt instanceof Timestamp && data.trialEndsAt.toDate() > new Date()) {
+                subType = 'Prueba';
+                expiresAt = data.trialEndsAt.toMillis();
+            }
+            if (data.subscriptionExpiresAt instanceof Timestamp) {
+                expiresAt = data.subscriptionExpiresAt.toMillis();
+            }
+
             return {
               id: docSnap.id,
               email: data.email || '',
               role: data.role || 'user',
               subscriptionStatus: data.subscriptionStatus || 'inactive',
-              updatedAt: (data.updatedAt as Timestamp)?.toMillis(),
+              subscriptionType: subType,
+              subscriptionExpiresAt: expiresAt,
             };
           });
           setAllUsers(usersFromDb as UserSubscription[]);
@@ -150,7 +168,7 @@ function ManageSubscriptionsPageContent() {
         description: `El estado del usuario se ha cambiado a ${newStatus === 'active' ? 'activo' : 'inactivo'}.`,
       });
       // Optimistic update in the main list, which will trigger re-render of sorted/paginated list
-      setAllUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, subscriptionStatus: newStatus, updatedAt: Date.now() } : u));
+      setAllUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, subscriptionStatus: newStatus } : u));
     } catch (error) {
       console.error("Error updating subscription:", error);
       toast({ title: "Error al Actualizar", description: "No se pudo cambiar el estado de la suscripción.", variant: "destructive" });
@@ -164,6 +182,15 @@ function ManageSubscriptionsPageContent() {
       return sortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />;
     }
     return <ArrowDownUp className="ml-1 h-3 w-3 opacity-30" />;
+  };
+
+  const getSubscriptionTypeBadgeVariant = (type: SubscriptionType) => {
+    switch (type) {
+      case 'Pro': return 'destructive';
+      case 'Básica': return 'default';
+      case 'Prueba': return 'secondary';
+      default: return 'outline';
+    }
   };
 
   if (!isAdmin && !isLoading) {
@@ -193,48 +220,56 @@ function ManageSubscriptionsPageContent() {
            <div className="relative pt-2"><Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar por email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" /></div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}><span className="flex items-center">Email {renderSortIcon('email')}</span></TableHead>
-                <TableHead className="w-[120px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('role')}><span className="flex items-center">Rol {renderSortIcon('role')}</span></TableHead>
-                <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionStatus')}><span className="flex items-center">Estado Suscripción {renderSortIcon('subscriptionStatus')}</span></TableHead>
-                <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('updatedAt')}><span className="flex items-center">Última Actualización {renderSortIcon('updatedAt')}</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
-              ) : paginatedUsers.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="h-24 text-center">No se encontraron usuarios.</TableCell></TableRow>
-              ) : (
-                paginatedUsers.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.email}</TableCell>
-                    <TableCell><Badge variant={u.role === 'admin' ? 'destructive' : 'secondary'}>{u.role}</Badge></TableCell>
-                    <TableCell>
-                      {isUpdating === u.id ? <Loader2 className="h-5 w-5 animate-spin" /> : (
-                        <Select
-                          value={u.subscriptionStatus}
-                          onValueChange={(newStatus) => handleSubscriptionChange(u.id, newStatus as 'active' | 'inactive')}
-                          disabled={u.email === user?.email}
-                        >
-                          <SelectTrigger className="w-[150px]">
-                            <SelectValue placeholder="Estado" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="active">Activa</SelectItem>
-                            <SelectItem value="inactive">Inactiva</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </TableCell>
-                    <TableCell>{u.updatedAt ? new Date(u.updatedAt).toLocaleString('es-ES') : 'N/A'}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}><span className="flex items-center">Email {renderSortIcon('email')}</span></TableHead>
+                  <TableHead className="w-[120px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('role')}><span className="flex items-center">Rol {renderSortIcon('role')}</span></TableHead>
+                  <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionType')}><span className="flex items-center">Tipo Suscripción {renderSortIcon('subscriptionType')}</span></TableHead>
+                  <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionStatus')}><span className="flex items-center">Estado Suscripción {renderSortIcon('subscriptionStatus')}</span></TableHead>
+                  <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionExpiresAt')}><span className="flex items-center">Fecha Vencimiento {renderSortIcon('subscriptionExpiresAt')}</span></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
+                ) : paginatedUsers.length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="h-24 text-center">No se encontraron usuarios.</TableCell></TableRow>
+                ) : (
+                  paginatedUsers.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">{u.email}</TableCell>
+                      <TableCell><Badge variant={u.role === 'admin' ? 'destructive' : 'secondary'}>{u.role}</Badge></TableCell>
+                      <TableCell>
+                        <Badge variant={getSubscriptionTypeBadgeVariant(u.subscriptionType)}>
+                          {u.subscriptionType === 'inactive' ? 'Ninguna' : u.subscriptionType}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {isUpdating === u.id ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                          <Select
+                            value={u.subscriptionStatus}
+                            onValueChange={(newStatus) => handleSubscriptionChange(u.id, newStatus as 'active' | 'inactive')}
+                            disabled={u.email === user?.email}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue placeholder="Estado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Activa</SelectItem>
+                              <SelectItem value="inactive">Inactiva</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TableCell>
+                      <TableCell>{u.subscriptionExpiresAt ? new Date(u.subscriptionExpiresAt).toLocaleDateString('es-ES') : 'N/A'}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
           {totalPages > 1 && (
             <Pagination className="mt-8">
               <PaginationContent>
@@ -257,3 +292,5 @@ export default function ManageSubscriptionsPage() {
     </AuthGuard>
   );
 }
+
+    
