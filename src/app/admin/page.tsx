@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, AlertTriangle, PlusCircle, UploadCloud, Users, Wrench, DatabaseZap } from "lucide-react";
+import { ShieldCheck, AlertTriangle, PlusCircle, UploadCloud, Users, Wrench } from "lucide-react";
 import Link from "next/link";
 
 function AdminPageContent() {
@@ -94,26 +94,6 @@ function AdminPageContent() {
                 </Link>
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg md:col-span-2 lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl">Acciones de Base de Datos</CardTitle>
-            <CardDescription>Herramientas para poblar la base de datos con datos de prueba.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
-              <Button variant="destructive" asChild className="w-full sm:w-auto">
-                <Link href="/admin/seed-users">
-                  <DatabaseZap className="mr-2 h-5 w-5" />
-                  Crear Usuarios de Prueba
-                </Link>
-              </Button>
-            </div>
-             <p className="text-xs text-muted-foreground mt-4">
-              <strong>Aviso:</strong> Estas acciones modificarán directamente la base de datos. Úsalas con precaución.
-            </p>
           </CardContent>
         </Card>
       </div>
