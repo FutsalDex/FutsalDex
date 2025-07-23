@@ -1,47 +1,85 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+  
+    // Helper Functions
     function isUserAuthenticated() {
       return request.auth != null;
     }
-
+    
     function isRequestingOwnData(userId) {
       return request.auth.uid == userId;
     }
-
+    
     function isUserAdmin(userId) {
-      return isUserAuthenticated() && exists(/databases/$(database)/documents/usuarios/$(userId)) && get(/databases/$(database)/documents/usuarios/$(userId)).data.role == 'admin';
+      return isUserAuthenticated() && get(/databases/$(database)/documents/usuarios/$(userId)).data.role == 'admin';
     }
 
-    match /ejercicios_futsal/{ejercicioId} {
-      allow read: if true;
-      allow write: if isUserAdmin(request.auth.uid);
+    // --- USERS Collection ---
+    match /usuarios/{userId} {
+      // Allow a user to create their own document
+      allow create: if isRequestingOwnData(userId);
+      
+      // Allow a user to read or update their own data
+      allow read, update: if isRequestingOwnData(userId);
+      
+      // Allow an admin to do anything to any user document
+      allow read, write, delete: if isUserAdmin(request.auth.uid);
+
+      // --- USER FAVORITES Subcollection ---
+      match /user_favorites/{exerciseId} {
+        // A user can only manage their own favorites
+        allow read, write, delete: if isRequestingOwnData(userId);
+      }
+
+      // --- TEAM Subcollection ---
+      match /team/{docId} { // docId could be 'roster' or 'attendance'
+        // A user can only manage their own team data
+        allow read, write, delete: if isRequestingOwnData(userId);
+      }
     }
     
     match /usuarios/{userId} {
-      allow read, update, delete: if isRequestingOwnData(userId) || isUserAdmin(request.auth.uid);
-      allow create: if isRequestingOwnData(userId);
+        // Allow list read only for admins
+        allow list: if isUserAdmin(request.auth.uid);
+    }
+    
+    // --- EXERCISES Collection ---
+    match /ejercicios_futsal/{exerciseId} {
+      // Any authenticated user can read exercises
+      allow read: if isUserAuthenticated();
+      // Only admins can create, update, or delete exercises
+      allow write, delete: if isUserAdmin(request.auth.uid);
+    }
+    
+    // --- SESSIONS Collection ---
+    match /mis_sesiones/{sessionId} {
+      // A user can only manage their own sessions
+      allow read, write, delete: if isRequestingOwnData(get(/databases/$(database)/documents/mis_sesiones/$(sessionId)).data.userId);
     }
 
-    match /usuarios/{userId}/{subcollection}/{document=**} {
-      allow read, write: if isRequestingOwnData(userId);
-    }
-
+    // --- SUPPORT CHATS Collection ---
     match /support_chats/{chatId} {
-        allow read, write: if isUserAuthenticated() && (isRequestingOwnData(get(/databases/$(database)/documents/support_chats/$(chatId)).data.userId) || isUserAdmin(request.auth.uid));
-        allow create: if isUserAuthenticated();
+        // A user can manage their own support chats
+        allow read, write, create, delete: if isRequestingOwnData(resource.data.userId);
+        // Admins can read any chat for support purposes
+        allow read: if isUserAdmin(request.auth.uid);
     }
 
-    match /mis_sesiones/{sesionId} {
-        allow read, write, delete: if isUserAuthenticated() && isRequestingOwnData(resource.data.userId);
-        allow create: if isUserAuthenticated();
+    // --- STATISTICS Collection ---
+    match /partidos_estadisticas/{matchId} {
+        // A user can manage their own match stats
+        allow read, write, create, delete: if isRequestingOwnData(get(/databases/$(database)/documents/partidos_estadisticas/$(matchId)).data.userId);
     }
-
-    match /partidos_estadisticas/{partidoId} {
-        allow read, write, delete: if isUserAuthenticated() && isRequestingOwnData(resource.data.userId);
-        allow create: if isUserAuthenticated();
+    
+    // --- PAGE VIEWS Collection ---
+    match /user_page_views/{userId} {
+        // A user can write to their own page view document
+        allow write: if isRequestingOwnData(userId);
+        // Only admins can read the page view data of other users
+        allow read: if isUserAdmin(request.auth.uid);
     }
   }
 }

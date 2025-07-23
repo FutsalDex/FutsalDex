@@ -15,19 +15,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Badge } from '../ui/badge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { trackPageView } from '@/lib/actions/user-actions';
 
 export default function Header() {
   const { user, signOut, loading, isAdmin, subscriptionType, subscriptionEnd } = useAuth();
   const pathname = usePathname();
   const [isMounted, setIsMounted] = useState(false);
+  const lastTrackedPath = useRef<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+  
+  useEffect(() => {
+    // Track page view only if user is logged in and path has changed
+    if (user && pathname !== lastTrackedPath.current) {
+      trackPageView({ userId: user.uid, pathname });
+      lastTrackedPath.current = pathname;
+    }
+  }, [user, pathname]);
 
   const navLinks = [
     { href: '/ejercicios', label: 'Ver ejercicios', icon: <FileText className="mr-2 h-4 w-4" /> },

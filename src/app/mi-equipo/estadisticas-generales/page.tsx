@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, TrendingUp, Trophy, Goal, Shield, ShieldAlert, Handshake, TrendingDown, Info, Target, Repeat, Shuffle } from 'lucide-react';
+import { Loader2, ArrowLeft, TrendingUp, Trophy, Goal, Shield, ShieldAlert, Handshake, TrendingDown, Info, Target, Repeat, Shuffle, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -50,6 +50,9 @@ interface TeamStats {
   faltas: HalfStats;
 }
 
+interface PageViewData {
+    [key: string]: number;
+}
 
 const guestDemoStats = {
     generalStats: {
@@ -75,7 +78,12 @@ const guestDemoStats = {
         amarillas: { name: 'M. Pérez', value: 2 },
         rojas: { name: 'N/A', value: 0 },
         faltas: { name: 'J. López', value: 5 },
-    }
+    },
+    topPages: [
+        { name: 'Ver ejercicios', count: 25 },
+        { name: 'Mi Equipo', count: 18 },
+        { name: 'Crear Sesión', count: 12 },
+    ]
 };
 
 
@@ -110,6 +118,34 @@ const LeaderStatCard = ({ title, playerName, value, icon }: { title: string, pla
     </Card>
 );
 
+// Map sanitized path keys back to user-friendly names
+const mapPathToName = (pathKey: string): string => {
+    const mappings: Record<string, string> = {
+        'home': 'Página Principal',
+        'ejercicios': 'Ver ejercicios',
+        'crear-sesion': 'Crear Sesión Manual',
+        'crear-sesion-ia': 'Crear Sesión con IA',
+        'mi-equipo': 'Panel de Mi Equipo',
+        'mi-equipo_plantilla': 'Mi Plantilla',
+        'mi-equipo_asistencia': 'Control de Asistencia',
+        'estadisticas_historial': 'Historial de Partidos',
+        'mis-sesiones': 'Mis Sesiones',
+        'favoritos': 'Favoritos',
+        'suscripcion': 'Suscripción',
+        'soporte': 'Soporte con IA',
+        'perfil': 'Perfil de Usuario',
+        'admin': 'Panel de Admin',
+    };
+    // Attempt to match more specific paths first, e.g., 'mi-equipo_plantilla' before 'mi-equipo'
+    const sortedKeys = Object.keys(mappings).sort((a, b) => b.length - a.length);
+    for (const key of sortedKeys) {
+        if (pathKey.startsWith(key)) {
+            return mappings[key];
+        }
+    }
+    return pathKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Default formatting
+};
+
 
 function EstadisticasGeneralesContent() {
     const { user, isRegisteredUser } = useAuth();
@@ -133,10 +169,12 @@ function EstadisticasGeneralesContent() {
                 where("fecha", "<=", today)
             );
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
+            const pageViewsQuery = query(collection(db, "user_page_views")); // For admin, read all; for user, would need rules change
 
-            const [partidosSnapshot, rosterSnap] = await Promise.all([
+            const [partidosSnapshot, rosterSnap, pageViewsSnapshot] = await Promise.all([
                 getDocs(partidosQuery),
-                getDoc(rosterDocRef)
+                getDoc(rosterDocRef),
+                getDocs(pageViewsQuery) // Note: This requires admin-level read access in Firestore rules
             ]);
             
             const calculatedStats = {
@@ -163,7 +201,8 @@ function EstadisticasGeneralesContent() {
                     amarillas: { name: 'N/A', value: 0 },
                     rojas: { name: 'N/A', value: 0 },
                     faltas: { name: 'N/A', value: 0 },
-                }
+                },
+                topPages: [] as { name: string, count: number }[]
             };
 
             const roster: RosterPlayer[] = rosterSnap.exists() ? (rosterSnap.data().players || []) : [];
@@ -217,6 +256,23 @@ function EstadisticasGeneralesContent() {
                     calculatedStats.generalStats.robosTotales += (myTeamStats.steals?.firstHalf || 0) + (myTeamStats.steals?.secondHalf || 0);
                 }
             });
+
+            // Process page views
+            const pageCounts: { [key: string]: number } = {};
+            pageViewsSnapshot.forEach(doc => {
+                const data = doc.data() as PageViewData;
+                for (const key in data) {
+                    if (key !== 'lastVisitedPath' && key !== 'updatedAt') {
+                        const pageName = mapPathToName(key);
+                        pageCounts[pageName] = (pageCounts[pageName] || 0) + data[key];
+                    }
+                }
+            });
+
+            calculatedStats.topPages = Object.entries(pageCounts)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5); // Get top 5
 
             const findLeader = (stat: keyof typeof playerStats['dorsal']) => {
                 let maxVal = 0;
@@ -295,6 +351,25 @@ function EstadisticasGeneralesContent() {
                     </AlertDescription>
                 </Alert>
             )}
+
+             <Card className="mb-8">
+                <CardHeader>
+                    <CardTitle className="text-xl font-headline flex items-center">
+                        <Eye className="mr-2 h-5 w-5"/>Páginas Más Visitadas
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {stats.topPages.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            {stats.topPages.map((page, index) => (
+                                <StatCard key={index} title={page.name} value={page.count} icon={<div className="font-bold text-lg">{index + 1}</div>} />
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-4">No hay datos de visitas de páginas para mostrar.</p>
+                    )}
+                </CardContent>
+            </Card>
 
             <Card className="mb-8">
                 <CardHeader>
