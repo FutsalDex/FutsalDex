@@ -9,32 +9,80 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, LifeBuoy, Send, Loader2, Bot, User, Info } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { askCoach } from "@/ai/flows/support-chat-flow";
+import { askCoach, type SupportChatInput } from "@/ai/flows/support-chat-flow";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getFirebaseDb } from "@/lib/firebase";
+import { doc, getDoc, collection, query, orderBy, limit } from "firebase/firestore";
+import type { Message } from "genkit";
 
 
-interface Message {
+interface ClientMessage {
   sender: 'user' | 'ai';
   text: string;
 }
+
+const initialMessage: ClientMessage = { sender: 'ai', text: `¡Hola! Soy tu entrenador online de FutsalDex. ¿En qué puedo ayudarte hoy? Pregúntame sobre ejercicios, planificación de sesiones, tácticas, o cualquier otra duda que tengas.` };
 
 function SoportePageContent() {
   const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([
-    { sender: 'ai', text: `¡Hola! Soy tu entrenador online de FutsalDex. ¿En qué puedo ayudarte hoy? Pregúntame sobre ejercicios, planificación de sesiones, tácticas, o cualquier otra duda que tengas.` }
-  ]);
+
+  const [messages, setMessages] = useState<ClientMessage[]>([initialMessage]);
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [chatId, setChatId] = useState<string | null>(null);
   const [guestQuestionCount, setGuestQuestionCount] = useState(0);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // --- Fetch Chat History ---
+  const fetchHistory = useCallback(async () => {
+    if (!user) {
+      setIsHistoryLoading(false);
+      return;
+    }
+    setIsHistoryLoading(true);
+
+    try {
+        const db = getFirebaseDb();
+        const chatsRef = collection(db, 'support_chats');
+        const q = query(chatsRef, where('userId', '==', user.uid), orderBy('updatedAt', 'desc'), limit(1));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            const lastChatDoc = querySnapshot.docs[0];
+            const chatData = lastChatDoc.data();
+            setChatId(lastChatDoc.id);
+
+            const historyMessages: ClientMessage[] = chatData.messages.map((msg: any) => ({
+                sender: msg.role === 'model' || msg.role === 'ai' ? 'ai' : 'user',
+                text: msg.content,
+            }));
+            
+            setMessages([initialMessage, ...historyMessages]);
+        }
+    } catch (error) {
+        console.error("Error fetching chat history:", error);
+        toast({ title: "Error", description: "No se pudo cargar tu historial de chat.", variant: "destructive" });
+    } finally {
+        setIsHistoryLoading(false);
+    }
+  }, [user, toast]);
+  
+  useEffect(() => {
+      if (isRegisteredUser) {
+          fetchHistory();
+      } else {
+          setIsHistoryLoading(false);
+      }
+  }, [isRegisteredUser, fetchHistory]);
+
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -62,24 +110,35 @@ function SoportePageContent() {
         return;
     }
     
-    if (!user && isRegisteredUser) return; // Should not happen, but for safety
+    if (!user && isRegisteredUser) return;
 
     setIsSending(true);
     setInputValue("");
     
-    setMessages(prev => [...prev, { sender: 'user', text: messageText }]);
+    const newMessages: ClientMessage[] = [...messages, { sender: 'user', text: messageText }];
+    setMessages(newMessages);
+
     if (!isRegisteredUser) {
         setGuestQuestionCount(prev => prev + 1);
     }
+    
+    const historyForAi: Message[] = newMessages
+      .slice(1) // Remove initial AI greeting
+      .map(msg => ({
+        role: msg.sender === 'ai' ? 'model' : 'user',
+        parts: [{ text: msg.text }],
+      }));
+
 
     try {
-      // For guests, we don't save history, so chatId is always null.
-      const response = await askCoach({ 
+      const input: SupportChatInput = { 
         question: messageText,
         chatId: isRegisteredUser ? chatId : null, 
         userId: user?.uid || "guest-user",
-      });
+        history: historyForAi,
+      };
 
+      const response = await askCoach(input);
       setMessages(prev => [...prev, { sender: 'ai', text: response.answer }]);
       
       if (isRegisteredUser && !chatId) {
@@ -88,12 +147,12 @@ function SoportePageContent() {
 
     } catch (error) {
       console.error("Error asking AI coach:", error);
+      setMessages(prev => [...prev, { sender: 'ai', text: "Lo siento, estoy teniendo problemas para conectarme en este momento." }]);
       toast({
         title: "Error del Entrenador AI",
         description: "Hubo un problema al contactar con el entrenador. Por favor, inténtalo de nuevo más tarde.",
         variant: "destructive"
       });
-      setMessages(prev => [...prev, { sender: 'ai', text: "Lo siento, estoy teniendo problemas para conectarme en este momento." }]);
     } finally {
       setIsSending(false);
     }
@@ -142,33 +201,41 @@ function SoportePageContent() {
         <CardContent className="flex-grow overflow-hidden p-0">
           <ScrollArea className="h-full" ref={scrollAreaRef}>
              <div className="p-6 space-y-4">
-              {messages.map((message, index) => (
-                <div key={index} className={cn("flex items-start gap-3", message.sender === 'user' ? "justify-end" : "justify-start")}>
-                  {message.sender === 'ai' && (
-                    <Avatar className="h-8 w-8">
-                       <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5"/></AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className={cn("max-w-xs md:max-w-md p-3 rounded-lg text-sm", message.sender === 'user' ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                    <p className="whitespace-pre-wrap">{message.text}</p>
-                  </div>
-                   {message.sender === 'user' && (
-                     <Avatar className="h-8 w-8">
-                       <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'U'} />
-                       <AvatarFallback>{user?.email?.[0]?.toUpperCase() ?? 'I'}</AvatarFallback>
-                    </Avatar>
-                  )}
-                </div>
-              ))}
-              {isSending && (
-                 <div className="flex items-start gap-3 justify-start">
-                    <Avatar className="h-8 w-8">
-                       <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5"/></AvatarFallback>
-                    </Avatar>
-                    <div className="max-w-xs md:max-w-md p-3 rounded-lg bg-muted flex items-center">
-                       <Loader2 className="h-5 w-5 animate-spin"/>
-                    </div>
+              {isHistoryLoading ? (
+                 <div className="flex justify-center items-center h-full">
+                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                  </div>
+              ) : (
+                <>
+                  {messages.map((message, index) => (
+                    <div key={index} className={cn("flex items-start gap-3", message.sender === 'user' ? "justify-end" : "justify-start")}>
+                      {message.sender === 'ai' && (
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5"/></AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className={cn("max-w-xs md:max-w-md p-3 rounded-lg text-sm", message.sender === 'user' ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                        <p className="whitespace-pre-wrap">{message.text}</p>
+                      </div>
+                      {message.sender === 'user' && (
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'U'} />
+                          <AvatarFallback>{user?.email?.[0]?.toUpperCase() ?? 'I'}</AvatarFallback>
+                        </Avatar>
+                      )}
+                    </div>
+                  ))}
+                  {isSending && (
+                    <div className="flex items-start gap-3 justify-start">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5"/></AvatarFallback>
+                        </Avatar>
+                        <div className="max-w-xs md:max-w-md p-3 rounded-lg bg-muted flex items-center">
+                          <Loader2 className="h-5 w-5 animate-spin"/>
+                        </div>
+                    </div>
+                  )}
+                </>
               )}
              </div>
           </ScrollArea>
@@ -180,9 +247,9 @@ function SoportePageContent() {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder={guestLimitReached ? "Regístrate para seguir chateando" : "Escribe tu pregunta aquí..."}
               autoComplete="off"
-              disabled={isSending || guestLimitReached || (isRegisteredUser && (!isSubscribed && !isAdmin))}
+              disabled={isSending || isHistoryLoading || guestLimitReached || (isRegisteredUser && (!isSubscribed && !isAdmin))}
             />
-            <Button type="submit" size="icon" disabled={isSending || !inputValue.trim() || guestLimitReached || (isRegisteredUser && (!isSubscribed && !isAdmin))}>
+            <Button type="submit" size="icon" disabled={isSending || isHistoryLoading || !inputValue.trim() || guestLimitReached || (isRegisteredUser && (!isSubscribed && !isAdmin))}>
               {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}
               <span className="sr-only">Enviar</span>
             </Button>

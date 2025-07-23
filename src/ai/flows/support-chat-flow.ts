@@ -13,16 +13,28 @@
 
 import { ai } from '@/ai/dev';
 import { z } from 'zod';
-import { getFirebaseDb } from '@/lib/firebase';
-import { doc, getDoc, type DocumentData } from 'firebase/firestore';
 import type { Message } from 'genkit';
-import { saveChatMessage, type ChatMessage } from '@/lib/actions/user-actions';
+import { saveChatMessage } from '@/lib/actions/user-actions';
 
-// Internal Zod schemas
+// Exported Types
+export interface SupportChatInput {
+  question: string;
+  chatId?: string | null;
+  userId: string;
+  history: Message[]; // History is now passed from the client
+}
+
+export interface SupportChatOutput {
+  answer: string;
+  chatId: string;
+}
+
+// Internal Zod schemas (not exported)
 const SupportChatInputSchema = z.object({
   question: z.string().describe("The user's question for the AI coach."),
   chatId: z.string().optional().nullable(),
   userId: z.string().describe("The user's unique ID. Can be 'guest-user' for non-registered users."),
+  history: z.any().describe("The conversation history."), // Simplified for internal validation
 });
 
 const SupportChatOutputSchema = z.object({
@@ -30,40 +42,13 @@ const SupportChatOutputSchema = z.object({
   chatId: z.string().describe("The unique ID for the chat session."),
 });
 
-// Exported Types
-export type SupportChatInput = z.infer<typeof SupportChatInputSchema>;
-export type SupportChatOutput = z.infer<typeof SupportChatOutputSchema>;
-
 
 // Exported main function
 export async function askCoach(input: SupportChatInput): Promise<SupportChatOutput> {
   const isGuest = input.userId === 'guest-user';
   let currentChatId = input.chatId || '';
-  let history: Message[] = [];
 
-  // --- Database operations only for registered users ---
-  if (!isGuest && input.chatId) {
-    try {
-      const db = getFirebaseDb();
-      const chatDocRef = doc(db, "support_chats", input.chatId);
-      const docSnap = await getDoc(chatDocRef);
-
-      if (docSnap.exists() && docSnap.data()?.userId === input.userId) {
-          const data = docSnap.data() as DocumentData;
-          if (data?.messages && Array.isArray(data.messages)) {
-              history = (data.messages as ChatMessage[]).map(msg => ({
-                role: msg.role === 'ai' ? 'model' : 'user',
-                parts: [{ text: msg.content }],
-              }));
-          }
-      }
-    } catch (error) {
-      console.error("Error fetching chat history from client:", error);
-      // Do not block the flow, just proceed without history
-    }
-  }
-
-  // 2. Call the AI model
+  // 1. Call the AI model with the provided history
   const systemPrompt = `You are FutsalDex AI Coach, a world-class futsal expert. Your persona is that of a professional, encouraging, and deeply knowledgeable mentor.
 
 Your primary goal is to provide authentic, detailed, and precise answers to user questions.
@@ -79,7 +64,7 @@ When providing advice, follow these principles strictly:
   const response = await ai.generate({
       model: 'googleai/gemini-2.0-flash',
       prompt: input.question,
-      history: history,
+      history: input.history, // Use history from the client
       system: systemPrompt,
   });
 
@@ -88,7 +73,7 @@ When providing advice, follow these principles strictly:
     throw new Error("The AI model did not return a valid answer.");
   }
   
-  // 3. Save the new turn to Firestore for registered users using a dedicated server action
+  // 2. Save the new turn to Firestore for registered users using a dedicated server action
   if (!isGuest) {
     try {
         const result = await saveChatMessage({
@@ -107,8 +92,7 @@ When providing advice, follow these principles strictly:
     currentChatId = 'guest-chat'; // Ephemeral ID for guests
   }
 
-
-  // 4. Return the response to the client
+  // 3. Return the response to the client
   return {
     answer,
     chatId: currentChatId,
