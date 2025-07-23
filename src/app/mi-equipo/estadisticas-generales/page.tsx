@@ -11,7 +11,7 @@ import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Legend } from 'recharts';
 
 
 interface RosterPlayer {
@@ -224,6 +224,11 @@ function EstadisticasGeneralesContent() {
         );
     }
 
+    const goalsChartData = [
+        { name: '1ª Parte', 'Goles a Favor': stats.generalStats.golesFavor1T, 'Goles en Contra': stats.generalStats.golesContra1T },
+        { name: '2ª Parte', 'Goles a Favor': stats.generalStats.golesFavor2T, 'Goles en Contra': stats.generalStats.golesContra2T },
+    ];
+
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
             <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -293,7 +298,7 @@ function EstadisticasGeneralesContent() {
             </div>
 
 
-            <Card>
+            <Card className="mb-8">
                 <CardHeader>
                     <CardTitle className="text-xl font-headline">Jugadores Destacados</CardTitle>
                     <CardDescription>Resumen de los líderes estadísticos de la temporada.</CardDescription>
@@ -303,6 +308,30 @@ function EstadisticasGeneralesContent() {
                     <LeaderStatCard title="Más Tarjetas Amarillas" playerName={stats.leaderStats.amarillas.name} value={stats.leaderStats.amarillas.value} icon={<div className="h-6 w-6 bg-yellow-400 border-2 border-yellow-600 rounded-sm" />} />
                     <LeaderStatCard title="Más Tarjetas Rojas" playerName={stats.leaderStats.rojas.name} value={stats.leaderStats.rojas.value} icon={<div className="h-6 w-6 bg-red-500 border-2 border-red-700 rounded-sm" />} />
                     <LeaderStatCard title="Más Faltas Cometidas" playerName={stats.leaderStats.faltas.name} value={stats.leaderStats.faltas.value} icon={<ShieldAlert className="h-6 w-6"/>} />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-xl font-headline">Análisis de Goles por Parte</CardTitle>
+                    <CardDescription>Comparativa de goles a favor y en contra en cada tiempo.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={goalsChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis allowDecimals={false}/>
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="Goles a Favor" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                                <LabelList dataKey="Goles a Favor" position="top" />
+                            </Bar>
+                            <Bar dataKey="Goles en Contra" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]}>
+                                 <LabelList dataKey="Goles en Contra" position="top" />
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
                 </CardContent>
             </Card>
 
