@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { ToastAction } from "@/components/ui/toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getFirebaseDb } from "@/lib/firebase";
-import { doc, getDoc, collection, query, orderBy, limit } from "firebase/firestore";
+import { doc, getDoc, collection, query, orderBy, limit, where, getDocs } from "firebase/firestore";
 import type { Message } from "genkit";
 
 
