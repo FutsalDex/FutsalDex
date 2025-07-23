@@ -2,51 +2,46 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Regla de Seguridad Mejorada para la Colección 'usuarios'
-    // 1. Un usuario puede leer y actualizar su PROPIO documento.
-    // 2. Un usuario cuyo documento tenga role == 'admin' puede leer y escribir en CUALQUIER documento de la colección 'usuarios'.
-    match /usuarios/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow read, list, write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
-      
-      // Subcolecciones de usuario
-      match /user_favorites/{favoriteId} {
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-      }
-      match /team/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
+
+    function isUserAuthenticated() {
+      return request.auth != null;
     }
 
-    // Regla para la colección 'ejercicios_futsal'
-    // Permite a cualquier usuario autenticado leer los ejercicios.
-    // Solo los administradores pueden crear, actualizar o eliminar ejercicios.
+    function isRequestingOwnData(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isUserAdmin(userId) {
+      return isUserAuthenticated() && exists(/databases/$(database)/documents/usuarios/$(userId)) && get(/databases/$(database)/documents/usuarios/$(userId)).data.role == 'admin';
+    }
+
     match /ejercicios_futsal/{ejercicioId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Regla para la colección 'mis_sesiones'
-    // Permite a un usuario crear, leer, actualizar y eliminar SUS PROPIAS sesiones.
-    match /mis_sesiones/{sesionId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-
-    // Regla para la colección 'partidos_estadisticas'
-    // Permite a un usuario gestionar sus propios partidos.
-    match /partidos_estadisticas/{partidoId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read: if true;
+      allow write: if isUserAdmin(request.auth.uid);
     }
     
-    // Regla para la colección de chats de soporte
+    match /usuarios/{userId} {
+      allow read, update, delete: if isRequestingOwnData(userId) || isUserAdmin(request.auth.uid);
+      allow create: if isRequestingOwnData(userId);
+    }
+
+    match /usuarios/{userId}/{subcollection}/{document=**} {
+      allow read, write: if isRequestingOwnData(userId);
+    }
+
     match /support_chats/{chatId} {
-        // Solo el usuario propietario del chat o un admin pueden leerlo.
-        allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
-        // El usuario propietario puede crear (set) y actualizar (update) sus chats.
-        allow write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow read, write: if isUserAuthenticated() && (isRequestingOwnData(get(/databases/$(database)/documents/support_chats/$(chatId)).data.userId) || isUserAdmin(request.auth.uid));
+        allow create: if isUserAuthenticated();
+    }
+
+    match /mis_sesiones/{sesionId} {
+        allow read, write, delete: if isUserAuthenticated() && isRequestingOwnData(resource.data.userId);
+        allow create: if isUserAuthenticated();
+    }
+
+    match /partidos_estadisticas/{partidoId} {
+        allow read, write, delete: if isUserAuthenticated() && isRequestingOwnData(resource.data.userId);
+        allow create: if isUserAuthenticated();
     }
   }
 }
