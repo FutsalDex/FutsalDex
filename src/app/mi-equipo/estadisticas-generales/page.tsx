@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, TrendingUp, Trophy, Goal, Shield, ShieldAlert, Handshake, TrendingDown, Info } from 'lucide-react';
+import { Loader2, ArrowLeft, TrendingUp, Trophy, Goal, Shield, ShieldAlert, Handshake, TrendingDown, Info, Target, Repeat, Shuffle, Timer } from 'lucide-react';
 import Link from 'next/link';
 import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -35,6 +35,24 @@ interface MatchDataPlayer {
     faltas?: number;
 }
 
+interface HalfStats {
+  firstHalf: number;
+  secondHalf: number;
+}
+
+interface TeamStats {
+  shots: {
+    onTarget: HalfStats;
+    offTarget: HalfStats;
+    blocked: HalfStats;
+  };
+  turnovers: HalfStats;
+  steals: HalfStats;
+  timeouts: HalfStats;
+  faltas: HalfStats;
+}
+
+
 const guestDemoStats = {
     generalStats: {
         numPartidos: 4,
@@ -48,6 +66,10 @@ const guestDemoStats = {
         golesContra1T: 4,
         golesContra2T: 5,
         faltasCometidas: 28,
+        tirosTotales: 78,
+        perdidasTotales: 55,
+        robosTotales: 42,
+        tiemposMuertos: 3,
     },
     leaderStats: {
         goles: { name: 'C. Ruiz', value: 15 },
@@ -126,6 +148,10 @@ function EstadisticasGeneralesContent() {
                     golesContra1T: 0,
                     golesContra2T: 0,
                     faltasCometidas: 0,
+                    tirosTotales: 0,
+                    perdidasTotales: 0,
+                    robosTotales: 0,
+                    tiemposMuertos: 0,
                 },
                 leaderStats: {
                     goles: { name: 'N/A', value: 0 },
@@ -174,8 +200,16 @@ function EstadisticasGeneralesContent() {
                         playerStats[p.dorsal].rojas += p.redCards || 0;
                         playerStats[p.dorsal].faltas += p.faltas || 0;
                     }
-                    calculatedStats.generalStats.faltasCometidas += p.faltas || 0;
                 });
+
+                const myTeamStats = data.myTeamStats as TeamStats | undefined;
+                if (myTeamStats) {
+                    calculatedStats.generalStats.faltasCometidas += (myTeamStats.faltas?.firstHalf || 0) + (myTeamStats.faltas?.secondHalf || 0);
+                    calculatedStats.generalStats.tirosTotales += (myTeamStats.shots?.onTarget.firstHalf || 0) + (myTeamStats.shots?.onTarget.secondHalf || 0) + (myTeamStats.shots?.offTarget.firstHalf || 0) + (myTeamStats.shots?.offTarget.secondHalf || 0) + (myTeamStats.shots?.blocked.firstHalf || 0) + (myTeamStats.shots?.blocked.secondHalf || 0);
+                    calculatedStats.generalStats.perdidasTotales += (myTeamStats.turnovers?.firstHalf || 0) + (myTeamStats.turnovers?.secondHalf || 0);
+                    calculatedStats.generalStats.robosTotales += (myTeamStats.steals?.firstHalf || 0) + (myTeamStats.steals?.secondHalf || 0);
+                    calculatedStats.generalStats.tiemposMuertos += (myTeamStats.timeouts?.firstHalf || 0) + (myTeamStats.timeouts?.secondHalf || 0);
+                }
             });
 
             const findLeader = (stat: keyof typeof playerStats['dorsal']) => {
@@ -274,6 +308,18 @@ function EstadisticasGeneralesContent() {
                 </CardContent>
             </Card>
 
+            <Card className="mb-8">
+                <CardHeader>
+                    <CardTitle className="text-xl font-headline">Rendimiento del Equipo</CardTitle>
+                </CardHeader>
+                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <StatCard title="Tiros Totales" value={stats.generalStats.tirosTotales} icon={<Target className="h-6 w-6"/>} />
+                    <StatCard title="Pérdidas de Balón" value={stats.generalStats.perdidasTotales} icon={<Repeat className="h-6 w-6"/>} />
+                    <StatCard title="Robos de Balón" value={stats.generalStats.robosTotales} icon={<Shuffle className="h-6 w-6"/>} />
+                    <StatCard title="Tiempos Muertos" value={stats.generalStats.tiemposMuertos} icon={<Timer className="h-6 w-6"/>} />
+                </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 <Card>
                     <CardHeader>
@@ -345,3 +391,4 @@ export default function EstadisticasGeneralesPage() {
         <EstadisticasGeneralesContent />
     );
 }
+
