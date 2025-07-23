@@ -11,19 +11,17 @@
  * - SupportChatOutput - The return type for the askCoach function.
  */
 
-import { getGenkitAi } from '@/ai/genkit';
+import { ai } from '@/ai/dev';
 import { z } from 'zod';
 import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, type DocumentData } from 'firebase/firestore';
 import type { Message } from 'genkit';
 import { saveChatMessage, type ChatMessage } from '@/lib/actions/user-actions';
 
-const ai = getGenkitAi();
-
 // Internal Zod schemas
 const SupportChatInputSchema = z.object({
   question: z.string().describe("The user's question for the AI coach."),
-  chatId: z.string().optional().describe("The unique ID for the chat session."),
+  chatId: z.string().optional().nullable(),
   userId: z.string().describe("The user's unique ID. Can be 'guest-user' for non-registered users."),
 });
 
