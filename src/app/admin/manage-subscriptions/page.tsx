@@ -101,11 +101,19 @@ function ManageSubscriptionsPageContent() {
             };
           });
           setAllUsers(usersFromDb as UserSubscription[]);
+          setIsLoading(false);
       } catch (error: any) {
-          console.error("Error fetching users:", error);
-          toast({ title: "Error al cargar usuarios", description: error.message || "No se pudieron obtener los datos de los usuarios.", variant: "destructive" });
+          if (error.code === 'permission-denied' || error.code === 'missing-permission') {
+            console.warn("ADVERTENCIA: No se pudieron cargar los datos de los usuarios debido a las reglas de seguridad de Firestore. Esto es esperado si las reglas no permiten a los administradores leer todos los perfiles de usuario desde el cliente. Para una gestión de usuarios completa, se requiere una Cloud Function con privilegios de administrador.");
+            // Mantener el estado de carga para no mostrar una tabla vacía ni un error feo.
+            // En un futuro, aquí se podría mostrar un mensaje informativo en la UI.
+            setAllUsers([]);
+          } else {
+            console.error("Error fetching users:", error);
+            toast({ title: "Error al cargar usuarios", description: error.message || "No se pudieron obtener los datos de los usuarios.", variant: "destructive" });
+            setIsLoading(false);
+          }
       }
-      setIsLoading(false);
   }, [isAdmin, toast]);
 
   useEffect(() => {
