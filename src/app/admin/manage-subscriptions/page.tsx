@@ -94,14 +94,41 @@ async function getAllUsersClient(): Promise<{ success: boolean; users?: UserSubs
     }
 }
 
-async function updateUserSubscriptionClient(userId: string, newStatus: 'active' | 'inactive'): Promise<{ success: boolean; error?: string }> {
+async function updateUserSubscriptionClient(
+    userId: string,
+    updates: { status?: 'active' | 'inactive'; type?: SubscriptionType }
+): Promise<{ success: boolean; error?: string }> {
     try {
         const db = getFirebaseDb();
         const userDocRef = doc(db, "usuarios", userId);
 
-        await updateDoc(userDocRef, {
-            subscriptionStatus: newStatus
-        });
+        const dataToUpdate: { [key: string]: any } = {};
+        
+        if (updates.status) {
+            dataToUpdate.subscriptionStatus = updates.status;
+        }
+        if (updates.type) {
+            dataToUpdate.subscriptionType = updates.type;
+        }
+
+        // If we are activating a subscription (either by status change or type change), set/update expiration
+        if (updates.status === 'active' || (updates.type && updates.type !== 'inactive' && updates.type !== 'Prueba')) {
+             const expiresAt = new Date();
+             expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+             dataToUpdate.subscriptionExpiresAt = Timestamp.fromDate(expiresAt);
+             // Also ensure status is active if a type is set
+             if (!updates.status) {
+                 dataToUpdate.subscriptionStatus = 'active';
+             }
+        }
+        
+        // If deactivating, clear expiration and type
+        if (updates.status === 'inactive') {
+            dataToUpdate.subscriptionExpiresAt = null;
+            dataToUpdate.subscriptionType = 'inactive';
+        }
+
+        await updateDoc(userDocRef, dataToUpdate);
         
         return { success: true };
 
@@ -207,17 +234,16 @@ function ManageSubscriptionsPageContent() {
     setCurrentPage(1); 
   };
   
-  const handleSubscriptionChange = async (userId: string, newStatus: 'active' | 'inactive') => {
+  const handleSubscriptionChange = async (userId: string, updates: { status?: 'active' | 'inactive'; type?: SubscriptionType }) => {
     setIsUpdating(userId);
     try {
-      const result = await updateUserSubscriptionClient(userId, newStatus);
+      const result = await updateUserSubscriptionClient(userId, updates);
       if (result.success) {
         toast({
             title: "Suscripción Actualizada",
-            description: `El estado del usuario se ha cambiado a ${newStatus === 'active' ? 'activo' : 'inactivo'}.`,
+            description: `Se han aplicado los cambios al usuario.`,
         });
-        // Optimistic update in the main list
-        setAllUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, subscriptionStatus: newStatus } : u));
+        fetchAllUsers(); // Re-fetch all data to get the latest state including new expiration date
       } else {
         throw new Error(result.error || "No se pudo cambiar el estado de la suscripción.");
       }
@@ -294,15 +320,29 @@ function ManageSubscriptionsPageContent() {
                       <TableCell className="font-medium">{u.email}</TableCell>
                       <TableCell><Badge variant={u.role === 'admin' ? 'destructive' : 'secondary'}>{u.role}</Badge></TableCell>
                       <TableCell>
-                        <Badge variant={getSubscriptionTypeBadgeVariant(u.subscriptionType)}>
-                          {u.subscriptionType === 'inactive' ? 'Ninguna' : u.subscriptionType}
-                        </Badge>
+                        {isUpdating === u.id ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                          <Select
+                            value={u.subscriptionType || 'inactive'}
+                            onValueChange={(newType) => handleSubscriptionChange(u.id, { type: newType as SubscriptionType })}
+                            disabled={u.email === user?.email || u.subscriptionType === 'Prueba'}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue placeholder="Tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="inactive">Ninguna</SelectItem>
+                              <SelectItem value="Básica">Básica</SelectItem>
+                              <SelectItem value="Pro">Pro</SelectItem>
+                              <SelectItem value="Prueba" disabled>Prueba</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell>
                         {isUpdating === u.id ? <Loader2 className="h-5 w-5 animate-spin" /> : (
                           <Select
                             value={u.subscriptionStatus}
-                            onValueChange={(newStatus) => handleSubscriptionChange(u.id, newStatus as 'active' | 'inactive')}
+                            onValueChange={(newStatus) => handleSubscriptionChange(u.id, { status: newStatus as 'active' | 'inactive' })}
                             disabled={u.email === user?.email}
                           >
                             <SelectTrigger className="w-[150px]">
@@ -344,3 +384,5 @@ export default function ManageSubscriptionsPage() {
     </AuthGuard>
   );
 }
+
+    
