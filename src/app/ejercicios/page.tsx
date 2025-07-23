@@ -57,13 +57,32 @@ interface Ejercicio {
 }
 
 const ITEMS_PER_PAGE = 12;
-const GUEST_ITEM_LIMIT = 15;
 const REGISTERED_USER_LIMIT = 500;
 const ALL_FILTER_VALUE = "ALL";
 
 interface FavoriteState {
   [exerciseId: string]: boolean;
 }
+
+const createGuestExercises = (): Ejercicio[] => {
+  return [
+    { id: 'guest1', ejercicio: 'Rondo de Activación 4v1', fase: 'Inicial', categoria: 'Pase y control', duracion: '10', edad: ['Alevín (10-11 años)', 'Infantil (12-13 años)'], descripcion: 'Clásico rondo para mejorar la velocidad del pase y la presión tras pérdida.', imagen: 'https://i.ibb.co/6g6v2S2/ejercicio-1.png', objetivos: 'Mejorar el primer toque y la rapidez en la circulación del balón.', espacio_materiales: 'Círculo de 8m, 1 balón.', jugadores: '5', isVisible: true },
+    { id: 'guest2', ejercicio: 'Finalización Tras Pase al Pívot', fase: 'Principal', categoria: 'Finalización', duracion: '15', edad: ['Cadete (14-15 años)', 'Juvenil (16-18 años)'], descripcion: 'Los jugadores realizan una pared con el pívot y finalizan a portería.', imagen: 'https://i.ibb.co/BwyM5d7/ejercicio-2.png', objetivos: 'Mejorar el juego de espaldas del pívot y el remate de primera.', espacio_materiales: 'Media pista, 1 portería, balones.', jugadores: '6-8', isVisible: true },
+    { id: 'guest3', ejercicio: 'Estiramientos y Vuelta a la Calma', fase: 'Final', categoria: 'Coordinación, agilidad y velocidad', duracion: '5', edad: ['Senior (+18 años)'], descripcion: 'Ejercicios de estiramiento suave para los principales grupos musculares.', imagen: 'https://i.ibb.co/kStL9F9/ejercicio-3.png', objetivos: 'Reducir la fatiga muscular y mejorar la recuperación.', espacio_materiales: 'Cualquier espacio.', jugadores: 'Todo el equipo', isVisible: true },
+    { id: 'guest4', ejercicio: 'Juego de Posesión 3v3+2', fase: 'Principal', categoria: 'Posesión y circulación del balón', duracion: '15', edad: ['Infantil (12-13 años)', 'Cadete (14-15 años)'], descripcion: 'Dos equipos de tres jugadores intentan mantener la posesión con la ayuda de dos comodines.', imagen: 'https://i.ibb.co/h9yS9J1/ejercicio-4.png', objetivos: 'Fomentar la movilidad, el apoyo constante y la creación de líneas de pase.', espacio_materiales: 'Cuadrado de 15x15m, petos, balones.', jugadores: '8', isVisible: true },
+    { id: 'guest5', ejercicio: 'Conducción y Regate en Slalom', fase: 'Inicial', categoria: 'Conducción y regate', duracion: '10', edad: ['Benjamín (8-9 años)', 'Alevín (10-11 años)'], descripcion: 'Los jugadores conducen el balón en zig-zag a través de una fila de conos.', imagen: 'https://i.ibb.co/0JtGmtx/ejercicio-5.png', objetivos: 'Mejorar el control del balón en conducción y la habilidad en el regate.', espacio_materiales: 'Fila de 8-10 conos, balones.', jugadores: 'Individual', isVisible: true },
+    { id: 'guest6', ejercicio: 'Transición Ataque-Defensa 2v1', fase: 'Principal', categoria: 'Transiciones (ofensivas y defensivas)', duracion: '20', edad: ['Juvenil (16-18 años)', 'Senior (+18 años)'], descripcion: 'Dos atacantes inician una transición rápida contra un único defensor que repliega.', imagen: 'https://i.ibb.co/N1pXmDb/ejercicio-6.png', objetivos: 'Mejorar la toma de decisiones en superioridad numérica y el repliegue defensivo.', espacio_materiales: 'Media pista, 1 portería, balones.', jugadores: 'Grupos de 3', isVisible: true },
+    { id: 'guest7', ejercicio: 'Juego de Pies para Porteros', fase: 'Inicial', categoria: 'Portero y trabajo específico', duracion: '10', edad: ['Cadete (14-15 años)', 'Juvenil (16-18 años)'], descripcion: 'El portero realiza desplazamientos rápidos y blocajes a tiros rasos desde diferentes ángulos.', imagen: 'https://i.ibb.co/QcYtZ0G/ejercicio-7.png', objetivos: 'Mejorar la agilidad, velocidad de reacción y técnica de blocaje del portero.', espacio_materiales: 'Portería, balones.', jugadores: '1 portero + 1 lanzador', isVisible: true },
+    { id: 'guest8', ejercicio: 'Defensa en Inferioridad 2v3', fase: 'Principal', categoria: 'Defensa (individual, colectiva y táctica)', duracion: '15', edad: ['Juvenil (16-18 años)', 'Senior (+18 años)'], descripcion: 'Dos defensores intentan evitar el gol de tres atacantes, trabajando las basculaciones y la cobertura.', imagen: 'https://i.ibb.co/kH1yWzD/ejercicio-8.png', objetivos: 'Mejorar la comunicación y los principios tácticos defensivos en inferioridad.', espacio_materiales: 'Media pista, 1 portería, petos.', jugadores: 'Grupos de 5', isVisible: true },
+    { id: 'guest9', ejercicio: 'Trote Ligero y Movilidad Articular', fase: 'Final', categoria: 'Calentamiento y activación', duracion: '5', edad: ['Alevín (10-11 años)', 'Infantil (12-13 años)'], descripcion: 'Carrera suave alrededor de la pista combinada con movimientos de rotación de tobillos, rodillas y caderas.', imagen: 'https://i.ibb.co/kStL9F9/ejercicio-3.png', objetivos: 'Facilitar la recuperación activa y prevenir lesiones.', espacio_materiales: 'Pista completa.', jugadores: 'Todo el equipo', isVisible: true },
+    { id: 'guest10', ejercicio: 'Circuito Técnico-Físico', fase: 'Principal', categoria: 'Coordinación, agilidad y velocidad', duracion: '20', edad: ['Cadete (14-15 años)', 'Juvenil (16-18 años)'], descripcion: 'Un circuito que combina postas de agilidad (escalera, vallas bajas) con acciones técnicas (pase, control, tiro).', imagen: 'https://i.ibb.co/X2ZzYzc/ejercicio-9.png', objetivos: 'Integrar la preparación física con la mejora de la técnica individual bajo fatiga.', espacio_materiales: 'Escalera de agilidad, vallas, conos, balones, 1 portería.', jugadores: 'Individual por postas', isVisible: true },
+    { id: 'guest11', ejercicio: 'Ataque 3x2 Continuo', 'fase': 'Principal', 'categoria': 'Superioridades e inferioridades numéricas', 'duracion': '15', 'edad': ['Cadete (14-15 años)', 'Juvenil (16-18 años)'], 'descripcion': 'Tres atacantes finalizan contra dos defensores. Tras la finalización, dos de los atacantes se convierten en defensores para la siguiente oleada.', 'imagen': 'https://i.ibb.co/yQzZ2J9/ejercicio-10.png', 'objetivos': 'Mejorar la velocidad en la toma de decisiones y la finalización en superioridad.', 'espacio_materiales': 'Pista completa, 2 porterías, petos.', 'jugadores': '10-12', 'isVisible': true },
+    { id: 'guest12', ejercicio: 'Rueda de Pases', 'fase': 'Inicial', 'categoria': 'Pase y control', 'duracion': '10', 'edad': ['Alevín (10-11 años)', 'Infantil (12-13 años)'], 'descripcion': 'Los jugadores forman un círculo y se pasan el balón siguiendo una secuencia predefinida, trabajando el pase al primer toque.', 'imagen': 'https://i.ibb.co/6g6v2S2/ejercicio-1.png', 'objetivos': 'Mejorar la precisión y el ritmo del pase, así como la comunicación.', 'espacio_materiales': 'Círculo de 10-12m, balones.', 'jugadores': '6-10', 'isVisible': true },
+    { id: 'guest13', ejercicio: 'Estrategia de Saque de Esquina', 'fase': 'Principal', 'categoria': 'Balón parado y remates', 'duracion': '10', 'edad': ['Juvenil (16-18 años)', 'Senior (+18 años)'], 'descripcion': 'Práctica de diferentes jugadas de estrategia ensayadas en los saques de esquina.', 'imagen': 'https://i.ibb.co/BwyM5d7/ejercicio-2.png', 'objetivos': 'Automatizar movimientos y crear ocasiones de gol a balón parado.', 'espacio_materiales': 'Media pista, 1 portería, balones.', 'jugadores': 'Todo el equipo', 'isVisible': true },
+    { id: 'guest14', ejercicio: 'Conservación de balón con porterías', 'fase': 'Principal', 'categoria': 'Posesión y circulación del balón', 'duracion': '20', 'edad': ['Cadete (14-15 años)', 'Juvenil (16-18 años)'], 'descripcion': 'Partido 4vs4 en espacio reducido donde el objetivo es dar 10 pases seguidos o marcar en mini-porterías.', 'imagen': 'https://i.ibb.co/h9yS9J1/ejercicio-4.png', 'objetivos': 'Mejorar la paciencia en la posesión y la creación de espacios.', 'espacio_materiales': 'Cuadrado de 20x20m, 4 mini-porterías, petos, balones.', 'jugadores': '8', 'isVisible': true },
+    { id: 'guest15', ejercicio: 'Juegos de Reacción y Velocidad', 'fase': 'Inicial', 'categoria': 'Coordinación, agilidad y velocidad', 'duracion': '5', 'edad': ['Benjamín (8-9 años)', 'Alevín (10-11 años)'], 'descripcion': 'Los jugadores en parejas reaccionan a una señal visual o auditiva del entrenador para realizar un sprint corto.', 'imagen': 'https://i.ibb.co/0JtGmtx/ejercicio-5.png', 'objetivos': 'Mejorar la velocidad de reacción y la aceleración.', 'espacio_materiales': 'Conos para marcar distancias.', 'jugadores': 'Todo el equipo por parejas', 'isVisible': true }
+  ];
+};
 
 
 export default function EjerciciosPage() {
@@ -86,14 +105,18 @@ export default function EjerciciosPage() {
   useEffect(() => {
     const fetchAllExercises = async () => {
       setIsLoading(true);
+
+      if (!isRegisteredUser) {
+        setAllExercises(createGuestExercises());
+        setIsLoading(false);
+        return;
+      }
+      
       try {
         const db = getFirebaseDb();
         const ejerciciosCollectionRef = firestoreCollection(db, 'ejercicios_futsal');
         
-        // Determine the query limit based on user status
-        const qLimit = (isRegisteredUser && (isAdmin || isSubscribed)) ? REGISTERED_USER_LIMIT : GUEST_ITEM_LIMIT;
-        
-        const q = query(ejerciciosCollectionRef, limit(qLimit));
+        const q = query(ejerciciosCollectionRef, limit(REGISTERED_USER_LIMIT));
         
         const documentSnapshots = await getDocs(q);
         
@@ -121,16 +144,14 @@ export default function EjerciciosPage() {
         let visibleExercises = fetchedEjercicios.filter(ej => ej.isVisible !== false);
 
         if (isRegisteredUser && (isAdmin || isSubscribed)) {
-            // Sort by 'numero' field. Handles alphanumeric sorting and places exercises without a number at the end.
             visibleExercises.sort((a, b) => {
               const numA = a.numero;
               const numB = b.numero;
 
-              if (numA && !numB) return -1; // a comes first
-              if (!numA && numB) return 1;  // b comes first
-              if (!numA && !numB) return (a.ejercicio || '').localeCompare(b.ejercicio || ''); // fallback to name if both are null
+              if (numA && !numB) return -1; 
+              if (!numA && numB) return 1;  
+              if (!numA && !numB) return (a.ejercicio || '').localeCompare(b.ejercicio || ''); 
 
-              // Both have a number, compare them. localeCompare with numeric option helps sort "2" before "10".
               return (numA || '').localeCompare(numB || '', undefined, { numeric: true });
             });
         }
