@@ -5,14 +5,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, TrendingUp, Trophy, Goal, Shield, ShieldAlert, Handshake, TrendingDown, Info, Target, Repeat, Shuffle, Timer } from 'lucide-react';
+import { Loader2, ArrowLeft, TrendingUp, Trophy, Goal, Shield, ShieldAlert, Handshake, TrendingDown, Info, Target, Repeat, Shuffle } from 'lucide-react';
 import Link from 'next/link';
 import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Legend } from 'recharts';
-
 
 interface RosterPlayer {
   id: string;
@@ -66,10 +64,11 @@ const guestDemoStats = {
         golesContra1T: 4,
         golesContra2T: 5,
         faltasCometidas: 28,
-        tirosTotales: 78,
+        tirosAPuerta: 45,
+        tirosFuera: 20,
+        tirosBloqueados: 13,
         perdidasTotales: 55,
         robosTotales: 42,
-        tiemposMuertos: 3,
     },
     leaderStats: {
         goles: { name: 'C. Ruiz', value: 15 },
@@ -148,10 +147,11 @@ function EstadisticasGeneralesContent() {
                     golesContra1T: 0,
                     golesContra2T: 0,
                     faltasCometidas: 0,
-                    tirosTotales: 0,
+                    tirosAPuerta: 0,
+                    tirosFuera: 0,
+                    tirosBloqueados: 0,
                     perdidasTotales: 0,
                     robosTotales: 0,
-                    tiemposMuertos: 0,
                 },
                 leaderStats: {
                     goles: { name: 'N/A', value: 0 },
@@ -205,10 +205,11 @@ function EstadisticasGeneralesContent() {
                 const myTeamStats = data.myTeamStats as TeamStats | undefined;
                 if (myTeamStats) {
                     calculatedStats.generalStats.faltasCometidas += (myTeamStats.faltas?.firstHalf || 0) + (myTeamStats.faltas?.secondHalf || 0);
-                    calculatedStats.generalStats.tirosTotales += (myTeamStats.shots?.onTarget.firstHalf || 0) + (myTeamStats.shots?.onTarget.secondHalf || 0) + (myTeamStats.shots?.offTarget.firstHalf || 0) + (myTeamStats.shots?.offTarget.secondHalf || 0) + (myTeamStats.shots?.blocked.firstHalf || 0) + (myTeamStats.shots?.blocked.secondHalf || 0);
+                    calculatedStats.generalStats.tirosAPuerta += (myTeamStats.shots?.onTarget.firstHalf || 0) + (myTeamStats.shots?.onTarget.secondHalf || 0);
+                    calculatedStats.generalStats.tirosFuera += (myTeamStats.shots?.offTarget.firstHalf || 0) + (myTeamStats.shots?.offTarget.secondHalf || 0);
+                    calculatedStats.generalStats.tirosBloqueados += (myTeamStats.shots?.blocked.firstHalf || 0) + (myTeamStats.shots?.blocked.secondHalf || 0);
                     calculatedStats.generalStats.perdidasTotales += (myTeamStats.turnovers?.firstHalf || 0) + (myTeamStats.turnovers?.secondHalf || 0);
                     calculatedStats.generalStats.robosTotales += (myTeamStats.steals?.firstHalf || 0) + (myTeamStats.steals?.secondHalf || 0);
-                    calculatedStats.generalStats.tiemposMuertos += (myTeamStats.timeouts?.firstHalf || 0) + (myTeamStats.timeouts?.secondHalf || 0);
                 }
             });
 
@@ -257,11 +258,6 @@ function EstadisticasGeneralesContent() {
             </div>
         );
     }
-
-    const goalsChartData = [
-        { name: '1ª Parte', 'Goles a Favor': stats.generalStats.golesFavor1T, 'Goles en Contra': stats.generalStats.golesContra1T },
-        { name: '2ª Parte', 'Goles a Favor': stats.generalStats.golesFavor2T, 'Goles en Contra': stats.generalStats.golesContra2T },
-    ];
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
@@ -312,11 +308,12 @@ function EstadisticasGeneralesContent() {
                 <CardHeader>
                     <CardTitle className="text-xl font-headline">Rendimiento del Equipo</CardTitle>
                 </CardHeader>
-                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <StatCard title="Tiros Totales" value={stats.generalStats.tirosTotales} icon={<Target className="h-6 w-6"/>} />
+                 <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                    <StatCard title="Tiros a Puerta" value={stats.generalStats.tirosAPuerta} icon={<Target className="h-6 w-6"/>} />
+                    <StatCard title="Tiros Fuera" value={stats.generalStats.tirosFuera} icon={<Target className="h-6 w-6"/>} />
+                    <StatCard title="Tiros Bloqueados" value={stats.generalStats.tirosBloqueados} icon={<Target className="h-6 w-6"/>} />
                     <StatCard title="Pérdidas de Balón" value={stats.generalStats.perdidasTotales} icon={<Repeat className="h-6 w-6"/>} />
                     <StatCard title="Robos de Balón" value={stats.generalStats.robosTotales} icon={<Shuffle className="h-6 w-6"/>} />
-                    <StatCard title="Tiempos Muertos" value={stats.generalStats.tiemposMuertos} icon={<Timer className="h-6 w-6"/>} />
                 </CardContent>
             </Card>
 
@@ -356,31 +353,6 @@ function EstadisticasGeneralesContent() {
                     <LeaderStatCard title="Más Faltas Cometidas" playerName={stats.leaderStats.faltas.name} value={stats.leaderStats.faltas.value} icon={<ShieldAlert className="h-6 w-6"/>} />
                 </CardContent>
             </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-xl font-headline">Análisis de Goles por Parte</CardTitle>
-                    <CardDescription>Comparativa de goles a favor y en contra en cada tiempo.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={goalsChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis allowDecimals={false}/>
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="Goles a Favor" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
-                                <LabelList dataKey="Goles a Favor" position="top" />
-                            </Bar>
-                            <Bar dataKey="Goles en Contra" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]}>
-                                 <LabelList dataKey="Goles en Contra" position="top" />
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </CardContent>
-            </Card>
-
         </div>
     );
 }
