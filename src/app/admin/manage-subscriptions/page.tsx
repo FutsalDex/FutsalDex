@@ -23,9 +23,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy, doc, updateDoc, Timestamp } from 'firebase/firestore';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { createUserAsAdmin } from "@/lib/actions/admin-users-actions";
 
 
 type SubscriptionType = 'Pro' | 'Básica' | 'Prueba' | 'inactive';
@@ -159,9 +156,6 @@ function ManageSubscriptionsPageContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortableField>('email');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  
-  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -261,22 +255,6 @@ function ManageSubscriptionsPageContent() {
     }
   };
   
-  const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsCreatingUser(true);
-    const formData = new FormData(event.currentTarget);
-    const result = await createUserAsAdmin(formData);
-    
-    if (result.success) {
-        toast({ title: "Usuario Creado", description: result.message });
-        setIsCreateUserOpen(false);
-        fetchAllUsers();
-    } else {
-        toast({ title: "Error al Crear Usuario", description: result.error, variant: "destructive" });
-    }
-    setIsCreatingUser(false);
-  }
-
   const renderSortIcon = (field: SortableField) => {
     if (sortField === field) {
       return sortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />;
@@ -309,36 +287,6 @@ function ManageSubscriptionsPageContent() {
       <header className="mb-8 flex items-center justify-between">
         <div><h1 className="text-3xl font-bold text-primary mb-1 font-headline">Gestionar Suscripciones</h1><p className="text-lg text-foreground/80">Visualiza y administra las suscripciones de los usuarios.</p></div>
         <div className="flex gap-2">
-            <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
-                <DialogTrigger asChild>
-                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Añadir Usuario</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Añadir Nuevo Usuario</DialogTitle>
-                        <DialogDescription>
-                            Crea una nueva cuenta de usuario. El usuario recibirá un correo para establecer su contraseña si es necesario.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleCreateUser} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Correo Electrónico</Label>
-                            <Input id="email" name="email" type="email" required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Contraseña</Label>
-                            <Input id="password" name="password" type="password" required minLength={6} />
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-                            <Button type="submit" disabled={isCreatingUser}>
-                                {isCreatingUser ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                                Crear Usuario
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
             <Button asChild variant="outline"><Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Panel</Link></Button>
         </div>
       </header>
