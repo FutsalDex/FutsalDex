@@ -907,8 +907,8 @@ function EditMatchPageContent() {
 
       <Tabs defaultValue="local" className="w-full" onValueChange={(val) => val && setActiveTab(val as 'local' | 'visitante')} value={activeTab}>
         <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="local">{localTeamName || 'Equipo Local'}</TabsTrigger>
-            <TabsTrigger value="visitante">{visitorTeamName || 'Equipo Visitante'}</TabsTrigger>
+            <TabsTrigger value="local" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">{localTeamName || 'Equipo Local'}</TabsTrigger>
+            <TabsTrigger value="visitante" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">{visitorTeamName || 'Equipo Visitante'}</TabsTrigger>
         </TabsList>
         <TabsContent value="local">
             <div className="space-y-6 pt-6">
