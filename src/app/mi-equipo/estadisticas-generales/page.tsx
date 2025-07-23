@@ -163,53 +163,21 @@ function EstadisticasGeneralesContent() {
         try {
             const db = getFirebaseDb();
             const today = new Date().toISOString().split('T')[0];
+
+            // --- Fetch Team and Match Data (for all users) ---
             const partidosQuery = query(
-                collection(db, "partidos_estadisticas"), 
+                collection(db, "partidos_estadisticas"),
                 where("userId", "==", user.uid),
                 where("fecha", "<=", today)
             );
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
-            
-            const promises = [
+
+            const [partidosSnapshot, rosterSnap] = await Promise.all([
                 getDocs(partidosQuery),
                 getDoc(rosterDocRef)
-            ];
+            ]);
 
-            // Only fetch page views if the user is an admin
-            if (isAdmin) {
-                const pageViewsQuery = query(collection(db, "user_page_views"));
-                promises.push(getDocs(pageViewsQuery));
-            }
-
-            const [partidosSnapshot, rosterSnap, pageViewsSnapshot] = await Promise.all(promises);
-            
-            const calculatedStats = {
-                generalStats: {
-                    numPartidos: partidosSnapshot.size,
-                    partidosGanados: 0,
-                    partidosPerdidos: 0,
-                    partidosEmpatados: 0,
-                    golesFavor: 0,
-                    golesContra: 0,
-                    golesFavor1T: 0,
-                    golesFavor2T: 0,
-                    golesContra1T: 0,
-                    golesContra2T: 0,
-                    faltasCometidas: 0,
-                    tirosAPuerta: 0,
-                    tirosFuera: 0,
-                    tirosBloqueados: 0,
-                    perdidasTotales: 0,
-                    robosTotales: 0,
-                },
-                leaderStats: {
-                    goles: { name: 'N/A', value: 0 },
-                    amarillas: { name: 'N/A', value: 0 },
-                    rojas: { name: 'N/A', value: 0 },
-                    faltas: { name: 'N/A', value: 0 },
-                },
-                topPages: [] as { name: string, count: number }[]
-            };
+            const calculatedStats = { ...guestDemoStats }; // Start with a default structure
 
             const roster: RosterPlayer[] = rosterSnap.exists() ? (rosterSnap.data().players || []) : [];
             const playerStats: { [dorsal: string]: { goles: number, amarillas: number, rojas: number, faltas: number } } = {};
@@ -217,32 +185,31 @@ function EstadisticasGeneralesContent() {
                 playerStats[p.dorsal] = { goles: 0, amarillas: 0, rojas: 0, faltas: 0 };
             });
 
+            // Reset general stats before recalculating
+            calculatedStats.generalStats = { ...guestDemoStats.generalStats, numPartidos: partidosSnapshot.size };
+
             partidosSnapshot.forEach(doc => {
                 const data = doc.data();
-                
                 const myGoalsEvents = data.myTeamPlayers?.flatMap((p: MatchDataPlayer) => p.goals || []) || [];
                 const opponentGoalsEvents = data.opponentPlayers?.flatMap((p: MatchDataPlayer) => p.goals || []) || [];
-
                 const myGoals = myGoalsEvents.length;
                 const opponentGoals = opponentGoalsEvents.length;
 
                 calculatedStats.generalStats.golesFavor += myGoals;
                 calculatedStats.generalStats.golesContra += opponentGoals;
-                
+                if (myGoals > opponentGoals) calculatedStats.generalStats.partidosGanados++;
+                else if (myGoals < opponentGoals) calculatedStats.generalStats.partidosPerdidos++;
+                else calculatedStats.generalStats.partidosEmpatados++;
+
                 myGoalsEvents.forEach((goal: GoalEvent) => {
                     if (goal.half === 'firstHalf') calculatedStats.generalStats.golesFavor1T++;
                     else calculatedStats.generalStats.golesFavor2T++;
                 });
-
                 opponentGoalsEvents.forEach((goal: GoalEvent) => {
                     if (goal.half === 'firstHalf') calculatedStats.generalStats.golesContra1T++;
                     else calculatedStats.generalStats.golesContra2T++;
                 });
-                
-                if (myGoals > opponentGoals) calculatedStats.generalStats.partidosGanados++;
-                else if (myGoals < opponentGoals) calculatedStats.generalStats.partidosPerdidos++;
-                else calculatedStats.generalStats.partidosEmpatados++;
-                
+
                 data.myTeamPlayers?.forEach((p: MatchDataPlayer) => {
                     if (playerStats[p.dorsal]) {
                         playerStats[p.dorsal].goles += p.goals?.length || 0;
@@ -251,7 +218,6 @@ function EstadisticasGeneralesContent() {
                         playerStats[p.dorsal].faltas += p.faltas || 0;
                     }
                 });
-
                 const myTeamStats = data.myTeamStats as TeamStats | undefined;
                 if (myTeamStats) {
                     calculatedStats.generalStats.faltasCometidas += (myTeamStats.faltas?.firstHalf || 0) + (myTeamStats.faltas?.secondHalf || 0);
@@ -262,25 +228,6 @@ function EstadisticasGeneralesContent() {
                     calculatedStats.generalStats.robosTotales += (myTeamStats.steals?.firstHalf || 0) + (myTeamStats.steals?.secondHalf || 0);
                 }
             });
-
-            // Process page views only if the snapshot exists (i.e., user is admin)
-            if (pageViewsSnapshot) {
-                const pageCounts: { [key: string]: number } = {};
-                pageViewsSnapshot.forEach(doc => {
-                    const data = doc.data() as PageViewData;
-                    for (const key in data) {
-                        if (key !== 'lastVisitedPath' && key !== 'updatedAt') {
-                            const pageName = mapPathToName(key);
-                            pageCounts[pageName] = (pageCounts[pageName] || 0) + data[key];
-                        }
-                    }
-                });
-
-                calculatedStats.topPages = Object.entries(pageCounts)
-                    .map(([name, count]) => ({ name, count }))
-                    .sort((a, b) => b.count - a.count)
-                    .slice(0, 5); // Get top 5
-            }
 
             const findLeader = (stat: keyof typeof playerStats['dorsal']) => {
                 let maxVal = 0;
@@ -294,19 +241,43 @@ function EstadisticasGeneralesContent() {
                 const leader = roster.find(p => p.dorsal === leaderDorsal);
                 return { name: maxVal > 0 ? (leader?.nombre || `Dorsal ${leaderDorsal}`) : 'N/A', value: maxVal };
             };
-            
             calculatedStats.leaderStats.goles = findLeader('goles');
             calculatedStats.leaderStats.amarillas = findLeader('amarillas');
             calculatedStats.leaderStats.rojas = findLeader('rojas');
             calculatedStats.leaderStats.faltas = findLeader('faltas');
 
+            // --- Fetch and Process Admin-Only Data ---
+            if (isAdmin) {
+                const pageViewsQuery = query(collection(db, "user_page_views"));
+                const pageViewsSnapshot = await getDocs(pageViewsQuery);
+                const pageCounts: { [key: string]: number } = {};
+                pageViewsSnapshot.forEach(doc => {
+                    const data = doc.data() as PageViewData;
+                    for (const key in data) {
+                        if (key !== 'lastVisitedPath' && key !== 'updatedAt') {
+                            const pageName = mapPathToName(key);
+                            pageCounts[pageName] = (pageCounts[pageName] || 0) + data[key];
+                        }
+                    }
+                });
+                calculatedStats.topPages = Object.entries(pageCounts)
+                    .map(([name, count]) => ({ name, count }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 5);
+            } else {
+                calculatedStats.topPages = [];
+            }
+
             setStats(calculatedStats);
         } catch (error) {
             console.error("Error calculating stats:", error);
+            // Set stats to a default error state or leave them as guest stats
+            setStats(guestDemoStats);
         } finally {
             setIsLoading(false);
         }
     }, [user, isRegisteredUser, isAdmin]);
+
 
     useEffect(() => {
         calculateStats();
@@ -453,3 +424,5 @@ export default function EstadisticasGeneralesPage() {
         <EstadisticasGeneralesContent />
     );
 }
+
+    
