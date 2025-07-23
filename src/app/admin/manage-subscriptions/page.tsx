@@ -21,13 +21,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { getFirebaseDb } from "@/lib/firebase";
-import { collection, query, orderBy, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { getAllUsers, updateUserSubscription } from '@/lib/actions/admin-actions';
 
 
 type SubscriptionType = 'Pro' | 'Básica' | 'Prueba' | 'inactive';
 
-interface UserSubscription {
+export interface UserSubscription {
   id: string;
   email: string;
   role: 'admin' | 'user';
@@ -70,49 +69,19 @@ function ManageSubscriptionsPageContent() {
       }
       setIsLoading(true);
       try {
-          const db = getFirebaseDb();
-          const usersCollection = collection(db, "usuarios");
-          const q = query(usersCollection, orderBy('email', 'asc'));
-          const querySnapshot = await getDocs(q);
-
-          const usersFromDb = querySnapshot.docs.map(docSnap => {
-            const data = docSnap.data();
-            let subType: SubscriptionType = 'inactive';
-            let expiresAt: number | undefined;
-
-            if (data.subscriptionStatus === 'active') {
-                subType = data.subscriptionType || 'Pro'; // Default to pro if active but no type
-            }
-            if (data.trialEndsAt instanceof Timestamp && data.trialEndsAt.toDate() > new Date()) {
-                subType = 'Prueba';
-                expiresAt = data.trialEndsAt.toMillis();
-            }
-            if (data.subscriptionExpiresAt instanceof Timestamp) {
-                expiresAt = data.subscriptionExpiresAt.toMillis();
-            }
-
-            return {
-              id: docSnap.id,
-              email: data.email || '',
-              role: data.role || 'user',
-              subscriptionStatus: data.subscriptionStatus || 'inactive',
-              subscriptionType: subType,
-              subscriptionExpiresAt: expiresAt,
-            };
-          });
-          setAllUsers(usersFromDb as UserSubscription[]);
-          setIsLoading(false);
-      } catch (error: any) {
-          if (error.code === 'permission-denied' || error.code === 'missing-permission') {
-            console.warn("ADVERTENCIA: No se pudieron cargar los datos de los usuarios debido a las reglas de seguridad de Firestore. Esto es esperado si las reglas no permiten a los administradores leer todos los perfiles de usuario desde el cliente. Para una gestión de usuarios completa, se requiere una Cloud Function con privilegios de administrador.");
-            // Mantener el estado de carga para no mostrar una tabla vacía ni un error feo.
-            // En un futuro, aquí se podría mostrar un mensaje informativo en la UI.
-            setAllUsers([]);
+          const result = await getAllUsers();
+          if (result.success) {
+            setAllUsers(result.users || []);
           } else {
-            console.error("Error fetching users:", error);
-            toast({ title: "Error al cargar usuarios", description: error.message || "No se pudieron obtener los datos de los usuarios.", variant: "destructive" });
-            setIsLoading(false);
+            console.error("Error fetching users from server action:", result.error);
+            toast({ title: "Error al Cargar Usuarios", description: result.error || "No se pudieron obtener los datos de los usuarios.", variant: "destructive" });
+            setAllUsers([]);
           }
+      } catch (error: any) {
+          console.error("Error calling server action:", error);
+          toast({ title: "Error de Comunicación", description: "No se pudo comunicar con el servidor para obtener los usuarios.", variant: "destructive" });
+      } finally {
+        setIsLoading(false);
       }
   }, [isAdmin, toast]);
 
@@ -165,21 +134,20 @@ function ManageSubscriptionsPageContent() {
   const handleSubscriptionChange = async (userId: string, newStatus: 'active' | 'inactive') => {
     setIsUpdating(userId);
     try {
-      const db = getFirebaseDb();
-      const userDocRef = doc(db, "usuarios", userId);
-      await updateDoc(userDocRef, {
-        subscriptionStatus: newStatus,
-        updatedAt: serverTimestamp(),
-      });
-      toast({
-        title: "Suscripción Actualizada",
-        description: `El estado del usuario se ha cambiado a ${newStatus === 'active' ? 'activo' : 'inactivo'}.`,
-      });
-      // Optimistic update in the main list, which will trigger re-render of sorted/paginated list
-      setAllUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, subscriptionStatus: newStatus } : u));
-    } catch (error) {
+      const result = await updateUserSubscription({ userId, newStatus });
+      if (result.success) {
+        toast({
+            title: "Suscripción Actualizada",
+            description: `El estado del usuario se ha cambiado a ${newStatus === 'active' ? 'activo' : 'inactivo'}.`,
+        });
+        // Optimistic update in the main list
+        setAllUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, subscriptionStatus: newStatus } : u));
+      } else {
+        throw new Error(result.error || "No se pudo cambiar el estado de la suscripción.");
+      }
+    } catch (error: any) {
       console.error("Error updating subscription:", error);
-      toast({ title: "Error al Actualizar", description: "No se pudo cambiar el estado de la suscripción.", variant: "destructive" });
+      toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
     } finally {
       setIsUpdating(null);
     }

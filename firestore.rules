@@ -1,38 +1,69 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+  
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
     
-    // --- Colecciones Públicas con Escritura Restringida ---
-    
-    // La colección de ejercicios es de lectura para usuarios autenticados.
-    // La escritura está limitada a los administradores.
-    match /ejercicios_futsal/{exerciseId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    function isAdmin() {
+      // Allow if the user's custom claim 'role' is 'admin' OR if their document in 'usuarios' has role == 'admin'
+      return request.auth.token.role == 'admin' || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // --- Datos de Usuario ---
-
+    // Reglas para la colección 'usuarios'
     match /usuarios/{userId} {
-      // Un usuario puede leer y escribir en su propio documento.
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Un administrador puede leer y listar los perfiles de cualquier usuario para gestionarlos.
-      allow get, list: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
-
-      // Un usuario solo puede acceder a sus propias subcolecciones.
-      match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
+      // Un usuario solo puede leer y actualizar su propio documento
+      allow read, update: if isOwner(userId);
+      // Solo un administrador puede crear o eliminar perfiles de usuario
+      allow create, delete: if isAdmin();
     }
     
-    // --- Colecciones Específicas del Usuario (Sesiones, Partidos, etc.) ---
+    // Un administrador puede leer la colección de usuarios para listarlos
+    match /usuarios/{document=**} {
+      allow read, write: if isAdmin();
+    }
     
-    // Un usuario solo puede crear, leer, actualizar o borrar los documentos que le pertenecen.
-    match /{collectionId}/{docId} {
-      allow read, write, update, delete, list: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    // Reglas para la colección 'ejercicios_futsal'
+    match /ejercicios_futsal/{ejercicioId} {
+      // Cualquiera puede leer los ejercicios
+      allow read: if true;
+      // Solo los administradores pueden crear, actualizar o eliminar ejercicios
+      allow write: if isAdmin();
+    }
+    
+    // Reglas para las subcolecciones de favoritos de cada usuario
+    match /usuarios/{userId}/user_favorites/{exerciseId} {
+        // Un usuario puede leer y escribir (añadir/quitar) sus propios favoritos
+    	allow read, write: if isOwner(userId);
+    }
+
+    // Reglas para las sesiones guardadas de cada usuario
+    match /mis_sesiones/{sesionId} {
+    	// Un usuario solo puede leer y escribir (crear/editar/eliminar) sus propias sesiones
+      allow read, write: if request.auth.uid == resource.data.userId;
+    }
+    
+    // Reglas para los datos del equipo de un usuario
+    match /usuarios/{userId}/team/{document=**} {
+    	// Un usuario solo puede leer y escribir en los documentos de su propio equipo
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Reglas para las estadísticas de los partidos
+    match /partidos_estadisticas/{partidoId} {
+    	// Un usuario solo puede gestionar las estadísticas de sus propios partidos
+    	allow read, write: if request.auth.uid == resource.data.userId;
+    }
+
+    // Reglas para el chat de soporte
+    match /support_chats/{chatId} {
+      // Un usuario solo puede leer y escribir en sus propios chats de soporte
+      allow read, write: if request.auth.uid == resource.data.userId;
     }
   }
 }
+
+    
