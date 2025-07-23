@@ -97,10 +97,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 const userData = docSnap.data();
                 if (userData.subscriptionStatus === 'active') {
                     finalIsSubscribed = true;
-                    // You would typically get the type and expiry from the subscription data
-                    finalSubsType = userData.subscriptionType || 'Pro'; // Default to Pro if not specified
-                    if (userData.subscriptionExpiresAt instanceof Timestamp) {
-                         finalSubExpiresAt = userData.subscriptionExpiresAt.toDate();
+                    finalSubsType = userData.subscriptionType || 'Pro';
+                    if (userData.subscriptionEnd instanceof Timestamp) {
+                         finalSubExpiresAt = userData.subscriptionEnd.toDate();
                     }
                 } else if (userData.trialEndsAt instanceof Timestamp) {
                     const trialEndDate = userData.trialEndsAt.toDate();
@@ -172,6 +171,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             role: userRole,
             subscriptionStatus: 'inactive', // New users are not subscribed by default
             trialEndsAt: Timestamp.fromDate(trialEnds),
+            subscriptionEnd: null,
         });
         
         // onAuthStateChanged will handle setting admin/subscription state

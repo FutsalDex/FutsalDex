@@ -33,11 +33,11 @@ export interface UserSubscription {
   role: 'admin' | 'user';
   subscriptionStatus: 'active' | 'inactive';
   subscriptionType: SubscriptionType;
-  subscriptionExpiresAt?: number; // Store as epoch milliseconds
+  subscriptionEnd?: number; // Store as epoch milliseconds
 }
 
 const ITEMS_PER_PAGE = 20;
-type SortableField = 'email' | 'role' | 'subscriptionStatus' | 'subscriptionType' | 'subscriptionExpiresAt';
+type SortableField = 'email' | 'role' | 'subscriptionStatus' | 'subscriptionType' | 'subscriptionEnd';
 type SortDirection = 'asc' | 'desc';
 
 
@@ -68,7 +68,7 @@ async function getAllUsersClient(): Promise<{ success: boolean; users?: UserSubs
                 expiresAt = trialEnds.getTime();
             }
 
-            const subExpires = data.subscriptionExpiresAt instanceof Timestamp ? data.subscriptionExpiresAt.toDate() : null;
+            const subExpires = data.subscriptionEnd instanceof Timestamp ? data.subscriptionEnd.toDate() : null;
             if (subExpires) {
                 expiresAt = subExpires.getTime();
             }
@@ -79,7 +79,7 @@ async function getAllUsersClient(): Promise<{ success: boolean; users?: UserSubs
               role: data.role || 'user',
               subscriptionStatus: data.subscriptionStatus || 'inactive',
               subscriptionType: subType,
-              subscriptionExpiresAt: expiresAt,
+              subscriptionEnd: expiresAt,
             };
         });
 
@@ -115,7 +115,7 @@ async function updateUserSubscriptionClient(
         if (updates.status === 'active' || (updates.type && updates.type !== 'inactive' && updates.type !== 'Prueba')) {
              const expiresAt = new Date();
              expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-             dataToUpdate.subscriptionExpiresAt = Timestamp.fromDate(expiresAt);
+             dataToUpdate.subscriptionEnd = Timestamp.fromDate(expiresAt);
              // Also ensure status is active if a type is set
              if (!updates.status) {
                  dataToUpdate.subscriptionStatus = 'active';
@@ -124,7 +124,7 @@ async function updateUserSubscriptionClient(
         
         // If deactivating, clear expiration and type
         if (updates.status === 'inactive') {
-            dataToUpdate.subscriptionExpiresAt = null;
+            dataToUpdate.subscriptionEnd = null;
             dataToUpdate.subscriptionType = 'inactive';
         }
 
@@ -306,7 +306,7 @@ function ManageSubscriptionsPageContent() {
                   <TableHead className="w-[120px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('role')}><span className="flex items-center">Rol {renderSortIcon('role')}</span></TableHead>
                   <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionType')}><span className="flex items-center">Tipo Suscripción {renderSortIcon('subscriptionType')}</span></TableHead>
                   <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionStatus')}><span className="flex items-center">Estado Suscripción {renderSortIcon('subscriptionStatus')}</span></TableHead>
-                  <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionExpiresAt')}><span className="flex items-center">Fecha Vencimiento {renderSortIcon('subscriptionExpiresAt')}</span></TableHead>
+                  <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionEnd')}><span className="flex items-center">Fecha Vencimiento {renderSortIcon('subscriptionEnd')}</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -355,7 +355,7 @@ function ManageSubscriptionsPageContent() {
                           </Select>
                         )}
                       </TableCell>
-                      <TableCell>{u.subscriptionExpiresAt ? new Date(u.subscriptionExpiresAt).toLocaleDateString('es-ES') : 'N/A'}</TableCell>
+                      <TableCell>{u.subscriptionEnd ? new Date(u.subscriptionEnd).toLocaleDateString('es-ES') : 'N/A'}</TableCell>
                     </TableRow>
                   ))
                 )}
@@ -384,5 +384,3 @@ export default function ManageSubscriptionsPage() {
     </AuthGuard>
   );
 }
-
-    
