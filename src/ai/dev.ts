@@ -1,3 +1,9 @@
 
-// This file can be used for development-specific AI configurations in the future.
-// For now, it remains empty as the main configuration is handled by the application.
+'use server';
+
+import {genkit} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai';
+
+export const ai = genkit({
+  plugins: [googleAI()],
+});

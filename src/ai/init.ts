@@ -1,9 +1,10 @@
+
 /**
  * @fileOverview Initializes and configures the Genkit AI instance.
  * This file centralizes the Genkit setup to be imported by other parts of the AI system.
  */
-import { genkit, type Genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import {genkit, type Genkit} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai';
 
 let aiInstance: Genkit | null = null;
 
@@ -14,13 +15,13 @@ let aiInstance: Genkit | null = null;
  * @returns {Genkit} The Genkit instance.
  */
 export function initializeGenkit(): Genkit {
-    if (aiInstance) {
-        return aiInstance;
-    }
-    
-    aiInstance = genkit({
-        plugins: [googleAI()],
-    });
-
+  if (aiInstance) {
     return aiInstance;
+  }
+
+  aiInstance = genkit({
+    plugins: [googleAI()],
+  });
+
+  return aiInstance;
 }

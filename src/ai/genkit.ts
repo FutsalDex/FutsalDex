@@ -1,5 +1,5 @@
-import type { Genkit } from 'genkit';
-import { initializeGenkit } from './init';
+
+import {ai} from './dev';
 
 /**
  * Returns a cached, lazily-initialized instance of the Genkit AI object.
@@ -7,6 +7,6 @@ import { initializeGenkit } from './init';
  * ensuring it's only called when absolutely necessary.
  * @returns {Genkit} The Genkit instance.
  */
-export function getGenkitAi(): Genkit {
-    return initializeGenkit();
+export function getGenkitAi() {
+  return ai;
 }
