@@ -37,15 +37,16 @@ interface StatCounterProps {
   onIncrement: () => void;
   onDecrement: () => void;
   disabled?: boolean;
+  maxValue?: number;
 }
 
-const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecrement, disabled = false }) => (
+const StatCounter: React.FC<StatCounterProps> = ({ value, onIncrement, onDecrement, disabled = false, maxValue }) => (
   <div className="flex items-center justify-center gap-1">
     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDecrement} disabled={disabled || value <= 0}>
       <Minus className="h-4 w-4" />
     </Button>
     <span className="w-6 text-center font-mono text-base">{value}</span>
-    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onIncrement} disabled={disabled}>
+    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onIncrement} disabled={disabled || (maxValue !== undefined && value >= maxValue)}>
       <Plus className="h-4 w-4" />
     </Button>
   </div>
@@ -714,8 +715,8 @@ function EditMatchPageContent() {
                         <TableBody>
                             <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Tiempos Muertos</TableHead>
-                                <TableCell><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(teamType, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['timeouts', 'firstHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
-                                <TableCell><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(teamType, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['timeouts', 'secondHalf'], -1)} disabled={!isRegisteredUser}/></TableCell>
+                                <TableCell><StatCounter value={stats.timeouts.firstHalf} onIncrement={() => handleStatChange(teamType, ['timeouts', 'firstHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['timeouts', 'firstHalf'], -1)} disabled={!isRegisteredUser} maxValue={1} /></TableCell>
+                                <TableCell><StatCounter value={stats.timeouts.secondHalf} onIncrement={() => handleStatChange(teamType, ['timeouts', 'secondHalf'], 1)} onDecrement={() => handleStatChange(teamType, ['timeouts', 'secondHalf'], -1)} disabled={!isRegisteredUser} maxValue={1} /></TableCell>
                             </TableRow>
                              <TableRow className="text-sm">
                                 <TableHead className="font-semibold text-xs">Pérdidas</TableHead>
