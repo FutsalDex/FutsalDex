@@ -21,7 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { getAllUsers, updateUserSubscription } from '@/lib/actions/admin-actions';
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy, doc, updateDoc, Timestamp } from 'firebase/firestore';
 
 
 type SubscriptionType = 'Pro' | 'Básica' | 'Prueba' | 'inactive';
@@ -38,6 +39,81 @@ export interface UserSubscription {
 const ITEMS_PER_PAGE = 20;
 type SortableField = 'email' | 'role' | 'subscriptionStatus' | 'subscriptionType' | 'subscriptionExpiresAt';
 type SortDirection = 'asc' | 'desc';
+
+
+// Client-side data fetching and updating
+async function getAllUsersClient(): Promise<{ success: boolean; users?: UserSubscription[]; error?: string; }> {
+    try {
+        const db = getFirebaseDb();
+        const usersCollection = collection(db, "usuarios");
+        const q = query(usersCollection, orderBy('email', 'asc'));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            return { success: true, users: [] };
+        }
+        
+        const usersFromDb = querySnapshot.docs.map(docSnap => {
+            const data = docSnap.data();
+            let subType: UserSubscription['subscriptionType'] = 'inactive';
+            let expiresAt: number | undefined;
+
+            if (data.subscriptionStatus === 'active') {
+                subType = data.subscriptionType || 'Pro';
+            }
+            
+            const trialEnds = data.trialEndsAt instanceof Timestamp ? data.trialEndsAt.toDate() : null;
+            if (trialEnds && trialEnds > new Date()) {
+                subType = 'Prueba';
+                expiresAt = trialEnds.getTime();
+            }
+
+            const subExpires = data.subscriptionExpiresAt instanceof Timestamp ? data.subscriptionExpiresAt.toDate() : null;
+            if (subExpires) {
+                expiresAt = subExpires.getTime();
+            }
+
+            return {
+              id: docSnap.id,
+              email: data.email || '',
+              role: data.role || 'user',
+              subscriptionStatus: data.subscriptionStatus || 'inactive',
+              subscriptionType: subType,
+              subscriptionExpiresAt: expiresAt,
+            };
+        });
+
+        return { success: true, users: usersFromDb as UserSubscription[] };
+
+    } catch (error: any) {
+        console.error("Error fetching all users client-side:", error.message);
+        if (error.code === 'permission-denied') {
+            return { success: false, error: 'Permiso denegado. Asegúrate de que las reglas de seguridad de Firestore permiten al rol de administrador leer la colección "usuarios".' };
+        }
+        return { success: false, error: 'No se pudieron cargar los usuarios.' };
+    }
+}
+
+async function updateUserSubscriptionClient(userId: string, newStatus: 'active' | 'inactive'): Promise<{ success: boolean; error?: string }> {
+    try {
+        const db = getFirebaseDb();
+        const userDocRef = doc(db, "usuarios", userId);
+
+        await updateDoc(userDocRef, {
+            subscriptionStatus: newStatus
+        });
+        
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error updating subscription client-side:", error.message);
+        if (error.code === 'permission-denied') {
+            return { success: false, error: 'Permiso denegado. Asegúrate de que las reglas de seguridad de Firestore permiten al rol de administrador modificar documentos en la colección "usuarios".' };
+        }
+        return { success: false, error: `No se pudo actualizar la suscripción: ${error.message}` };
+    }
+}
+
 
 function ManageSubscriptionsPageContent() {
   const { user, isAdmin } = useAuth();
@@ -69,17 +145,17 @@ function ManageSubscriptionsPageContent() {
       }
       setIsLoading(true);
       try {
-          const result = await getAllUsers();
+          const result = await getAllUsersClient();
           if (result.success) {
             setAllUsers(result.users || []);
           } else {
-            console.error("Error fetching users from server action:", result.error);
+            console.error("Error fetching users from client:", result.error);
             toast({ title: "Error al Cargar Usuarios", description: result.error || "No se pudieron obtener los datos de los usuarios.", variant: "destructive" });
             setAllUsers([]);
           }
       } catch (error: any) {
-          console.error("Error calling server action:", error);
-          toast({ title: "Error de Comunicación", description: "No se pudo comunicar con el servidor para obtener los usuarios.", variant: "destructive" });
+          console.error("Error calling client function:", error);
+          toast({ title: "Error de Comunicación", description: "Ocurrió un error al obtener los usuarios.", variant: "destructive" });
       } finally {
         setIsLoading(false);
       }
@@ -134,7 +210,7 @@ function ManageSubscriptionsPageContent() {
   const handleSubscriptionChange = async (userId: string, newStatus: 'active' | 'inactive') => {
     setIsUpdating(userId);
     try {
-      const result = await updateUserSubscription({ userId, newStatus });
+      const result = await updateUserSubscriptionClient(userId, newStatus);
       if (result.success) {
         toast({
             title: "Suscripción Actualizada",
@@ -268,5 +344,3 @@ export default function ManageSubscriptionsPage() {
     </AuthGuard>
   );
 }
-
-    
