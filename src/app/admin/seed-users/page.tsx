@@ -38,13 +38,14 @@ function SeedUsersPageContent() {
             title: seedResult.success ? "Proceso Exitoso" : "Proceso con Errores",
             description: seedResult.message,
             variant: seedResult.success ? "default" : "destructive",
-            duration: 10000,
+            duration: 15000,
         });
     } catch (error: any) {
-        setResult({ success: false, message: error.message || "Un error desconocido ocurrió." });
+        const errorMessage = error.message || "Un error desconocido ocurrió en el cliente.";
+        setResult({ success: false, message: errorMessage });
         toast({
-            title: "Error Inesperado",
-            description: error.message,
+            title: "Error Inesperado del Cliente",
+            description: errorMessage,
             variant: "destructive",
         });
     }
@@ -107,7 +108,7 @@ function SeedUsersPageContent() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Advertencia</AlertTitle>
             <AlertDescription>
-              Esta acción es irreversible y modificará los datos en Firebase Authentication y Firestore. No se puede deshacer.
+              Esta acción es irreversible y modificará los datos en Firebase Authentication y Firestore. No se puede deshacer. Esta función solo está disponible en entornos de desarrollo con las credenciales de administrador configuradas.
             </AlertDescription>
           </Alert>
 
