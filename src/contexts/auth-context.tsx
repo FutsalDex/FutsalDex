@@ -12,7 +12,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp, updateDoc, increment } from 'firebase/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema, passwordChangeSchema } from '@/lib/schemas';
@@ -89,6 +89,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     subscriptionStatus: 'inactive',
                     trialEndsAt: Timestamp.fromDate(trialEnds),
                     subscriptionEnd: null,
+                    loginCount: 0,
+                    lastLoginAt: null,
                 });
                 // Re-fetch the document to get the fresh data
                 docSnap = await getDoc(userDocRef);
@@ -156,10 +158,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (values: z.infer<typeof loginSchema>) => {
     setError(null);
     const auth = getFirebaseAuth();
+    const db = getFirebaseDb();
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      // onAuthStateChanged will handle setting admin/subscription state and creating doc if missing
-      return userCredential.user;
+      const loggedInUser = userCredential.user;
+
+      if(loggedInUser) {
+        const userDocRef = doc(db, "usuarios", loggedInUser.uid);
+        await updateDoc(userDocRef, {
+            loginCount: increment(1),
+            lastLoginAt: serverTimestamp(),
+        });
+      }
+      return loggedInUser;
     } catch (e) {
       const authError = e as AuthError;
       setError(mapAuthError(authError));
@@ -191,6 +202,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             subscriptionStatus: 'inactive', // New users are not subscribed by default
             trialEndsAt: Timestamp.fromDate(trialEnds),
             subscriptionEnd: null,
+            loginCount: 1, // First login is on registration
+            lastLoginAt: serverTimestamp(),
         });
         
         // onAuthStateChanged will handle setting admin/subscription state

@@ -34,10 +34,12 @@ export interface UserSubscription {
   subscriptionStatus: 'active' | 'inactive';
   subscriptionType: SubscriptionType;
   subscriptionEnd?: number; // Store as epoch milliseconds
+  loginCount?: number;
+  lastLoginAt?: number; // Store as epoch milliseconds
 }
 
-const ITEMS_PER_PAGE = 20;
-type SortableField = 'email' | 'role' | 'subscriptionStatus' | 'subscriptionType' | 'subscriptionEnd';
+const ITEMS_PER_PAGE = 10;
+type SortableField = 'email' | 'role' | 'subscriptionStatus' | 'subscriptionType' | 'subscriptionEnd' | 'loginCount' | 'lastLoginAt';
 type SortDirection = 'asc' | 'desc';
 
 
@@ -73,6 +75,8 @@ async function getAllUsersClient(): Promise<{ success: boolean; users?: UserSubs
                 expiresAt = subExpires.getTime();
             }
 
+            const lastLogin = data.lastLoginAt instanceof Timestamp ? data.lastLoginAt.toDate().getTime() : undefined;
+
             return {
               id: docSnap.id,
               email: data.email || '',
@@ -80,6 +84,8 @@ async function getAllUsersClient(): Promise<{ success: boolean; users?: UserSubs
               subscriptionStatus: data.subscriptionStatus || 'inactive',
               subscriptionType: subType,
               subscriptionEnd: expiresAt,
+              loginCount: data.loginCount || 0,
+              lastLoginAt: lastLogin,
             };
         });
 
@@ -271,6 +277,17 @@ function ManageSubscriptionsPageContent() {
     }
   };
 
+  const formatLastLogin = (timestamp?: number) => {
+      if (!timestamp) return 'N/A';
+      return new Date(timestamp).toLocaleString('es-ES', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+      });
+  }
+
   if (!isAdmin && !isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 md:px-6 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
@@ -309,13 +326,15 @@ function ManageSubscriptionsPageContent() {
                   <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionType')}><span className="flex items-center">Tipo Suscripción {renderSortIcon('subscriptionType')}</span></TableHead>
                   <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionStatus')}><span className="flex items-center">Estado Suscripción {renderSortIcon('subscriptionStatus')}</span></TableHead>
                   <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('subscriptionEnd')}><span className="flex items-center">Fecha Vencimiento {renderSortIcon('subscriptionEnd')}</span></TableHead>
+                  <TableHead className="w-[120px] cursor-pointer hover:bg-muted/50 text-center" onClick={() => handleSort('loginCount')}><span className="flex items-center justify-center">Nº Accesos {renderSortIcon('loginCount')}</span></TableHead>
+                  <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('lastLoginAt')}><span className="flex items-center">Último Acceso {renderSortIcon('lastLoginAt')}</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
                 ) : paginatedUsers.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="h-24 text-center">No se encontraron usuarios.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="h-24 text-center">No se encontraron usuarios.</TableCell></TableRow>
                 ) : (
                   paginatedUsers.map((u) => (
                     <TableRow key={u.id}>
@@ -358,6 +377,8 @@ function ManageSubscriptionsPageContent() {
                         )}
                       </TableCell>
                       <TableCell>{u.subscriptionEnd ? new Date(u.subscriptionEnd).toLocaleDateString('es-ES') : 'N/A'}</TableCell>
+                      <TableCell className="text-center font-medium">{u.loginCount || 0}</TableCell>
+                      <TableCell>{formatLastLogin(u.lastLoginAt)}</TableCell>
                     </TableRow>
                   ))
                 )}
