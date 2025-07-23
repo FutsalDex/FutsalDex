@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -267,7 +268,7 @@ const createGuestExercises = (): Ejercicio[] => {
             isVisible: true,
         },
     ];
-    return demoData.slice(0, GUEST_ITEM_LIMIT).map((ex, index) => ({...ex, id: `guest_ex_${index}`} as Ejercicio));
+    return demoData.slice(0, GUEST_ITEM_LIMIT).map((ex, index) => ({...ex, id: `guest_ex_${index}`}));
 };
 
 
