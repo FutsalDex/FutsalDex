@@ -6,3 +6,4 @@
 // to be executed on the client-side, respecting Firestore security rules
 // that now grant admins appropriate permissions. This avoids issues with
 // server-side Admin SDK credentials in the development environment.
+// It has been replaced by admin-users-actions.ts for user creation.
