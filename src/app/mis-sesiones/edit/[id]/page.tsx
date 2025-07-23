@@ -19,7 +19,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { manualSessionSchema, type ManualSessionFormValues } from "@/lib/schemas";
 import { useState, useEffect, useMemo, useCallback }
 from "react";
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { collection, getDocs, query, where, limit, orderBy as firestoreOrderBy, serverTimestamp, DocumentData, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, Info, Filter, ArrowLeft } from "lucide-react";
@@ -81,6 +81,7 @@ function EditManualSessionPageContent() {
   const fetchEjerciciosPorFase = useCallback(async (fase: string, setter: React.Dispatch<React.SetStateAction<Ejercicio[]>>, loadingKey: keyof typeof loadingEjercicios) => {
     setLoadingEjercicios(prev => ({ ...prev, [loadingKey]: true }));
     try {
+      const db = getFirebaseDb();
       const q = query(collection(db, 'ejercicios_futsal'), where('fase', '==', fase), firestoreOrderBy('ejercicio'), limit(150));
       const snapshot = await getDocs(q);
       const ejerciciosData = snapshot.docs.map(docSnap => ({
@@ -110,6 +111,7 @@ function EditManualSessionPageContent() {
   const fetchSessionData = useCallback(async () => {
     if (!sessionId || !user) return;
     setIsLoadingData(true);
+    const db = getFirebaseDb();
     try {
       const sessionDocRef = doc(db, "mis_sesiones", sessionId);
       const sessionDocSnap = await getDoc(sessionDocRef);
@@ -202,6 +204,7 @@ function EditManualSessionPageContent() {
     if (!user || !sessionId) return;
     setIsSaving(true);
     form.clearErrors("numero_sesion");
+    const db = getFirebaseDb();
 
     if (values.numero_sesion && values.numero_sesion !== originalNumeroSesion) {
         try {
@@ -453,5 +456,3 @@ export default function EditManualSessionPage() {
         </AuthGuard>
     );
 }
-
-    
