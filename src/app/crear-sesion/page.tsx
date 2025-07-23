@@ -44,6 +44,26 @@ interface Ejercicio {
   isVisible?: boolean;
 }
 
+// Función para crear ejercicios de demostración para invitados
+const createGuestExercises = (): { calentamiento: Ejercicio[], principal: Ejercicio[], final: Ejercicio[] } => {
+    const allGuestExercises: Ejercicio[] = [
+        { id: 'guest_warmup_1', ejercicio: 'Rondo de Activación 4v1', fase: 'Inicial', categoria: 'Pase y control', duracion: '10', isVisible: true, descripcion: 'Clásico rondo...', objetivos: 'Mejorar primer toque...' },
+        { id: 'guest_warmup_2', ejercicio: 'Movilidad Articular con Balón', fase: 'Inicial', categoria: 'Calentamiento y activación', duracion: '5', isVisible: true, descripcion: 'Movimientos suaves...', objetivos: 'Preparar articulaciones...' },
+        { id: 'guest_main_1', ejercicio: 'Finalización Tras Pase al Pívot', fase: 'Principal', categoria: 'Finalización', duracion: '15', isVisible: true, descripcion: 'Pared con pívot y remate.', objetivos: 'Mejorar juego de espaldas.' },
+        { id: 'guest_main_2', ejercicio: 'Juego de Posesión 3v3+2', fase: 'Principal', categoria: 'Posesión y circulación del balón', duracion: '15', isVisible: true, descripcion: 'Mantener posesión con comodines.', objetivos: 'Fomentar movilidad y apoyo.' },
+        { id: 'guest_main_3', ejercicio: 'Transición Ataque-Defensa 2v1', fase: 'Principal', categoria: 'Transiciones (ofensivas y defensivas)', duracion: '20', isVisible: true, descripcion: 'Superioridad numérica en ataque.', objetivos: 'Toma de decisiones y repliegue.' },
+        { id: 'guest_main_4', ejercicio: 'Defensa en Inferioridad 2v3', fase: 'Principal', categoria: 'Defensa (individual, colectiva y táctica)', duracion: '15', isVisible: true, descripcion: 'Trabajo de basculaciones.', objetivos: 'Comunicación defensiva.' },
+        { id: 'guest_cooldown_1', ejercicio: 'Estiramientos y Vuelta a la Calma', fase: 'Final', categoria: 'Coordinación, agilidad y velocidad', duracion: '5', isVisible: true, descripcion: 'Estiramiento suave de los principales grupos musculares.', objetivos: 'Reducir fatiga y mejorar recuperación.' },
+        { id: 'guest_cooldown_2', ejercicio: 'Trote Ligero Regenerativo', fase: 'Final', categoria: 'Calentamiento y activación', duracion: '5', isVisible: true, descripcion: 'Carrera suave por la pista.', objetivos: 'Recuperación activa.' },
+    ];
+    return {
+        calentamiento: allGuestExercises.filter(e => e.fase === 'Inicial'),
+        principal: allGuestExercises.filter(e => e.fase === 'Principal'),
+        final: allGuestExercises.filter(e => e.fase === 'Final'),
+    };
+};
+
+
 function getMaxNumericSessionNumber(sessionNumbers: (string | undefined)[]): number {
   let maxNumber = 0;
   sessionNumbers.forEach(numStr => {
@@ -149,11 +169,19 @@ function CrearSesionContent() {
   }, [toast]);
 
   useEffect(() => {
-    fetchEjerciciosPorFase("Inicial", setCalentamientoEjercicios, "calentamiento");
-    fetchEjerciciosPorFase("Principal", setPrincipalEjercicios, "principal");
-    fetchEjerciciosPorFase("Final", setVueltaCalmaEjercicios, "vueltaCalma");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchEjerciciosPorFase]); // fetchEjerciciosPorFase ya está en useCallback
+    if (isRegisteredUser) {
+        fetchEjerciciosPorFase("Inicial", setCalentamientoEjercicios, "calentamiento");
+        fetchEjerciciosPorFase("Principal", setPrincipalEjercicios, "principal");
+        fetchEjerciciosPorFase("Final", setVueltaCalmaEjercicios, "vueltaCalma");
+    } else {
+        // Cargar ejercicios de demostración para invitados
+        const guestData = createGuestExercises();
+        setCalentamientoEjercicios(guestData.calentamiento);
+        setPrincipalEjercicios(guestData.principal);
+        setVueltaCalmaEjercicios(guestData.final);
+        setLoadingEjercicios({ calentamiento: false, principal: false, vueltaCalma: false });
+    }
+  }, [isRegisteredUser, fetchEjerciciosPorFase]);
 
  const handleCategoryChange = (categoryLabel: string) => {
     let newSelectedCategorias: string[];
@@ -440,7 +468,7 @@ function CrearSesionContent() {
           <Info className="h-5 w-5 text-accent" />
           <AlertTitle className="font-headline text-accent">Modo Invitado</AlertTitle>
           <AlertDescription className="text-accent/90">
-            Como invitado, puedes diseñar una sesión de entrenamiento.
+            Como invitado, puedes diseñar una sesión de entrenamiento con ejercicios de ejemplo.
             Para guardar tus sesiones y acceder a todas las funciones, por favor{" "}
             <Link href="/register" className="font-bold underline hover:text-accent/70">
               regístrate
