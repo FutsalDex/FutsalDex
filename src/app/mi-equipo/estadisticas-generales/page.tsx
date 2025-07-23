@@ -126,7 +126,12 @@ function EstadisticasGeneralesContent() {
 
         try {
             const db = getFirebaseDb();
-            const partidosQuery = query(collection(db, "partidos_estadisticas"), where("userId", "==", user.uid));
+            const today = new Date().toISOString().split('T')[0];
+            const partidosQuery = query(
+                collection(db, "partidos_estadisticas"), 
+                where("userId", "==", user.uid),
+                where("fecha", "<=", today)
+            );
             const rosterDocRef = doc(db, 'usuarios', user.uid, 'team', 'roster');
 
             const [partidosSnapshot, rosterSnap] = await Promise.all([
@@ -363,4 +368,3 @@ export default function EstadisticasGeneralesPage() {
         <EstadisticasGeneralesContent />
     );
 }
-
