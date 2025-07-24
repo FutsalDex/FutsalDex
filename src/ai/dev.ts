@@ -2,13 +2,15 @@
 import {genkit, type GenkitConfig} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
-// Construct the configuration with the API key
+// Construct the configuration with the API key from server-side environment variables
 const genkitConfig: GenkitConfig = {
   plugins: [
     googleAI({
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      apiKey: process.env.GEMINI_API_KEY, // Use the server-side key
     }),
   ],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
 };
 
 // Initialize Genkit with the explicit configuration
