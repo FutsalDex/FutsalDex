@@ -16,7 +16,7 @@ const firebaseConfig: FirebaseOptions = {
 // --- LAZY INITIALIZATION ---
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
-let db: Firestore | null = null;
+
 
 function initializeFirebase() {
   if (!app) {
@@ -26,7 +26,6 @@ function initializeFirebase() {
       app = getApp();
     }
     auth = getAuth(app);
-    db = getFirestore(app);
   }
 }
 
@@ -38,5 +37,6 @@ export function getFirebaseAuth(): Auth {
 
 export function getFirebaseDb(): Firestore {
   initializeFirebase();
-  return db!;
+  // Always get a new instance of Firestore from the initialized app.
+  return getFirestore(app!);
 }

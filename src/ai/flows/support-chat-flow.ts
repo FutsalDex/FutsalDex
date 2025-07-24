@@ -61,12 +61,17 @@ When providing advice, follow these principles strictly:
 
 **IMPORTANTE: Debes responder en Español (es-ES).**`;
 
-  const response = await ai.generate({
+  const generateParams: any = {
       model: 'googleai/gemini-2.0-flash',
       prompt: input.question,
-      history: input.history, // Use history from the client
-      system: systemPrompt,
-  });
+      history: input.history,
+  };
+  
+  if (systemPrompt.trim()) {
+      generateParams.system = systemPrompt;
+  }
+
+  const response = await ai.generate(generateParams);
 
   const answer = response.text;
   if (!answer) {
