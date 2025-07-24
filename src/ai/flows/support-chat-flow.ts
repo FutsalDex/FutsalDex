@@ -65,7 +65,7 @@ When providing advice, follow these principles strictly:
   const fullPrompt = `${systemPrompt}\n\nPregunta del usuario: ${input.question}`;
 
   const generateParams: any = {
-      model: googleAI.model('gemini-pro'),
+      model: googleAI.model('gemini-1.5-flash-latest'),
       prompt: fullPrompt,
       history: input.history,
   };
