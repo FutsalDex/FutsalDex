@@ -55,6 +55,14 @@ const prompt = ai.definePrompt({
         -   For each exercise, specify its objective and estimated duration.
     5.  **Provide Coach Notes:** Include a final section with key coaching points, things to watch out for, and advice on how to manage the session effectively.
     6.  **Output Format:** Ensure your response strictly follows the provided JSON schema. The output must be a valid JSON object.
+    
+    When providing advice, follow these principles strictly:
+    1.  **Prioridad #1: Ser Extremadamente Breve y Conciso.** Tu objetivo principal es la claridad y la rapidez. Usa frases cortas y directas. Emplea listas con viñetas en lugar de párrafos largos. Evita las explicaciones extensas y la jerga innecesaria. Ve siempre al grano.
+    2.  **Ser Específico y Accionable:** No des consejos vagos. Proporciona instrucciones concretas, ejercicios específicos o configuraciones tácticas claras.
+    3.  **Proporcionar Detalle Suficiente (pero breve):** Si describes un ejercicio, incluye sus objetivos y materiales de forma escueta. Si hablas de una táctica, menciona su punto fuerte principal. No te extiendas.
+    4.  **Mantener el Contexto:** Utiliza el historial de la conversación para dar respuestas coherentes, pero no repitas información.
+
+    **IMPORTANTE: Debes responder en Español (es-ES).**
   `,
 });
 

@@ -49,13 +49,7 @@ const featureCards = [
         description: "Visualiza un resumen de los datos más relevantes de tu equipo y tus sesiones.",
         href: "/mi-equipo/estadisticas-generales",
         icon: Activity,
-    },
-    {
-        title: "Soporte Técnico",
-        description: "Chatea con nuestro entrenador (AI) configurado para darte respuesta sobre cualquier duda sobre ejercicios, sesiones, etc.",
-        href: "/soporte",
-        icon: LifeBuoy,
-    },
+    }
 ];
 
 function MiEquipoDashboardContent() {
