@@ -2,12 +2,13 @@
 import {genkit, type GenkitConfig} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
-// Construct the configuration with the API key from server-side environment variables
+// When running in a Firebase environment, Genkit can automatically
+// use the environment's service account credentials.
+// Explicitly providing the apiKey can sometimes cause issues with
+// API key restrictions in Google Cloud.
 const genkitConfig: GenkitConfig = {
   plugins: [
-    googleAI({
-      apiKey: process.env.GEMINI_API_KEY, // Use the server-side key
-    }),
+    googleAI(),
   ],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
