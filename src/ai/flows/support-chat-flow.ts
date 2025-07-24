@@ -12,6 +12,7 @@
  */
 
 import { ai } from '@/ai/dev';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import type { Message } from 'genkit';
 import { saveChatMessage } from '@/lib/actions/user-actions';
@@ -62,7 +63,7 @@ When providing advice, follow these principles strictly:
 **IMPORTANTE: Debes responder en Español (es-ES).**`;
 
   const generateParams: any = {
-      model: 'gemini-pro',
+      model: googleAI.model('gemini-pro'),
       prompt: input.question,
       history: input.history,
   };
