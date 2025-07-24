@@ -2,15 +2,15 @@ import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions 
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
-// Your web app's Firebase configuration
+// Your web app's Firebase configuration is now loaded from environment variables
 const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyA0t0B9CtSbTqi8tfqIftQLbnsj56QWnlw",
-  authDomain: "futsaldex-aa3d5.firebaseapp.com",
-  projectId: "futsaldex-aa3d5",
-  storageBucket: "futsaldex-aa3d5.appspot.com",
-  messagingSenderId: "1087849617663",
-  appId: "1:1087849617663:web:014fa546af1700535d94ca",
-  measurementId: "G-7ZL97TKSSK"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // --- LAZY INITIALIZATION ---
@@ -21,6 +21,10 @@ let auth: Auth | null = null;
 function initializeFirebase() {
   if (!app) {
     if (getApps().length === 0) {
+      if (!firebaseConfig.apiKey) {
+        console.error("Firebase API Key is missing. Check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is set.");
+        return;
+      }
       app = initializeApp(firebaseConfig);
     } else {
       app = getApp();
@@ -32,11 +36,17 @@ function initializeFirebase() {
 // Export functions that provide the initialized instances
 export function getFirebaseAuth(): Auth {
   initializeFirebase();
-  return auth!;
+  if (!auth) {
+    throw new Error("Firebase Authentication could not be initialized. Please check your configuration.");
+  }
+  return auth;
 }
 
 export function getFirebaseDb(): Firestore {
   initializeFirebase();
+  if (!app) {
+      throw new Error("Firebase App could not be initialized. Please check your configuration.");
+  }
   // Always get a new instance of Firestore from the initialized app.
-  return getFirestore(app!);
+  return getFirestore(app);
 }
