@@ -62,7 +62,7 @@ When providing advice, follow these principles strictly:
 **IMPORTANTE: Debes responder en Español (es-ES).**`;
 
   const generateParams: any = {
-      model: 'googleai/gemini-2.0-flash',
+      model: 'gemini-pro',
       prompt: input.question,
       history: input.history,
   };
