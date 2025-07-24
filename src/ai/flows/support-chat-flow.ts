@@ -61,17 +61,15 @@ When providing advice, follow these principles strictly:
 4.  **Mantener el Contexto:** Utiliza el historial de la conversación para dar respuestas coherentes, pero no repitas información.
 
 **IMPORTANTE: Debes responder en Español (es-ES).**`;
+  
+  const fullPrompt = `${systemPrompt}\n\nPregunta del usuario: ${input.question}`;
 
   const generateParams: any = {
       model: googleAI.model('gemini-pro'),
-      prompt: input.question,
+      prompt: fullPrompt,
       history: input.history,
   };
   
-  if (systemPrompt.trim()) {
-      generateParams.system = systemPrompt;
-  }
-
   const response = await ai.generate(generateParams);
 
   const answer = response.text;
