@@ -61,64 +61,71 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // These states will be populated after the initial auth check to avoid hydration issues
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriptionType, setSubscriptionType] = useState<SubscriptionType>(null);
   const [subscriptionEnd, setSubscriptionEnd] = useState<Date | null>(null);
 
-
   useEffect(() => {
     const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      setIsAdmin(currentUser?.email === ADMIN_EMAIL);
+      setLoading(false); // Auth check complete, stop loading
 
       if (currentUser) {
+        // Now that client has loaded and we have a user, fetch their data
+        setIsAdmin(currentUser.email === ADMIN_EMAIL);
         const db = getFirebaseDb();
         const userDocRef = doc(db, "usuarios", currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        try {
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+                const userData = userDocSnap.data();
+                const status = userData.subscriptionStatus === 'active';
+                
+                let subEnd: Date | null = null;
+                if (userData.subscriptionEnd instanceof Timestamp) {
+                    subEnd = userData.subscriptionEnd.toDate();
+                }
 
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          const status = userData.subscriptionStatus === 'active';
-          
-          let subEnd: Date | null = null;
-          if (userData.subscriptionEnd instanceof Timestamp) {
-            subEnd = userData.subscriptionEnd.toDate();
-          }
+                let trialEnd: Date | null = null;
+                if (userData.trialEndsAt instanceof Timestamp) {
+                    trialEnd = userData.trialEndsAt.toDate();
+                }
 
-          let trialEnd: Date | null = null;
-          if (userData.trialEndsAt instanceof Timestamp) {
-            trialEnd = userData.trialEndsAt.toDate();
-          }
+                const isTrialActive = trialEnd ? trialEnd > new Date() : false;
 
-          const isTrialActive = trialEnd ? trialEnd > new Date() : false;
-
-          setIsSubscribed(status || isTrialActive);
-          
-          if (isTrialActive) {
-            setSubscriptionType('Prueba');
-            setSubscriptionEnd(trialEnd);
-          } else if (status) {
-            setSubscriptionType(userData.subscriptionType || 'Básica');
-            setSubscriptionEnd(subEnd);
-          } else {
+                setIsSubscribed(status || isTrialActive);
+                
+                if (isTrialActive) {
+                    setSubscriptionType('Prueba');
+                    setSubscriptionEnd(trialEnd);
+                } else if (status) {
+                    setSubscriptionType(userData.subscriptionType || 'Básica');
+                    setSubscriptionEnd(subEnd);
+                } else {
+                    setSubscriptionType(null);
+                    setSubscriptionEnd(null);
+                }
+            }
+        } catch (dbError) {
+            console.error("Error fetching user subscription data:", dbError);
+            // Reset to defaults on error
+            setIsSubscribed(false);
             setSubscriptionType(null);
             setSubscriptionEnd(null);
-          }
-
-        } else {
-          setIsSubscribed(false);
-          setSubscriptionType(null);
-          setSubscriptionEnd(null);
         }
       } else {
+        // No user, reset all states to default
+        setIsAdmin(false);
         setIsSubscribed(false);
         setSubscriptionType(null);
         setSubscriptionEnd(null);
       }
-      setLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -206,15 +213,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const isRegisteredUser = !!user;
-
-  // DELAY RENDER UNTIL LOADING IS COMPLETE
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionEnd, login, register, signOut, changePassword, error, clearError }}>

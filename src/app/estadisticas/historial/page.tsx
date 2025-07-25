@@ -81,23 +81,9 @@ const createInitialTeamStats = () => ({
   faltas: { firstHalf: 0, secondHalf: 0 },
 });
 
-const createGuestMatches = (): SavedMatch[] => {
-    const today = new Date();
-    const createDate = (daysAgo: number) => {
-        const date = new Date(today);
-        date.setDate(date.getDate() - daysAgo);
-        return date.toISOString().split('T')[0];
-    };
-    return [
-        { id: 'demo1', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Titanes FS', myTeamWasHome: true, fecha: createDate(7), hora: '20:00', tipoPartido: 'Liga', myTeamPlayers: [{ goals: [{},{},{},{},{}] }], opponentPlayers: [{ goals: [{},{},{}] }], createdAt: new Date().toISOString() },
-        { id: 'demo2', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Furia Roja', myTeamWasHome: false, fecha: createDate(14), hora: '19:00', tipoPartido: 'Copa', myTeamPlayers: [{ goals: [{},{}] }], opponentPlayers: [{ goals: [{},{}] }], createdAt: new Date().toISOString() },
-        { id: 'demo3', myTeamName: 'FutsalDex Demo', opponentTeamName: 'Estrellas del Balón', myTeamWasHome: true, fecha: createDate(21), hora: '21:00', tipoPartido: 'Amistoso', myTeamPlayers: [{ goals: [{},{},{},{},{},{},{}] }], opponentPlayers: [{ goals: [{},{},{},{}] }], createdAt: new Date().toISOString() },
-    ];
-};
-
 
 function HistorialPageContent() {
-    const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
+    const { user, isSubscribed, isAdmin } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
     const [matches, setMatches] = useState<SavedMatch[]>([]);
@@ -125,11 +111,6 @@ function HistorialPageContent() {
     });
 
     const fetchMatches = useCallback(async () => {
-        if (!isRegisteredUser) {
-            setMatches(createGuestMatches());
-            setIsLoading(false);
-            return;
-        }
         if (!user) {
             setIsLoading(false);
             return;
@@ -172,19 +153,18 @@ function HistorialPageContent() {
             });
         }
         setIsLoading(false);
-    }, [user, toast, isRegisteredUser]);
+    }, [user, toast]);
 
     useEffect(() => {
-        if (isRegisteredUser) {
+        if (user) {
             fetchMatches();
         } else {
-            setMatches(createGuestMatches());
             setIsLoading(false);
         }
-    }, [isRegisteredUser, fetchMatches]);
+    }, [user, fetchMatches]);
 
     useEffect(() => {
-        if (!isRegisteredUser || !user) return;
+        if (!user) return;
         const fetchRosterInfo = async () => {
           try {
             const db = getFirebaseDb();
@@ -214,7 +194,7 @@ function HistorialPageContent() {
         };
         fetchRosterInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, isRegisteredUser]);
+    }, [user]);
     
     const handleDeleteClick = (id: string) => {
       setMatchToDeleteId(id);
@@ -222,7 +202,11 @@ function HistorialPageContent() {
     };
 
     const confirmDelete = async () => {
-        if (!isRegisteredUser || (!isSubscribed && !isAdmin)) {
+        if (!user) {
+            toast({ title: "Acción Requerida", description: "Debes iniciar sesión para eliminar partidos." });
+            return;
+        }
+        if (!isSubscribed && !isAdmin) {
             toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para eliminar partidos." });
             setIsDeleting(false);
             setIsDeleteDialogOpen(false);
@@ -246,7 +230,7 @@ function HistorialPageContent() {
     };
 
     const onAddMatchSubmit = async (values: NewMatchFormValues) => {
-        if (!isRegisteredUser) {
+        if (!user) {
             toast({ title: "Acción Requerida", description: "Debes iniciar sesión para añadir un partido.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
             return;
         }
@@ -254,7 +238,6 @@ function HistorialPageContent() {
             toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para añadir partidos.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
             return;
         }
-        if (!user) return;
         
         const myTeamName = rosterSide === 'local' ? values.localTeamName : values.visitorTeamName;
         if (!myTeamName || myTeamName !== rosterInfo.name) {
@@ -342,6 +325,22 @@ function HistorialPageContent() {
             </div>
         );
     }
+    
+    if (!user) {
+        return (
+            <div className="container mx-auto px-4 py-8 md:px-6">
+                 <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
+                    <Info className="h-4 w-4 text-blue-700" />
+                    <AlertTitle className="text-blue-800 font-semibold">Función para Usuarios Registrados</AlertTitle>
+                    <AlertDesc>
+                        Para guardar y gestionar tus propios partidos, por favor{" "}
+                        <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                        <Link href="/login" className="font-bold underline">inicia sesión</Link>.
+                    </AlertDesc>
+                </Alert>
+            </div>
+        )
+    }
 
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
@@ -427,18 +426,6 @@ function HistorialPageContent() {
                 </div>
             </header>
 
-            {!isRegisteredUser && (
-                 <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
-                    <Info className="h-4 w-4 text-blue-700" />
-                    <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
-                    <AlertDesc>
-                        Estás viendo un historial de partidos de ejemplo. Para guardar y gestionar tus propios partidos, por favor{" "}
-                        <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
-                        <Link href="/login" className="font-bold underline">inicia sesión</Link>.
-                    </AlertDesc>
-                </Alert>
-            )}
-
             {matches.length === 0 ? (
                 <Card className="text-center py-12">
                     <CardHeader>
@@ -468,13 +455,13 @@ function HistorialPageContent() {
                                     {match.tipoPartido && <Badge variant="secondary" className="mt-2">{match.tipoPartido}</Badge>}
                                 </CardContent>
                                 <CardFooter className="flex justify-center gap-2">
-                                    <Button asChild variant="ghost" size="icon" title="Ver Detalles" disabled={!isRegisteredUser}>
+                                    <Button asChild variant="ghost" size="icon" title="Ver Detalles">
                                     <Link href={`/estadisticas/historial/${match.id}`}><Eye className="h-4 w-4"/></Link>
                                     </Button>
-                                    <Button asChild variant="ghost" size="icon" title="Editar Estadísticas y Datos" disabled={!isRegisteredUser}>
+                                    <Button asChild variant="ghost" size="icon" title="Editar Estadísticas y Datos">
                                     <Link href={`/estadisticas/edit/${match.id}`}><Edit className="h-4 w-4"/></Link>
                                     </Button>
-                                    <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)} disabled={!isRegisteredUser}>
+                                    <Button variant="ghost" size="icon" title="Eliminar Partido" onClick={() => handleDeleteClick(match.id)}>
                                     <Trash2 className="h-4 w-4 text-destructive"/>
                                     </Button>
                                 </CardFooter>

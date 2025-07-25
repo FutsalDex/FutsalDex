@@ -53,30 +53,6 @@ interface DisplayPlayerStats {
     asistenciaPct: number;
 }
 
-const createGuestPlayers = (): RosterPlayer[] => [
-    { id: uuidv4(), dorsal: '1', nombre: 'A. García' },
-    { id: uuidv4(), dorsal: '4', nombre: 'J. López' },
-    { id: uuidv4(), dorsal: '7', nombre: 'M. Pérez' },
-    { id: uuidv4(), dorsal: '10', nombre: 'C. Ruiz' },
-    { id: uuidv4(), dorsal: '8', nombre: 'S. Torres' },
-];
-
-const createGuestHistoryStats = (players: RosterPlayer[]): DisplayPlayerStats[] => players.map(p => {
-    const presente = Math.floor(Math.random() * 15) + 5; // 5-19
-    const ausente = Math.floor(Math.random() * 3); // 0-2
-    const justificado = Math.floor(Math.random() * 2); // 0-1
-    const lesionado = Math.floor(Math.random() * 2); // 0-1
-    const totalEsperado = presente + ausente + justificado + lesionado;
-    const pct = totalEsperado > 0 ? Math.round(((presente + justificado) / totalEsperado) * 100) : 0;
-    return {
-        id: p.id,
-        dorsal: p.dorsal,
-        nombre: p.nombre,
-        presente, ausente, justificado, lesionado,
-        totalRegistros: totalEsperado,
-        asistenciaPct: pct
-    };
-});
 
 // Helper function to normalize a date, removing time and timezone effects.
 const normalizeDate = (date: Date): Date => {
@@ -84,7 +60,7 @@ const normalizeDate = (date: Date): Date => {
 };
 
 function AsistenciaPageContent() {
-    const { user, isRegisteredUser } = useAuth();
+    const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
     const [players, setPlayers] = useState<RosterPlayer[]>([]);
@@ -99,13 +75,6 @@ function AsistenciaPageContent() {
     const [historyStats, setHistoryStats] = useState<DisplayPlayerStats[]>([]);
 
     const fetchFullData = useCallback(async () => {
-        if (!isRegisteredUser) {
-          const guestPlayers = createGuestPlayers();
-          setPlayers(guestPlayers);
-          setHistoryStats(createGuestHistoryStats(guestPlayers));
-          setIsLoading(false);
-          return;
-        }
         if (!user) {
           setIsLoading(false);
           return;
@@ -134,11 +103,15 @@ function AsistenciaPageContent() {
         } finally {
             setIsLoading(false);
         }
-    }, [user, toast, isRegisteredUser]);
+    }, [user, toast]);
     
     useEffect(() => {
-        fetchFullData();
-    }, [fetchFullData]);
+        if (user) {
+            fetchFullData();
+        } else {
+            setIsLoading(false);
+        }
+    }, [user, fetchFullData]);
 
     useEffect(() => {
         if (!selectedDate || players.length === 0) return;
@@ -155,7 +128,7 @@ function AsistenciaPageContent() {
     }, [selectedDate, players, allAttendanceData]);
 
     useEffect(() => {
-        if (!isRegisteredUser) return; // Only for registered users
+        if (!user) return; // Only for registered users
         if (players.length === 0) {
             setHistoryStats([]);
             return;
@@ -193,7 +166,7 @@ function AsistenciaPageContent() {
         });
         
         setHistoryStats(finalHistoryStats);
-    }, [players, allAttendanceData, isRegisteredUser]);
+    }, [players, allAttendanceData, user]);
 
 
     const handleAttendanceChange = (playerId: string, status: AttendanceStatus) => {
@@ -205,11 +178,11 @@ function AsistenciaPageContent() {
     };
 
     const handleSaveAttendance = async () => {
-        if (!isRegisteredUser) {
+        if (!user) {
             toast({ title: "Acción Requerida", description: "Debes iniciar sesión para guardar la asistencia.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
             return;
         }
-        if (!user || !selectedDate) return;
+        if (!selectedDate) return;
         setIsSaving(true);
         const dateString = format(selectedDate, 'yyyy-MM-dd');
         
@@ -232,7 +205,7 @@ function AsistenciaPageContent() {
     };
     
     const handleDeleteRecord = async () => {
-        if (!isRegisteredUser || !user || !selectedDate) return;
+        if (!user || !selectedDate) return;
         setIsDeleting(true);
         const dateString = format(selectedDate, 'yyyy-MM-dd');
 
@@ -281,6 +254,22 @@ function AsistenciaPageContent() {
         );
     }
 
+    if (!user) {
+        return (
+             <div className="container mx-auto px-4 py-8 md:px-6">
+                <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200 text-blue-800">
+                    <Info className="h-4 w-4 text-blue-700" />
+                    <AlertTitle className="text-blue-800 font-semibold">Función para Usuarios Registrados</AlertTitle>
+                    <AlertDescription>
+                        Para registrar la asistencia de tu propio equipo, por favor{" "}
+                        <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
+                        <Link href="/login" className="font-bold underline">inicia sesión</Link>.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        )
+    }
+
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
             <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -297,18 +286,6 @@ function AsistenciaPageContent() {
                     </Link>
                 </Button>
             </header>
-
-            {!isRegisteredUser && (
-                <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200 text-blue-800">
-                    <Info className="h-4 w-4 text-blue-700" />
-                    <AlertTitle className="text-blue-800 font-semibold">Modo de Demostración</AlertTitle>
-                    <AlertDescription>
-                        Estás viendo un ejemplo. Para registrar la asistencia de tu propio equipo, por favor{" "}
-                        <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
-                        <Link href="/login" className="font-bold underline">inicia sesión</Link>.
-                    </AlertDescription>
-                </Alert>
-            )}
 
             <Card>
                 <CardHeader>
@@ -375,12 +352,11 @@ function AsistenciaPageContent() {
                                                     value={attendance[player.id] || 'presente'}
                                                     onValueChange={(value) => handleAttendanceChange(player.id, value as AttendanceStatus)}
                                                     className="flex justify-end gap-2 sm:gap-4"
-                                                    disabled={!isRegisteredUser}
                                                 >
                                                     {ATTENDANCE_OPTIONS.map(opt => (
                                                         <div key={opt.value} className="flex items-center space-x-2">
                                                             <RadioGroupItem value={opt.value} id={`${player.id}-${opt.value}`} />
-                                                            <Label htmlFor={`${player.id}-${opt.value}`} className={cn("text-xs sm:text-sm", !isRegisteredUser && "cursor-not-allowed")}>{opt.label}</Label>
+                                                            <Label htmlFor={`${player.id}-${opt.value}`} className="text-xs sm:text-sm">{opt.label}</Label>
                                                         </div>
                                                     ))}
                                                 </RadioGroup>
