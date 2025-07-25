@@ -47,7 +47,7 @@ Este es el único paso manual que necesitas realizar. Consiste en empaquetar tod
 
 ### **Paso 3: Monitorear el Despliegue en Firebase**
 
-Una vez que has subido tus cambios a GitHub, Firebase toma el control.
+Once que has subido tus cambios a GitHub, Firebase toma el control.
 
 1.  **Ve a tu Consola de Firebase**: Abre el [Panel de Firebase](https://console.firebase.google.com/) en tu navegador y selecciona tu proyecto.
 
