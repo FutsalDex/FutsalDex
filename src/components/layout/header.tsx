@@ -19,7 +19,7 @@ import { trackPageView } from '@/lib/actions/user-actions';
 import { Loader2 } from 'lucide-react';
 
 export default function Header() {
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin, loading } = useAuth();
   const pathname = usePathname();
   const lastTrackedPath = useRef<string | null>(null);
 
@@ -81,8 +81,9 @@ export default function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          {/* Auth Content */}
-          {user ? (
+          {loading ? (
+            <Loader2 className="h-6 w-6 animate-spin" />
+          ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-primary/80">
