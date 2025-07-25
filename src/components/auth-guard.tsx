@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
@@ -48,11 +49,3 @@ export function GuestGuard({ children }: { children: ReactNode }) {
   }
   return <>{children}</>;
 }
-
-// To apply AuthGuard to a page, you would wrap the page content in it.
-// For example, in `src/app/mis-sesiones/page.tsx`:
-// export default function MisSesionesPage() {
-//   return <AuthGuard><PageContent /></AuthGuard>;
-// }
-// Where <PageContent /> is the actual content of the page.
-// The login and register pages should use GuestGuard.

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -245,31 +246,6 @@ function AsistenciaPageContent() {
         return recordedDates.some(d => normalizeDate(d).getTime() === normalizedSelected);
     }, [selectedDate, recordedDates]);
 
-
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center py-12">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    if (!user) {
-        return (
-             <div className="container mx-auto px-4 py-8 md:px-6">
-                <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200 text-blue-800">
-                    <Info className="h-4 w-4 text-blue-700" />
-                    <AlertTitle className="text-blue-800 font-semibold">Función para Usuarios Registrados</AlertTitle>
-                    <AlertDescription>
-                        Para registrar la asistencia de tu propio equipo, por favor{" "}
-                        <Link href="/register" className="font-bold underline">regístrate</Link> o{" "}
-                        <Link href="/login" className="font-bold underline">inicia sesión</Link>.
-                    </AlertDescription>
-                </Alert>
-            </div>
-        )
-    }
-
     return (
         <div className="container mx-auto px-4 py-8 md:px-6">
             <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -466,6 +442,8 @@ function AsistenciaPageContent() {
 
 export default function AsistenciaPage() {
     return (
-        <AsistenciaPageContent />
+        <AuthGuard>
+            <AsistenciaPageContent />
+        </AuthGuard>
     );
 }

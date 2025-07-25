@@ -12,7 +12,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp, increment } from 'firebase/firestore';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
 import { Loader2 } from 'lucide-react';
@@ -206,15 +206,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const clearError = () => {
     setError(null);
   };
-
-  if (loading) {
-    return (
-        <div className="flex h-screen flex-col items-center justify-center">
-            <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
-            <p className="text-lg font-medium">Cargando FutsalDex...</p>
-        </div>
-    );
-  }
 
   const isRegisteredUser = !!user;
 
