@@ -5,16 +5,16 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%; /* Very light cool gray */
+    --background: 200 20% 98%; /* Very light cool gray */
     --foreground: 215 28% 17%; /* Dark desaturated blue */
 
-    --card: 210 40% 100%;
+    --card: 200 20% 100%;
     --card-foreground: 215 28% 17%;
 
-    --popover: 210 40% 100%;
+    --popover: 200 20% 100%;
     --popover-foreground: 215 28% 17%;
 
-    --primary: 195 85% 41%; /* #29ABE2 - FutsalDex Primary Blue */
+    --primary: 160 45% 55%; /* New Teal Color from image */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 90%;
@@ -23,7 +23,7 @@
     --muted: 210 40% 96%;
     --muted-foreground: 215 25% 45%;
 
-    --accent: 25 80% 55%; /* #E28729 - FutsalDex Accent Orange */
+    --accent: 160 45% 55%; /* New Teal Color, same as primary */
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
@@ -31,7 +31,7 @@
 
     --border: 210 40% 90%;
     --input: 210 40% 94%;
-    --ring: 195 85% 41%;
+    --ring: 160 45% 55%; /* New Teal Color for rings */
   }
 
   .dark {
@@ -41,19 +41,19 @@
     --card-foreground: 210 40% 98%;
     --popover: 215 28% 12%;
     --popover-foreground: 210 40% 98%;
-    --primary: 195 80% 55%;
+    --primary: 160 50% 60%;
     --primary-foreground: 215 28% 10%;
     --secondary: 215 28% 25%;
     --secondary-foreground: 210 40% 98%;
     --muted: 215 28% 22%;
     --muted-foreground: 210 40% 70%;
-    --accent: 25 75% 60%;
+    --accent: 160 50% 60%;
     --accent-foreground: 215 28% 10%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 215 28% 25%;
     --input: 215 28% 22%;
-    --ring: 195 80% 55%;
+    --ring: 160 50% 60%;
   }
 }
 
