@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { LogIn, LogOut, UserPlus, Edit3, BookUser, Menu, Heart, ShieldCheck, FileText, Star, Bot, BarChart2, LifeBuoy, Users, UserCircle } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, Edit3, BookUser, Menu, Heart, ShieldCheck, FileText, Star, Users, UserCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -15,11 +15,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { trackPageView } from '@/lib/actions/user-actions';
 
 export default function Header() {
-  const { user, signOut, loading, isAdmin } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const pathname = usePathname();
   const lastTrackedPath = useRef<string | null>(null);
 
@@ -82,9 +82,7 @@ export default function Header() {
         </nav>
         <div className="flex items-center gap-2">
           {/* Auth Content */}
-          {loading ? (
-             <div className="h-8 w-20 animate-pulse rounded-md bg-primary/50" />
-          ) : user ? (
+          {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-primary/80">
@@ -156,7 +154,7 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                 ))}
-                {!user && !loading ? (
+                {!user ? (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
@@ -175,7 +173,6 @@ export default function Header() {
                     </DropdownMenuItem>
                   </>
                 ) : (
-                    user && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild className="cursor-pointer">
