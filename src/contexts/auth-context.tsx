@@ -12,7 +12,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp, increment } from 'firebase/firestore';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
 import { trackPageView } from '@/lib/actions/user-actions';
@@ -69,12 +69,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setLoading(true);
       setUser(currentUser);
       
       if (currentUser) {
-        trackPageView({ userId: currentUser.uid, pathname: window.location.pathname });
-        
         const userIsAdmin = currentUser.email === ADMIN_EMAIL;
         setIsAdmin(userIsAdmin);
 
@@ -139,6 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const auth = getFirebaseAuth();
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      trackPageView({ userId: userCredential.user.uid, pathname: '/login_success' });
       return userCredential.user;
     } catch (e) {
       const authError = e as AuthError;
@@ -168,6 +166,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             subscriptionStatus: 'inactive',
             subscriptionType: null,
             trialEndsAt: Timestamp.fromDate(trialEnds),
+            loginCount: 1,
+            lastLoginAt: serverTimestamp(),
         });
         
         return newUser;

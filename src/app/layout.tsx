@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Toaster } from "@/components/ui/toaster";
-import Header from '@/components/layout/header'; // Assuming Header component will be created
+import Header from '@/components/layout/header';
 
 export const metadata: Metadata = {
   title: 'FutsalDex',
