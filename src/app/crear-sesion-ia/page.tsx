@@ -26,7 +26,7 @@ import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'fire
 type AiSessionFormValues = Zod.infer<typeof aiSessionSchema>;
 
 function AiSessionGeneratorPageContent() {
-  const { user, isRegisteredUser, isAdmin, isSubscribed } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -54,10 +54,6 @@ function AiSessionGeneratorPageContent() {
   const onSubmit = async (values: AiSessionFormValues) => {
     if (!isRegisteredUser) {
         toast({ title: "Acción Requerida", description: "Regístrate gratis para usar el generador IA.", action: <ToastAction altText="Registrarse" onClick={() => router.push('/register')}>Registrarse</ToastAction> });
-        return;
-    }
-    if (!isSubscribed && !isAdmin) {
-        toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para generar sesiones con IA.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
         return;
     }
 

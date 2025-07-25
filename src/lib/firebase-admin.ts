@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp, cert, type ServiceAccount } from 'fireb
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
 let adminDbInstance: Firestore | null = null;
-let hasLoggedWarning = false; // Flag to log warning only once
+let hasLoggedWarning = false; 
 
 function isServiceAccountConfigured(sa: ServiceAccount): boolean {
     return !!sa.projectId && !sa.projectId.startsWith('__') &&
@@ -18,22 +18,19 @@ export function getAdminDb(): Firestore {
   }
 
   const serviceAccount: ServiceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID || '__FIREBASE_PROJECT_ID__',
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '__FIREBASE_CLIENT_EMAIL__',
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '__FIREBASE_PRIVATE_KEY__').replace(/\\n/g, '\n'),
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
   };
   
   if (!isServiceAccountConfigured(serviceAccount)) {
       if (!hasLoggedWarning) {
         console.warn(
-            'ADVERTENCIA: Las credenciales del SDK de Firebase Admin no están configuradas. ' +
-            'Las funciones que requieren acceso de administrador fallarán. ' +
-            'Esto es esperado en desarrollo local si no se han definido los secretos del servidor.'
+            'ADVERTENCIA: Las credenciales del SDK de Firebase Admin no están configuradas.'
         );
         hasLoggedWarning = true;
       }
-      // Throw a specific error that can be caught by server actions
-      throw new Error("ADMIN_SDK_NOT_CONFIGURED: Las credenciales del SDK de Firebase Admin no están disponibles en este entorno.");
+      throw new Error("ADMIN_SDK_NOT_CONFIGURED");
   }
 
   if (getApps().length === 0) {

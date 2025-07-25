@@ -108,7 +108,7 @@ export default function MisSesionesPage() {
 }
 
 function MisSesionesContent() {
-  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
@@ -272,8 +272,8 @@ function MisSesionesContent() {
   };
 
   const confirmDeleteSession = async () => {
-    if (!isRegisteredUser || (!isSubscribed && !isAdmin)) {
-      toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para eliminar sesiones." });
+    if (!isRegisteredUser) {
+      toast({ title: "Acción Requerida", description: "Necesitas una cuenta para eliminar sesiones." });
       return;
     }
     if (!sessionToDeleteId) return;

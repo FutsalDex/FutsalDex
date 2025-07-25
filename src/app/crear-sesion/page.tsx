@@ -84,7 +84,7 @@ export default function CrearSesionPage() {
 }
 
 function CrearSesionContent() {
-  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -235,21 +235,6 @@ function CrearSesionContent() {
         return;
     }
     
-    if (!isAdmin && !isSubscribed) {
-        toast({
-            title: "Suscripción Requerida",
-            description: "Necesitas una suscripción Pro para guardar tus sesiones.",
-            variant: "default",
-            duration: 10000,
-            action: (
-              <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>
-                Suscribirse
-              </ToastAction>
-            ),
-        });
-        return;
-    }
-
     if (!user) return; // Should not happen if other checks pass, but for type safety
 
     setIsSaving(true);

@@ -16,13 +16,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState, useRef } from 'react';
-import { Badge } from '../ui/badge';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { trackPageView } from '@/lib/actions/user-actions';
 
 export default function Header() {
-  const { user, signOut, loading, isAdmin, subscriptionType, subscriptionEnd } = useAuth();
+  const { user, signOut, loading, isAdmin } = useAuth();
   const pathname = usePathname();
   const [isMounted, setIsMounted] = useState(false);
   const lastTrackedPath = useRef<string | null>(null);
@@ -32,7 +29,6 @@ export default function Header() {
   }, []);
   
   useEffect(() => {
-    // Track page view only if user is logged in and path has changed
     if (user && pathname !== lastTrackedPath.current) {
       trackPageView({ userId: user.uid, pathname });
       lastTrackedPath.current = pathname;
@@ -50,11 +46,6 @@ export default function Header() {
   const adminLinks = [
     { href: '/admin', label: 'Panel Admin', icon: <ShieldCheck className="mr-2 h-4 w-4" /> }
   ];
-  
-  const formatExpirationDate = (date: Date | null) => {
-    if (!date) return 'N/A';
-    return format(date, 'PPP', { locale: es });
-  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
@@ -115,21 +106,6 @@ export default function Header() {
                     {user.displayName && <p className="text-xs leading-none text-muted-foreground">{user.email}</p>}
                     {isAdmin && <p className="text-xs leading-none text-red-500 font-semibold">Admin</p>}
                   </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                 <DropdownMenuLabel className="font-normal">
-                    <div className="space-y-2">
-                        <div>
-                            <p className="text-xs text-muted-foreground">Tipo de suscripción</p>
-                            <Badge variant={subscriptionType === 'Pro' ? 'destructive' : (subscriptionType === 'Básica' ? 'default' : 'secondary')}>
-                              {subscriptionType || 'Ninguna'}
-                            </Badge>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">Caducidad</p>
-                            <p className="text-sm font-medium">{formatExpirationDate(subscriptionEnd)}</p>
-                        </div>
-                    </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="cursor-pointer">

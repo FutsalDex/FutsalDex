@@ -84,7 +84,7 @@ const normalizeDate = (date: Date): Date => {
 };
 
 function AsistenciaPageContent() {
-    const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
+    const { user, isRegisteredUser } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
     const [players, setPlayers] = useState<RosterPlayer[]>([]);
@@ -207,10 +207,6 @@ function AsistenciaPageContent() {
     const handleSaveAttendance = async () => {
         if (!isRegisteredUser) {
             toast({ title: "Acción Requerida", description: "Debes iniciar sesión para guardar la asistencia.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
-            return;
-        }
-        if (!isSubscribed && !isAdmin) {
-            toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para guardar la asistencia.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
             return;
         }
         if (!user || !selectedDate) return;

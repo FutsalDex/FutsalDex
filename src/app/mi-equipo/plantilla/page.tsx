@@ -69,7 +69,7 @@ const createNewPlayer = (): RosterPlayer => ({
 });
 
 function MiPlantillaPageContent() {
-  const { user, isRegisteredUser, isSubscribed, isAdmin } = useAuth();
+  const { user, isRegisteredUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [players, setPlayers] = useState<DisplayPlayer[]>([]);
@@ -222,10 +222,6 @@ function MiPlantillaPageContent() {
   const handleSaveTeam = async () => {
     if (!isRegisteredUser) {
         toast({ title: "Acción Requerida", description: "Debes iniciar sesión para guardar tu plantilla.", action: <ToastAction altText="Iniciar Sesión" onClick={() => router.push('/login')}>Iniciar Sesión</ToastAction> });
-        return;
-    }
-    if (!isSubscribed && !isAdmin) {
-        toast({ title: "Suscripción Requerida", description: "Necesitas una suscripción Pro para guardar tu plantilla.", action: <ToastAction altText="Suscribirse" onClick={() => router.push('/suscripcion')}>Suscribirse</ToastAction> });
         return;
     }
     if (!user) return;

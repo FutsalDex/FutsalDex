@@ -12,12 +12,12 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp, updateDoc, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
 import type { z } from 'zod';
-import type { loginSchema, registerSchema, passwordChangeSchema } from '@/lib/schemas';
+import type { loginSchema, registerSchema } from '@/lib/schemas';
 
-const ADMIN_EMAIL = 'futsaldex@gmail.com'; // Email del superusuario
+const ADMIN_EMAIL = 'futsaldex@gmail.com';
 
 const mapAuthError = (error: AuthError): string => {
     switch (error.code) {
@@ -36,16 +36,11 @@ const mapAuthError = (error: AuthError): string => {
     }
 };
 
-type SubscriptionType = 'Pro' | 'Básica' | 'Prueba' | null;
-
 type AuthContextType = {
   user: FirebaseUser | null;
   loading: boolean;
   isRegisteredUser: boolean;
   isAdmin: boolean;
-  isSubscribed: boolean;
-  subscriptionType: SubscriptionType;
-  subscriptionEnd: Date | null;
   login: (values: z.infer<typeof loginSchema>) => Promise<FirebaseUser | null>;
   register: (values: z.infer<typeof registerSchema>) => Promise<FirebaseUser | null>;
   signOut: () => Promise<void>;
@@ -61,74 +56,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [subscriptionType, setSubscriptionType] = useState<SubscriptionType>(null);
-  const [subscriptionEnd, setSubscriptionEnd] = useState<Date | null>(null);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    const db = getFirebaseDb();
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        const userDocRef = doc(db, "usuarios", currentUser.uid);
-        try {
-            const docSnap = await getDoc(userDocRef);
-
-            const isAdminByEmail = currentUser.email === ADMIN_EMAIL;
-            const isAdminByRole = docSnap.exists() && docSnap.data().role === 'admin';
-            const finalIsAdmin = isAdminByEmail || isAdminByRole;
-            
-            setIsAdmin(finalIsAdmin);
-
-            // --- Subscription & Trial Logic ---
-            let finalIsSubscribed = false;
-            let finalSubsType: SubscriptionType = null;
-            let finalSubExpiresAt: Date | null = null;
-            
-            if (currentUser.email === 'dimateo73@gmail.com') {
-                finalIsSubscribed = true;
-                finalSubsType = 'Pro';
-                const expiration = new Date();
-                expiration.setFullYear(expiration.getFullYear() + 1);
-                finalSubExpiresAt = expiration;
-
-            } else if (docSnap.exists()) {
-                const userData = docSnap.data();
-                if (userData.subscriptionStatus === 'active') {
-                    finalIsSubscribed = true;
-                    finalSubsType = userData.subscriptionType || 'Pro';
-                    if (userData.subscriptionEnd instanceof Timestamp) {
-                         finalSubExpiresAt = userData.subscriptionEnd.toDate();
-                    }
-                } else if (userData.trialEndsAt instanceof Timestamp) {
-                    const trialEndDate = userData.trialEndsAt.toDate();
-                    if (new Date() < trialEndDate) {
-                        finalIsSubscribed = true;
-                        finalSubsType = 'Prueba';
-                        finalSubExpiresAt = trialEndDate;
-                    }
-                }
-            }
-            setIsSubscribed(finalIsSubscribed);
-            setSubscriptionType(finalSubsType);
-            setSubscriptionEnd(finalSubExpiresAt);
-
-        } catch (dbError) {
-            console.error("Error fetching user document from Firestore:", dbError);
-            setIsAdmin(false);
-            setIsSubscribed(false);
-            setSubscriptionType(null);
-            setSubscriptionEnd(null);
-        }
-
-      } else {
-        // No user logged in, reset all flags
-        setIsAdmin(false);
-        setIsSubscribed(false);
-        setSubscriptionType(null);
-        setSubscriptionEnd(null);
-      }
+      setIsAdmin(currentUser?.email === ADMIN_EMAIL);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -156,9 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const newUser = userCredential.user;
 
       if (newUser) {
-        const userRole = newUser.email === ADMIN_EMAIL ? 'admin' : 'user';
         const userDocRef = doc(db, "usuarios", newUser.uid);
-
         const trialEnds = new Date();
         trialEnds.setHours(trialEnds.getHours() + 48);
 
@@ -166,12 +97,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             uid: newUser.uid,
             email: newUser.email,
             createdAt: serverTimestamp(),
-            role: userRole,
+            role: newUser.email === ADMIN_EMAIL ? 'admin' : 'user',
             subscriptionStatus: 'inactive',
             trialEndsAt: Timestamp.fromDate(trialEnds),
-            subscriptionEnd: null,
-            loginCount: 1,
-            lastLoginAt: serverTimestamp(),
         });
         
         return newUser;
@@ -224,17 +152,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isRegisteredUser = !!user;
 
+  // Derive subscription status simply
+  const isSubscribed = isRegisteredUser; // Simplified for stability
+
   return (
-    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionEnd, login, register, signOut, changePassword, error, clearError }}>
+    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, login, register, signOut, changePassword, error, clearError }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  return context;
+  // Add a placeholder for removed properties to avoid breaking downstream components immediately
+  return { ...context, isSubscribed: !!context.user, subscriptionType: null, subscriptionEnd: null };
 };
