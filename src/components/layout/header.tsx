@@ -21,13 +21,8 @@ import { trackPageView } from '@/lib/actions/user-actions';
 export default function Header() {
   const { user, signOut, loading, isAdmin } = useAuth();
   const pathname = usePathname();
-  const [isMounted, setIsMounted] = useState(false);
   const lastTrackedPath = useRef<string | null>(null);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  
   useEffect(() => {
     if (user && pathname !== lastTrackedPath.current) {
       trackPageView({ userId: user.uid, pathname });
@@ -69,7 +64,7 @@ export default function Header() {
               </Link>
             </Button>
           ))}
-          {isMounted && isAdmin && adminLinks.map((link) => (
+          {isAdmin && adminLinks.map((link) => (
             <Button
               key={link.href}
               variant={pathname.startsWith(link.href) ? 'secondary' : 'ghost'}
@@ -87,7 +82,7 @@ export default function Header() {
         </nav>
         <div className="flex items-center gap-2">
           {/* Auth Content */}
-          {!isMounted || loading ? (
+          {loading ? (
              <div className="h-8 w-20 animate-pulse rounded-md bg-primary/50" />
           ) : user ? (
             <DropdownMenu>
@@ -133,73 +128,71 @@ export default function Header() {
 
           {/* Mobile Menu */}
           <div className="inline-flex md:hidden">
-            {isMounted && (
-               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="hover:bg-primary/80">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Toggle menu</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {navLinks.map((link) => ( 
-                    <DropdownMenuItem key={link.href} asChild>
-                      <Link href={link.href}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="hover:bg-primary/80">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {navLinks.map((link) => ( 
+                  <DropdownMenuItem key={link.href} asChild>
+                    <Link href={link.href}>
+                      <span className="flex items-center">
+                        {link.icon}
+                        {link.label}
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                {isAdmin && adminLinks.map((link) => (
+                  <DropdownMenuItem key={link.href} asChild>
+                    <Link href={link.href}>
+                      <span className="flex items-center text-red-500">
+                        {link.icon}
+                        {link.label}
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                {!user && !loading ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/login">
                         <span className="flex items-center">
-                          {link.icon}
-                          {link.label}
+                          <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
                         </span>
                       </Link>
                     </DropdownMenuItem>
-                  ))}
-                  {isAdmin && adminLinks.map((link) => (
-                    <DropdownMenuItem key={link.href} asChild>
-                      <Link href={link.href}>
-                        <span className="flex items-center text-red-500">
-                          {link.icon}
-                          {link.label}
+                    <DropdownMenuItem asChild>
+                        <Link href="/register">
+                        <span className="flex items-center">
+                          <UserPlus className="mr-2 h-4 w-4" /> Registrarse
                         </span>
                       </Link>
                     </DropdownMenuItem>
-                  ))}
-                  {!user && !loading ? (
+                  </>
+                ) : (
+                    user && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/login">
-                          <span className="flex items-center">
-                            <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
-                          </span>
-                        </Link>
+                      <DropdownMenuItem asChild className="cursor-pointer">
+                          <Link href="/perfil">
+                              <UserCircle className="mr-2 h-4 w-4" />
+                              <span>Perfil</span>
+                          </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                         <Link href="/register">
-                          <span className="flex items-center">
-                            <UserPlus className="mr-2 h-4 w-4" /> Registrarse
-                          </span>
-                        </Link>
+                      <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Cerrar sesión</span>
                       </DropdownMenuItem>
                     </>
-                  ) : (
-                     user && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild className="cursor-pointer">
-                            <Link href="/perfil">
-                                <UserCircle className="mr-2 h-4 w-4" />
-                                <span>Perfil</span>
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={signOut} className="cursor-pointer">
-                          <LogOut className="mr-2 h-4 w-4" />
-                          <span>Cerrar sesión</span>
-                        </DropdownMenuItem>
-                      </>
-                    )
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                  )
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

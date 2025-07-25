@@ -16,6 +16,7 @@ import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firest
 import { getFirebaseDb } from '@/lib/firebase';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
+import { Loader2 } from 'lucide-react';
 
 const ADMIN_EMAIL = 'futsaldex@gmail.com';
 
@@ -205,6 +206,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const isRegisteredUser = !!user;
+
+  // DELAY RENDER UNTIL LOADING IS COMPLETE
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionEnd, login, register, signOut, changePassword, error, clearError }}>
