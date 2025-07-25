@@ -8,7 +8,7 @@
 
 import { z } from 'zod';
 import { getFirebaseDb } from '@/lib/firebase';
-import { collection, doc, setDoc, updateDoc, getDoc, serverTimestamp, FieldValue, arrayUnion, Timestamp, increment } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, getDoc, serverTimestamp, FieldValue, arrayUnion, Timestamp, increment, deleteDoc } from 'firebase/firestore';
 
 
 // --- Delete Session ---
@@ -20,7 +20,6 @@ type DeleteSessionInput = z.infer<typeof DeleteSessionInputSchema>;
 export async function deleteSession({ sessionId }: DeleteSessionInput): Promise<{ success: boolean }> {
   try {
     const db = getFirebaseDb();
-    const { doc, deleteDoc } = await import('firebase/firestore');
     await deleteDoc(doc(db, "mis_sesiones", sessionId));
   } catch(error) {
      console.error("Error deleting session:", error);
@@ -46,26 +45,36 @@ export async function trackPageView(input: TrackPageViewInput): Promise<{ succes
     try {
         const db = getFirebaseDb();
         const pageViewDocRef = doc(db, 'user_page_views', userId);
+        const userDocRef = doc(db, 'usuarios', userId);
         
         // Sanitize the pathname to be a valid Firestore field key
-        // Replace '/' with '_' and remove any other invalid characters.
         const fieldKey = pathname.replace(/\//g, '_').replace(/[^a-zA-Z0-9_]/g, '');
 
         // If the key is empty after sanitization (e.g., path was just "/"), use a default.
         const finalKey = fieldKey === '' ? 'home' : fieldKey;
 
-        // Use dot notation to increment the nested field.
+        // Use a transaction or batch to update both documents atomically if needed,
+        // but for this case, separate updates are likely fine.
         await setDoc(pageViewDocRef, {
             [finalKey]: increment(1),
             lastVisitedPath: pathname,
             updatedAt: serverTimestamp(),
         }, { merge: true });
 
+        // Update login count and last login time on the user document
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+             await updateDoc(userDocRef, {
+                loginCount: increment(1),
+                lastLoginAt: serverTimestamp(),
+            });
+        }
+
+
         return { success: true };
 
     } catch (error) {
         console.error(`Error tracking page view for user ${userId} on path ${pathname}:`, error);
-        // We don't throw an error to the client, as this is a background task.
         return { success: false };
     }
 }

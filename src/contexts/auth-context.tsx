@@ -73,28 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         const userDocRef = doc(db, "usuarios", currentUser.uid);
         try {
-            let docSnap = await getDoc(userDocRef);
-
-            // If user exists in Auth but not in Firestore, create their document
-            if (!docSnap.exists()) {
-                const userRole = currentUser.email === ADMIN_EMAIL ? 'admin' : 'user';
-                const trialEnds = new Date();
-                trialEnds.setHours(trialEnds.getHours() + 48);
-
-                await setDoc(userDocRef, {
-                    uid: currentUser.uid,
-                    email: currentUser.email,
-                    createdAt: serverTimestamp(),
-                    role: userRole,
-                    subscriptionStatus: 'inactive',
-                    trialEndsAt: Timestamp.fromDate(trialEnds),
-                    subscriptionEnd: null,
-                    loginCount: 0,
-                    lastLoginAt: null,
-                });
-                // Re-fetch the document to get the fresh data
-                docSnap = await getDoc(userDocRef);
-            }
+            const docSnap = await getDoc(userDocRef);
 
             const isAdminByEmail = currentUser.email === ADMIN_EMAIL;
             const isAdminByRole = docSnap.exists() && docSnap.data().role === 'admin';
@@ -158,19 +137,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (values: z.infer<typeof loginSchema>) => {
     setError(null);
     const auth = getFirebaseAuth();
-    const db = getFirebaseDb();
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const loggedInUser = userCredential.user;
-
-      if(loggedInUser) {
-        const userDocRef = doc(db, "usuarios", loggedInUser.uid);
-        await updateDoc(userDocRef, {
-            loginCount: increment(1),
-            lastLoginAt: serverTimestamp(),
-        });
-      }
-      return loggedInUser;
+      return userCredential.user;
     } catch (e) {
       const authError = e as AuthError;
       setError(mapAuthError(authError));
@@ -190,7 +159,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userRole = newUser.email === ADMIN_EMAIL ? 'admin' : 'user';
         const userDocRef = doc(db, "usuarios", newUser.uid);
 
-        // Calculate trial end date: 48 hours from now
         const trialEnds = new Date();
         trialEnds.setHours(trialEnds.getHours() + 48);
 
@@ -199,14 +167,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             email: newUser.email,
             createdAt: serverTimestamp(),
             role: userRole,
-            subscriptionStatus: 'inactive', // New users are not subscribed by default
+            subscriptionStatus: 'inactive',
             trialEndsAt: Timestamp.fromDate(trialEnds),
             subscriptionEnd: null,
-            loginCount: 1, // First login is on registration
+            loginCount: 1,
             lastLoginAt: serverTimestamp(),
         });
         
-        // onAuthStateChanged will handle setting admin/subscription state
         return newUser;
       }
       return null;
@@ -223,7 +190,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const auth = getFirebaseAuth();
     try {
       await firebaseSignOut(auth);
-      // onAuthStateChanged will handle resetting states to false
     } catch (e) {
       const authError = e as AuthError;
       setError(mapAuthError(authError));
@@ -242,9 +208,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const credential = EmailAuthProvider.credential(currentUser.email, currentPass);
 
     try {
-      // Re-authenticate user to confirm their identity
       await reauthenticateWithCredential(currentUser, credential);
-      // If re-authentication is successful, update the password
       await updatePassword(currentUser, newPass);
       return true;
     } catch (e) {
