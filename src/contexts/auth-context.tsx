@@ -36,11 +36,16 @@ const mapAuthError = (error: AuthError): string => {
     }
 };
 
+type SubscriptionType = 'Pro' | 'Básica' | 'Prueba' | 'inactive' | null;
+
 type AuthContextType = {
   user: FirebaseUser | null;
   loading: boolean;
   isRegisteredUser: boolean;
   isAdmin: boolean;
+  isSubscribed: boolean;
+  subscriptionType: SubscriptionType;
+  subscriptionEnd: Date | null;
   login: (values: z.infer<typeof loginSchema>) => Promise<FirebaseUser | null>;
   register: (values: z.infer<typeof registerSchema>) => Promise<FirebaseUser | null>;
   signOut: () => Promise<void>;
@@ -56,12 +61,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriptionType, setSubscriptionType] = useState<SubscriptionType>(null);
+  const [subscriptionEnd, setSubscriptionEnd] = useState<Date | null>(null);
+
 
   useEffect(() => {
     const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setIsAdmin(currentUser?.email === ADMIN_EMAIL);
+
+      if (currentUser) {
+        const db = getFirebaseDb();
+        const userDocRef = doc(db, "usuarios", currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          const status = userData.subscriptionStatus === 'active';
+          
+          let subEnd: Date | null = null;
+          if (userData.subscriptionEnd instanceof Timestamp) {
+            subEnd = userData.subscriptionEnd.toDate();
+          }
+
+          let trialEnd: Date | null = null;
+          if (userData.trialEndsAt instanceof Timestamp) {
+            trialEnd = userData.trialEndsAt.toDate();
+          }
+
+          const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+
+          setIsSubscribed(status || isTrialActive);
+          
+          if (isTrialActive) {
+            setSubscriptionType('Prueba');
+            setSubscriptionEnd(trialEnd);
+          } else if (status) {
+            setSubscriptionType(userData.subscriptionType || 'Básica');
+            setSubscriptionEnd(subEnd);
+          } else {
+            setSubscriptionType(null);
+            setSubscriptionEnd(null);
+          }
+
+        } else {
+          setIsSubscribed(false);
+          setSubscriptionType(null);
+          setSubscriptionEnd(null);
+        }
+      } else {
+        setIsSubscribed(false);
+        setSubscriptionType(null);
+        setSubscriptionEnd(null);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -152,11 +206,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isRegisteredUser = !!user;
 
-  // Derive subscription status simply
-  const isSubscribed = isRegisteredUser; // Simplified for stability
-
   return (
-    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, login, register, signOut, changePassword, error, clearError }}>
+    <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionEnd, login, register, signOut, changePassword, error, clearError }}>
       {children}
     </AuthContext.Provider>
   );
@@ -167,6 +218,5 @@ export const useAuth = () => {
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  // Add a placeholder for removed properties to avoid breaking downstream components immediately
-  return { ...context, isSubscribed: !!context.user, subscriptionType: null, subscriptionEnd: null };
+  return context;
 };

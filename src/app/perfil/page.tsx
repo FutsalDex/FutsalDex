@@ -20,13 +20,14 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff, UserCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, UserCircle, Shield, Star, CalendarOff } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { passwordChangeSchema } from "@/lib/schemas";
+import { Badge } from "@/components/ui/badge";
 
 function PerfilPageContent() {
-  const { user, changePassword, error: authError, clearError } = useAuth();
+  const { user, changePassword, error: authError, clearError, isSubscribed, isAdmin, subscriptionType, subscriptionEnd } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -56,6 +57,21 @@ function PerfilPageContent() {
       form.reset();
     }
   }
+  
+  const formatDate = (date: Date | null) => {
+    if (!date) return 'No especificada';
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+  };
+  
+  const getSubscriptionBadgeVariant = (type: string | null) => {
+      switch (type) {
+          case 'Pro': return 'destructive';
+          case 'Básica': return 'default';
+          case 'Prueba': return 'secondary';
+          default: return 'outline';
+      }
+  };
+
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-8 md:px-6">
@@ -65,7 +81,7 @@ function PerfilPageContent() {
             Mi Perfil
         </h1>
         <p className="text-lg text-foreground/80">
-            Gestiona la información de tu cuenta.
+            Gestiona la información de tu cuenta y tu suscripción.
         </p>
       </header>
       
@@ -73,11 +89,34 @@ function PerfilPageContent() {
         <CardHeader>
             <CardTitle>Información del Usuario</CardTitle>
         </CardHeader>
-        <CardContent>
-            <div className="space-y-2">
+        <CardContent className="space-y-4">
+            <div className="space-y-1">
                 <Label>Correo Electrónico</Label>
                 <p className="font-semibold text-foreground">{user?.email}</p>
             </div>
+            <div className="space-y-1">
+                <Label>Rol</Label>
+                <div className="flex items-center">
+                    <Shield className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <p className="font-semibold text-foreground">{isAdmin ? 'Administrador' : 'Usuario'}</p>
+                </div>
+            </div>
+             <div className="space-y-1">
+                <Label>Suscripción</Label>
+                <div className="flex items-center">
+                   <Star className="h-4 w-4 mr-2 text-muted-foreground" />
+                   <Badge variant={getSubscriptionBadgeVariant(subscriptionType)}>{subscriptionType || 'Sin Suscripción'}</Badge>
+                </div>
+            </div>
+            {isSubscribed && subscriptionEnd && (
+                <div className="space-y-1">
+                    <Label>Fecha de Vencimiento</Label>
+                    <div className="flex items-center">
+                        <CalendarOff className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <p className="font-semibold text-foreground">{formatDate(subscriptionEnd)}</p>
+                    </div>
+                </div>
+            )}
         </CardContent>
       </Card>
       
