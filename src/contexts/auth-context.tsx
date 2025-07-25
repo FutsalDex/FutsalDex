@@ -12,10 +12,10 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
-import { Loader2 } from 'lucide-react';
+import { trackPageView } from '@/lib/actions/user-actions';
 
 const ADMIN_EMAIL = 'futsaldex@gmail.com';
 
@@ -69,10 +69,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setLoading(true);
       setUser(currentUser);
       
       if (currentUser) {
-        setIsAdmin(currentUser.email === ADMIN_EMAIL);
+        trackPageView({ userId: currentUser.uid, pathname: window.location.pathname });
+        
+        const userIsAdmin = currentUser.email === ADMIN_EMAIL;
+        setIsAdmin(userIsAdmin);
+
         const db = getFirebaseDb();
         const userDocRef = doc(db, "usuarios", currentUser.uid);
         try {
@@ -92,8 +97,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+                const finalSubscriptionStatus = status || isTrialActive;
 
-                setIsSubscribed(status || isTrialActive);
+                setIsSubscribed(finalSubscriptionStatus);
                 
                 if (isTrialActive) {
                     setSubscriptionType('Prueba');
@@ -102,9 +108,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     setSubscriptionType(userData.subscriptionType || 'Básica');
                     setSubscriptionEnd(subEnd);
                 } else {
-                    setSubscriptionType(null);
+                    setSubscriptionType('inactive');
                     setSubscriptionEnd(null);
                 }
+            } else {
+               setIsSubscribed(false);
+               setSubscriptionType('inactive');
+               setSubscriptionEnd(null);
             }
         } catch (dbError) {
             console.error("Error fetching user subscription data:", dbError);
@@ -156,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             createdAt: serverTimestamp(),
             role: newUser.email === ADMIN_EMAIL ? 'admin' : 'user',
             subscriptionStatus: 'inactive',
+            subscriptionType: null,
             trialEndsAt: Timestamp.fromDate(trialEnds),
         });
         

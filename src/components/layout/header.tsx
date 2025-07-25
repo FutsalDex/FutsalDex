@@ -25,6 +25,7 @@ export default function Header() {
   const lastTrackedPath = useRef<string | null>(null);
 
   useEffect(() => {
+    // Only track page view if user is logged in and path has changed.
     if (user && pathname !== lastTrackedPath.current) {
       trackPageView({ userId: user.uid, pathname });
       lastTrackedPath.current = pathname;
