@@ -15,7 +15,7 @@
     --popover-foreground: 215 28% 17%;
 
     --primary: 160 45% 55%; /* New Teal Color from image */
-    --primary-foreground: 210 40% 98%;
+    --primary-foreground: 215 28% 17%; /* Dark desaturated blue, almost black */
 
     --secondary: 210 40% 90%;
     --secondary-foreground: 215 28% 17%;
@@ -24,7 +24,7 @@
     --muted-foreground: 215 25% 45%;
 
     --accent: 160 45% 55%; /* New Teal Color, same as primary */
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 215 28% 17%; /* Dark desaturated blue for text on accent */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -42,7 +42,7 @@
     --popover: 215 28% 12%;
     --popover-foreground: 210 40% 98%;
     --primary: 160 50% 60%;
-    --primary-foreground: 215 28% 10%;
+    --primary-foreground: 210 40% 98%; /* Light text on primary in dark mode */
     --secondary: 215 28% 25%;
     --secondary-foreground: 210 40% 98%;
     --muted: 215 28% 22%;
