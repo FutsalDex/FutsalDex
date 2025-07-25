@@ -2,7 +2,7 @@
 "use client";
 import type { User as FirebaseUser, AuthError } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { getFirebaseAuth, getFirebaseDb } from '@/lib/firebase';
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -13,7 +13,6 @@ import {
   reauthenticateWithCredential
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { getFirebaseDb } from '@/lib/firebase';
 import type { z } from 'zod';
 import type { loginSchema, registerSchema } from '@/lib/schemas';
 import { Loader2 } from 'lucide-react';
@@ -23,7 +22,7 @@ const ADMIN_EMAIL = 'futsaldex@gmail.com';
 const mapAuthError = (error: AuthError): string => {
     switch (error.code) {
         case 'auth/invalid-api-key':
-            return 'La clave de API (apiKey) de Firebase no es válida. Por favor, asegúrate de que las variables de entorno en tu archivo .env (específicamente NEXT_PUBLIC_FIREBASE_API_KEY) son correctas y que has reiniciado el servidor de desarrollo.';
+            return 'La clave de API (apiKey) de Firebase no es válida. Por favor, asegúrate de que las variables de entorno son correctas.';
         case 'auth/wrong-password':
         case 'auth/user-not-found':
         case 'auth/invalid-credential':
@@ -31,9 +30,9 @@ const mapAuthError = (error: AuthError): string => {
         case 'auth/email-already-in-use':
             return 'Este correo electrónico ya está registrado. Por favor, inicia sesión o usa un email diferente.';
         case 'auth/requires-recent-login':
-            return 'Esta operación es sensible y requiere una autenticación reciente. Por favor, vuelve a iniciar sesión antes de intentarlo de nuevo.';
+            return 'Esta operación es sensible y requiere una autenticación reciente. Por favor, vuelve a iniciar sesión.';
         default:
-            return error.message || 'Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo.';
+            return error.message || 'Ha ocurrido un error inesperado.';
     }
 };
 
@@ -208,16 +207,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
   };
 
+  if (loading) {
+    return (
+        <div className="flex h-screen flex-col items-center justify-center">
+            <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
+            <p className="text-lg font-medium">Cargando FutsalDex...</p>
+        </div>
+    );
+  }
+
   const isRegisteredUser = !!user;
 
   return (
     <AuthContext.Provider value={{ user, loading, isRegisteredUser, isAdmin, isSubscribed, subscriptionType, subscriptionEnd, login, register, signOut, changePassword, error, clearError }}>
-      {loading ? (
-          <div className="flex h-screen flex-col items-center justify-center">
-              <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
-              <p className="text-lg font-medium">Cargando FutsalDex...</p>
-          </div>
-      ) : children}
+      {children}
     </AuthContext.Provider>
   );
 };

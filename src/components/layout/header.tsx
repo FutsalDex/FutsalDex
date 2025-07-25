@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useRef } from 'react';
 import { trackPageView } from '@/lib/actions/user-actions';
+import { Loader2 } from 'lucide-react';
 
 export default function Header() {
   const { user, signOut, isAdmin } = useAuth();
@@ -187,7 +187,7 @@ export default function Header() {
                       </DropdownMenuItem>
                     </>
                   )
-                )}
+                }
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

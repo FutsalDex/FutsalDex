@@ -2,7 +2,6 @@ import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions 
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
-// Your web app's Firebase configuration is now loaded from environment variables
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,40 +12,35 @@ const firebaseConfig: FirebaseOptions = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// --- LAZY INITIALIZATION ---
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
-
-
-function initializeFirebase() {
-  if (!app) {
-    if (getApps().length === 0) {
-      if (!firebaseConfig.apiKey) {
-        console.error("Firebase API Key is missing. Check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is set.");
-        return;
-      }
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = getApp();
-    }
-    auth = getAuth(app);
-  }
+function isConfigValid(config: FirebaseOptions): boolean {
+    return !!config.apiKey && !!config.projectId;
 }
 
-// Export functions that provide the initialized instances
+// --- ROBUST INITIALIZATION ---
+let firebaseApp: FirebaseApp;
+let firebaseAuth: Auth;
+let firestoreDb: Firestore;
+
+if (typeof window !== 'undefined' && isConfigValid(firebaseConfig)) {
+    if (!getApps().length) {
+        firebaseApp = initializeApp(firebaseConfig);
+    } else {
+        firebaseApp = getApp();
+    }
+    firebaseAuth = getAuth(firebaseApp);
+    firestoreDb = getFirestore(firebaseApp);
+}
+
 export function getFirebaseAuth(): Auth {
-  initializeFirebase();
-  if (!auth) {
-    throw new Error("Firebase Authentication could not be initialized. Please check your configuration.");
+  if (!firebaseAuth) {
+    throw new Error("Firebase Authentication could not be initialized. Please check your configuration and ensure you are on the client-side.");
   }
-  return auth;
+  return firebaseAuth;
 }
 
 export function getFirebaseDb(): Firestore {
-  initializeFirebase();
-  if (!app) {
-      throw new Error("Firebase App could not be initialized. Please check your configuration.");
+  if (!firestoreDb) {
+     throw new Error("Firestore could not be initialized. Please check your configuration and ensure you are on the client-side.");
   }
-  // Always get a new instance of Firestore from the initialized app.
-  return getFirestore(app);
+  return firestoreDb;
 }
